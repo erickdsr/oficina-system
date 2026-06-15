@@ -25,7 +25,7 @@ public class CategoryService {
     private CategoryResponseDTO toResponseDTO(Category entity) {
         return CategoryResponseDTO.fromEntity(entity);
     }
-    public List<CategoryResponseDTO> listCategories(){
+    public List<CategoryResponseDTO> listCategory(){
         return categoryRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());

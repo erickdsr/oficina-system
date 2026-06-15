@@ -31,6 +31,11 @@ public class EmployeeRequestDTO {
     private String email;
 
     @NotBlank
+    @Size(min = 6, max = 100)
+    @Schema(description = "Senha do funcionário", example = "senha123")
+    private String password;
+
+    @NotBlank
     @Size(max = 254)
     @Schema(description = "Role", example = "funcionario")
     private String roleName;

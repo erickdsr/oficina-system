@@ -31,7 +31,7 @@ public class CategoryController {
     @GetMapping
     @Operation(summary = "List categories", description = "Obtenha uma lista de todas as categorias.")
     public ResponseEntity<List<CategoryResponseDTO>> listCategory() {
-        return ResponseEntity.ok(categoryService.listCategories());
+        return ResponseEntity.ok(categoryService.listCategory());
     }
     @GetMapping("/{id}")
     @Operation(summary = "Get category by ID", description = "Obtenha uma categoria pelo seu ID")

@@ -2,7 +2,6 @@ package com.distribuidora.system_oficina.supplier.service;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-
 import com.distribuidora.system_oficina.supplier.repository.SupplierRepository;
 import com.distribuidora.system_oficina.supplier.dto.SupplierRequestDTO;
 import com.distribuidora.system_oficina.supplier.dto.SupplierResponseDTO;
@@ -33,7 +32,7 @@ public class SupplierService {
     private SupplierResponseDTO toResponseDTO(Supplier entity) {
         return SupplierResponseDTO.fromEntity(entity);
     }
-    public List<SupplierResponseDTO> listSuppliers(){
+    public List<SupplierResponseDTO> listSupplier(){
         return supplierRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());

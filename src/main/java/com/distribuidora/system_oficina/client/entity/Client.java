@@ -35,7 +35,7 @@ public class Client {
     private String phone;
 
     @Column(name = "cpf_cnpj", nullable = false, length = 20)
-    private String cpfcnpj;
+    private String cpfCnpj;
 
     @Column(name = "clien_type", nullable = false, length = 10)
     private String clientType;

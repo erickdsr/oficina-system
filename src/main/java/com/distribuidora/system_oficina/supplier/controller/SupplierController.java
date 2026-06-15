@@ -32,8 +32,8 @@ public class SupplierController {
 
     @GetMapping
     @Operation(summary = "List suppliers", description = "Get a list of all suppliers")
-    public ResponseEntity<List<SupplierResponseDTO>> listSuppliers() {
-        return ResponseEntity.ok(supplierService.listSuppliers());
+    public ResponseEntity<List<SupplierResponseDTO>> listSupplier() {
+        return ResponseEntity.ok(supplierService.listSupplier());
     }
 
     @GetMapping("/{id}")

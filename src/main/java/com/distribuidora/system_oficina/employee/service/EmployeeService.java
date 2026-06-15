@@ -27,6 +27,7 @@ public class EmployeeService {
         entity.setCpf(dto.getCpf());
         entity.setEmail(dto.getEmail());
         entity.setPhone(dto.getPhone());
+        entity.setPassword(dto.getPassword());
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
         entity.setRole(role);
         return entity;
@@ -53,6 +54,7 @@ public class EmployeeService {
             entity.setCpf(dto.getCpf());
             entity.setRole(role);
             entity.setEmail(dto.getEmail());
+            entity.setPassword(dto.getPassword());
             entity.setPhone(dto.getPhone());
             entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
         

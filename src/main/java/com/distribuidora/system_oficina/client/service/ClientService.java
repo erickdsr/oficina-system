@@ -20,7 +20,7 @@ public class ClientService {
     private Client toEntity(ClientRequestDTO dto) {
         Client entity = new Client();
         entity.setName(dto.getName());
-        entity.setCpfcnpj(dto.getCpfcnpj());
+        entity.setCpfCnpj(dto.getCpfcnpj());
         entity.setEmail(dto.getEmail());
         entity.setClientType(dto.getClientype());
         entity.setPhone(dto.getPhone());
@@ -48,7 +48,7 @@ public class ClientService {
     public ClientResponseDTO updateClient(Integer id, ClientRequestDTO dto){
         Client entity = clientRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found"));
             entity.setName(dto.getName());
-            entity.setCpfcnpj(dto.getCpfcnpj());
+            entity.setCpfCnpj(dto.getCpfcnpj());
             entity.setClientType(dto.getClientype());
             entity.setEmail(dto.getEmail());
             entity.setPhone(dto.getPhone());
