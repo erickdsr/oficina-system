@@ -2,9 +2,9 @@ package com.distribuidora.system_oficina.category.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.sql.Timestamp;
+import org.hibernate.annotations.CreationTimestamp;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Column;
@@ -28,12 +28,9 @@ public class Category {
 
     @Column(name = "description", length = 255)
     private String description;
-    
+
+    @CreationTimestamp
     @Column(name = "created_at")
     private Timestamp createdAt;
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = new Timestamp(System.currentTimeMillis());
-    }
 }
