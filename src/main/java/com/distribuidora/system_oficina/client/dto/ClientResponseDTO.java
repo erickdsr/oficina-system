@@ -54,7 +54,6 @@ public class ClientResponseDTO {
         return ClientResponseDTO.builder()
                 .id(client.getId())
                 .name(client.getName())
-                .cpfcnpj(client.getCpfCnpj())
                 .clientype(client.getClientType())
                 .email(client.getEmail())
                 .phone(client.getPhone())

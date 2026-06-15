@@ -7,8 +7,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Table;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Column;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -36,10 +34,10 @@ public class Client {
     @Column(name =  "phone", nullable = false, length = 20)
     private String phone;
 
-    @Column(name = "cpfcnpj", nullable = false, length = 20)
+    @Column(name = "cpf_cnpj", nullable = false, length = 20)
     private String cpfcnpj;
 
-    @Column(name = "clientype", nullable = false, length = 10)
+    @Column(name = "clien_type", nullable = false, length = 10)
     private String clientType;
 
     @Column(name = "adress", length = 255)
@@ -55,25 +53,11 @@ public class Client {
     private Boolean status = true; 
      
     @CreationTimestamp
-    @Column(name = "createdAt", nullable = false)
+    @Column(name = "created_at", nullable = false)
     private Timestamp createdAt;
      
     @UpdateTimestamp
-    @Column(name = "updatedAt", nullable = false)
+    @Column(name = "updated_at", nullable = false)
     private Timestamp updatedAt;
 
-     @PrePersist
-    protected void onCreate() {
-        this.createdAt = new Timestamp(System.currentTimeMillis());
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = new Timestamp(System.currentTimeMillis());
-    }
-
-    public String getCpfCnpj() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getCpfCnpj'");
-    }
 }
