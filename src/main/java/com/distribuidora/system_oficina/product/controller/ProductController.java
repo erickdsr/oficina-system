@@ -15,7 +15,7 @@ import com.distribuidora.system_oficina.product.dto.ProductRequestDTO;
 import com.distribuidora.system_oficina.product.dto.ProductResponseDTO;
 import com.distribuidora.system_oficina.product.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import org.springframework.web.bind.annotation.RequestBody;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +41,7 @@ public class ProductController {
 
     @PostMapping
     @Operation(summary = "Create Product", description = "Create a new Product")
-    public ResponseEntity<ProductResponseDTO> createProduct(@RequestBody @Valid ProductRequestDTO dto) {
+    public ResponseEntity<ProductResponseDTO> createProduct(@Valid @RequestBody ProductRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.createProduct(dto));
     }
 

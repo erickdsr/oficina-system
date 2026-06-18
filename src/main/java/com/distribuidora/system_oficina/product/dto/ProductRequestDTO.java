@@ -6,6 +6,7 @@ import com.distribuidora.system_oficina.product.entity.Unit;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -34,19 +35,19 @@ public class ProductRequestDTO {
     @Size(max = 50)
     @Schema(description = "barcode do product", example = "")
     private String barCode;
-
-    @NotBlank
+     
+    @NotNull(message = "A categoria é obrigatória")
+    @Positive
     @Schema(description = "ID the Category", example = "1")
     private Integer categoryId;
     
     @Schema(description = "ID the supplier", example = "2")
     private Integer supplierId;
 
-    @NotBlank
-    @Schema(description = "costprice", example = "10,00")
+    @Schema(description = "costprice", example = "10.00")
     private BigDecimal costPrice;
     
-    @Schema(description = "saleprice", example = "15,00")
+    @Schema(description = "saleprice", example = "15.00")
     private BigDecimal salePrice;
 
     @Schema(description = "Unit", example = "UN")
