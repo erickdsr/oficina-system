@@ -36,17 +36,17 @@ public class StockController {
     public ResponseEntity<StockResponseDTO> getStockById(@PathVariable Integer id) {
         return ResponseEntity.ok(stockService.getStockById(id));
     }
-    @GetMapping("/{low}")
+    @GetMapping("/low")
     @Operation(summary = "Low stock", description = "Alert a stock low")
     public ResponseEntity<List<StockResponseDTO>> listLowStock() {
         return ResponseEntity.ok(stockService.listLowStock());
     }
     @PatchMapping("/{id}")
     @Operation(summary = "Update stock", description = "Update an existing stock")
-    public ResponseEntity<StockResponseDTO> updatestock(@PathVariable Integer id, @RequestBody @Valid StockRequestDTO dto) {
+    public ResponseEntity<StockResponseDTO> updateStock(@PathVariable Integer id, @RequestBody @Valid StockRequestDTO dto) {
         return ResponseEntity.ok(stockService.updateStock(id, dto));
     }
-    @GetMapping("/{movements}")
+    @GetMapping("/movements")
     @Operation(summary = "Movements stock", description = "Get a list of all movements stocks")
     public ResponseEntity<List<StockMovementDTO>> listMovementStock() {
         return ResponseEntity.ok(stockService.listMovementStock());

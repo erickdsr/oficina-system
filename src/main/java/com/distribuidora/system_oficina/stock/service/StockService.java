@@ -75,11 +75,33 @@ public class StockService {
                 .map(this::toMovementDTO)
                 .collect(Collectors.toList());
     }
-    private void registerMovement(Product product, Employee employee, StockMovementType type, Integer quantity, String reason){
-        Stock stock = stockRepository.findByProduct(product).orElseThrow(() -> new RuntimeException("Stock not found"));
-        if(type == StockMovementType.ENTRADA){
-            stock.setQuantity(stock.getQuantity() + quantity);
-            stockRepository.save(stock);
+   private void registerMovement(Product product, Employee employee, StockMovementType type, Integer quantity, String reason){
+    Stock stock = stockRepository.findByProduct(product)
+            .orElseThrow(() -> new RuntimeException("Stock not found"));
+
+    if (type == StockMovementType.ENTRADA) {
+        stock.setQuantity(stock.getQuantity() + quantity);
+        stockRepository.save(stock);
+
+    } else if (type == StockMovementType.SAIDA) {
+        if (quantity > stock.getQuantity()) {
+            throw new RuntimeException("Estoque insuficiente");
         }
+        stock.setQuantity(stock.getQuantity() - quantity);
+        stockRepository.save(stock);
+
+    } else if (type == StockMovementType.AJUSTE) {
+        stock.setQuantity(quantity);
+        stockRepository.save(stock);
+    
+     StockMovement movement = new StockMovement();
+
+       movement.setProduct(product);
+       movement.setEmployee(employee);
+       movement.setType(type);
+       movement.setQuantity(quantity);
+       movement.setReason(reason);
+       stockMovementRepository.save(movement);
+    } 
     }
 }
