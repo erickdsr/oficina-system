@@ -26,6 +26,7 @@ public class StockService {
     private final StockRepository stockRepository;
     private final StockMovementRepository stockMovementRepository;
     private final ProductRepository productRepository;
+
      private Stock toEntity(StockRequestDTO dto) {
         Stock entity = new Stock();
         updateEntityFromDto(entity, dto);
@@ -43,6 +44,11 @@ public class StockService {
     }
     private StockMovementDTO toMovementDTO(StockMovement entity) {
         return StockMovementDTO.fromEntity(entity);
+    }
+
+    public StockResponseDTO createStock(StockRequestDTO dto){
+        Stock stock = toEntity(dto);
+        return toResponseDTO(stockRepository.save(stock));
     }
     public List<StockResponseDTO> listStock(){
         return stockRepository.findAll().stream()
