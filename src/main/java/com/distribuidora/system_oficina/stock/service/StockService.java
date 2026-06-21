@@ -1,10 +1,13 @@
 package com.distribuidora.system_oficina.stock.service;
 
+import java.lang.classfile.instruction.SwitchCase;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
+import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.product.entity.Product;
 import com.distribuidora.system_oficina.product.repository.ProductRepository;
 import com.distribuidora.system_oficina.stock.dto.StockMovementDTO;
@@ -12,6 +15,7 @@ import com.distribuidora.system_oficina.stock.dto.StockRequestDTO;
 import com.distribuidora.system_oficina.stock.dto.StockResponseDTO;
 import com.distribuidora.system_oficina.stock.entity.Stock;
 import com.distribuidora.system_oficina.stock.entity.StockMovement;
+import com.distribuidora.system_oficina.stock.entity.StockMovementType;
 import com.distribuidora.system_oficina.stock.repository.StockMovementRepository;
 import com.distribuidora.system_oficina.stock.repository.StockRepository;
 
@@ -73,5 +77,11 @@ public class StockService {
                 .map(this::toMovementDTO)
                 .collect(Collectors.toList());
     }
+    private void registerMovement(Product product, Employee employee, StockMovementType type, Integer quantity, String reason){
+        Stock stock = stockRepository.findByProduct(product).orElseThrow(() -> new RuntimeException("Stock not found"));
+        if(type == StockMovementType.ENTRADA){
+            stock.setQuantity(stock.getQuantity() + quantity);
+            stockRepository.save(stock);
+        }
+    }
 }
-
