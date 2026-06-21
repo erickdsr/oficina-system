@@ -1,12 +1,10 @@
 package com.distribuidora.system_oficina.stock.service;
 
-import java.lang.classfile.instruction.SwitchCase;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.product.entity.Product;
 import com.distribuidora.system_oficina.product.repository.ProductRepository;
