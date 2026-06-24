@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.distribuidora.system_oficina.purchase.entity.Purchase;
 import com.distribuidora.system_oficina.purchase.entity.Status;
 
-public interface PurchaseRepository extends JpaRepository <PurchaseRepository, Integer> {
+public interface PurchaseRepository extends JpaRepository <Purchase, Integer> {
     
     
     List<Purchase> findBySupplierId(Integer supplierId);

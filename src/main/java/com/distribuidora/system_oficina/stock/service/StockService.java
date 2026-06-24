@@ -81,7 +81,7 @@ public class StockService {
                 .map(this::toMovementDTO)
                 .collect(Collectors.toList());
     }
-   private void registerMovement(Product product, Employee employee, StockMovementType type, Integer quantity, String reason){
+    public void registerMovement(Product product, Employee employee, StockMovementType type, Integer quantity, String reason){
     Stock stock = stockRepository.findByProduct(product)
             .orElseThrow(() -> new RuntimeException("Stock not found"));
 

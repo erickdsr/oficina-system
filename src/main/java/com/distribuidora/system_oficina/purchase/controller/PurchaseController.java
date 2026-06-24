@@ -6,8 +6,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.distribuidora.system_oficina.purchase.dto.PurchaseRequestDTO;
 import com.distribuidora.system_oficina.purchase.dto.PurchaseResponseDTO;
 import com.distribuidora.system_oficina.purchase.service.PurchaseService;
-import com.distribuidora.system_oficina.stock.dto.StockRequestDTO;
-import com.distribuidora.system_oficina.stock.dto.StockResponseDTO;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,12 +49,12 @@ public class PurchaseController {
     @PatchMapping("/confirm/{id}")
     @Operation(summary = "confirm buy", description = "confirm buy a product")
     public ResponseEntity<PurchaseResponseDTO> confirmPurchase(@PathVariable Integer id, @RequestBody @Valid PurchaseRequestDTO dto) {
-        return ResponseEntity.ok(purchaseService.confirmPurchase(id, dto));
+        return ResponseEntity.ok(purchaseService.confirmPurchase(id));
 
     }
     @PatchMapping("/cancel/{id}")
     @Operation(summary = "cancel buy", description = "cancel buy a product")
     public ResponseEntity<PurchaseResponseDTO> cancelPurchase(@PathVariable Integer id, @RequestBody @Valid PurchaseRequestDTO dto) {
-        return ResponseEntity.ok(purchaseService.cancelPurchase(id, dto));
+        return ResponseEntity.ok(purchaseService.cancelPurchase(id));
     }
 }

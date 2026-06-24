@@ -1,7 +1,6 @@
 package com.distribuidora.system_oficina.purchase.service;
 
 import java.math.BigDecimal;
-import java.sql.Timestamp;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -11,15 +10,17 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
+import com.distribuidora.system_oficina.product.entity.Product;
 import com.distribuidora.system_oficina.product.repository.ProductRepository;
+import com.distribuidora.system_oficina.purchase.dto.PurchaseItemDTO;
 import com.distribuidora.system_oficina.purchase.dto.PurchaseRequestDTO;
 import com.distribuidora.system_oficina.purchase.dto.PurchaseResponseDTO;
 import com.distribuidora.system_oficina.purchase.entity.Purchase;
+import com.distribuidora.system_oficina.purchase.entity.PurchaseItem;
 import com.distribuidora.system_oficina.purchase.entity.Status;
 import com.distribuidora.system_oficina.purchase.repository.PurchaseItemRepository;
 import com.distribuidora.system_oficina.purchase.repository.PurchaseRepository;
-import com.distribuidora.system_oficina.stock.dto.StockRequestDTO;
-import com.distribuidora.system_oficina.stock.entity.Stock;
+import com.distribuidora.system_oficina.stock.entity.StockMovementType;
 import com.distribuidora.system_oficina.stock.service.StockService;
 import com.distribuidora.system_oficina.supplier.entity.Supplier;
 import com.distribuidora.system_oficina.supplier.repository.SupplierRepository;
@@ -36,7 +37,7 @@ public class PurchaseService {
     private final SupplierRepository supplierRepository;
     private final EmployeeRepository employeeRepository;
     private final ProductRepository productRepository;
-    private final StockService stockSevice;
+    private final StockService stockService;
     
     private Purchase toEntity(Integer supplierId, Integer employeeId, PurchaseRequestDTO dto) {
         Purchase entity = new Purchase();
@@ -53,13 +54,59 @@ public class PurchaseService {
     private PurchaseResponseDTO toResponseDTO(Purchase entity) {
         return PurchaseResponseDTO.fromEntity(entity);
     }
-     public List<PurchaseResponseDTO> listPurchases(){
+    public PurchaseResponseDTO createPurchase(PurchaseRequestDTO dto){
+        Purchase purchase = toEntity(dto.getSupplierId(), dto.getEmployeeId(), dto);
+        purchase = purchaseRepository.save(purchase);
+
+        BigDecimal total = BigDecimal.ZERO;
+        
+        for (PurchaseItemDTO itemDto : dto.getItems()) {
+        
+        Product product = productRepository.findById(itemDto.getProductId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
+        
+        BigDecimal subtotal = BigDecimal.valueOf(itemDto.getQuantity()).multiply(itemDto.getUnitCost());
+        
+        total = total.add(subtotal);
+   
+        PurchaseItem purchaseItem = new PurchaseItem();
+        purchaseItem.setPurchase(purchase);
+        purchaseItem.setProduct(product);
+        purchaseItem.setQuantity(itemDto.getQuantity());
+        purchaseItem.setUnitCost(itemDto.getUnitCost());
+        purchaseItem.setSubtotal(subtotal);
+        
+        purchaseItemRepository.save(purchaseItem);
+    }
+    Purchase updatedPurchase = purchaseRepository.save(purchase);
+    return toResponseDTO(updatedPurchase);
+    }
+    public List<PurchaseResponseDTO> listPurchases(){
         return purchaseRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
-     public PurchaseResponseDTO getPurchaseById(Integer id){
+    public PurchaseResponseDTO getPurchaseById(Integer id){
         return toResponseDTO(purchaseRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "product not found")));
+    }
+    public PurchaseResponseDTO confirmPurchase(Integer id){
+        Purchase purchase = purchaseRepository.findById(id).orElseThrow(() -> new RuntimeException("Purchase not found"));
+
+        if(purchase.getStatus() != Status.PENDENTE){
+           throw new RuntimeException("compra ja recebida");
+        } 
+        purchase.setStatus(Status.RECEBIDA);
+        
+        for (PurchaseItem item : purchase.getItems()) {
+            stockService.registerMovement(
+            item.getProduct(),
+            purchase.getEmployee(),
+            StockMovementType.ENTRADA,
+            item.getQuantity(),
+            "Compra #" + purchase.getId() + " recebida"
+        );
+    }
+        return toResponseDTO(purchaseRepository.save(purchase));
     }
     public PurchaseResponseDTO cancelPurchase(Integer id){
         Purchase purchase = purchaseRepository.findById(id).orElseThrow(() -> new RuntimeException("Purchase not found"));
