@@ -17,10 +17,11 @@ public class CategoryRequestDTO {
 
     @NotBlank
     @Size(max = 100)
-    @Schema(description = "Nome da categoria", example = "Eletrônica")
+    @Schema(description = "Category name", example = "Electronics")
     private String name;
 
     @Size(max = 255)
+    @Schema(description = "Category description", example = "Products related to electronic items")
     private String description;
     
 }

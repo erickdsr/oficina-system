@@ -17,34 +17,34 @@ public class EmployeeRequestDTO {
     
     @NotBlank
     @Size(max = 150)
-    @Schema(description = "Nome do funcionario", example = "funcionario João")
+    @Schema(description = "Employee full name", example = "João Silva")
     private String name;
     
     @NotBlank
     @Size(max = 11)
-    @Schema(description = "CPF do funcionario", example = "123.456.789.00")
+    @Schema(description = "Employee CPF", example = "123.456.789-00")
     private String cpf;
     
     @NotBlank
     @Size(max = 254)
-    @Schema(description = "Email do funcionario", example = "contato@funcionarioxyz.com")
+    @Schema(description = "Employee email address", example = "joao.silva@email.com")
     private String email;
 
     @NotBlank
     @Size(min = 6, max = 100)
-    @Schema(description = "Senha do funcionário", example = "senha123")
+    @Schema(description = "Employee password", example = "password123")
     private String password;
 
     @NotBlank
     @Size(max = 254)
-    @Schema(description = "Role", example = "funcionario")
+    @Schema(description = "Employee role name", example = "employee")
     private String roleName;
     
     @Size(max = 20)
-    @Schema(description = "Telefone do funcionario", example = "(11) 98765-4321")
+    @Schema(description = "Employee phone number", example = "(11) 98765-4321")
     private String phone;
 
     @NotNull
-    @Schema(description = "Status do funcionario", example = "true")
+    @Schema(description = "Employee active status", example = "true")
     private Boolean status;
 }

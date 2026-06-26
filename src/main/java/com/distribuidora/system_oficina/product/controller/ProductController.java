@@ -23,36 +23,37 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/products")
-@Tag(name = "Products", description = "controles de produtos")
+@Tag(name = "Products", description = "Product management endpoints")
 public class ProductController {
-    
+
     private final ProductService productService;
 
     @GetMapping
-    @Operation(summary = "List Products", description = "Get a list of all Products")
+    @Operation(summary = "List all products", description = "Returns all registered products")
     public ResponseEntity<List<ProductResponseDTO>> listProducts() {
         return ResponseEntity.ok(productService.listProducts());
     }
+
     @GetMapping("/{id}")
-    @Operation(summary = "Get Product by ID", description = "Retrieve a Product by their unique identifier")
+    @Operation(summary = "Get product by ID", description = "Returns the product matching the provided identifier")
     public ResponseEntity<ProductResponseDTO> getProductById(@PathVariable Integer id) {
         return ResponseEntity.ok(productService.getProductById(id));
     }
 
     @PostMapping
-    @Operation(summary = "Create Product", description = "Create a new Product")
+    @Operation(summary = "Create a new product", description = "Creates a new product with the supplied information")
     public ResponseEntity<ProductResponseDTO> createProduct(@Valid @RequestBody ProductRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.createProduct(dto));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update Product", description = "Update an existing Product")
+    @Operation(summary = "Update a product", description = "Updates the existing product information for the specified identifier")
     public ResponseEntity<ProductResponseDTO> updateProduct(@PathVariable Integer id, @RequestBody @Valid ProductRequestDTO dto) {
         return ResponseEntity.ok(productService.updateProduct(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete Product", description = "Delete a Product by their unique identifier")
+    @Operation(summary = "Delete a product", description = "Deletes the product identified by the provided ID")
     public ResponseEntity<String> deleteProduct(@PathVariable Integer id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();

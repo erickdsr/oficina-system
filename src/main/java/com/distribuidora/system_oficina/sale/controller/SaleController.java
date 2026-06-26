@@ -26,34 +26,37 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RestController
 @RequestMapping("/sales")
 @RequiredArgsConstructor
-@Tag(name = "sales", description = "Operations related to Sales")
+@Tag(name = "Sales", description = "Sales management endpoints")
 public class SaleController {
-    
+
     private final SaleService saleService;
 
     @PostMapping
-    @Operation(summary = "fazer vendas", description = "sale a new Product")
-    public ResponseEntity<SaleResponseDTO> createSale(@Valid @RequestBody SaleRequestDTO dto){
+    @Operation(summary = "Create a new sale", description = "Registers a new sale with items and payment information")
+    public ResponseEntity<SaleResponseDTO> createSale(@Valid @RequestBody SaleRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(saleService.createSale(dto));
     }
+
     @GetMapping
-    @Operation(summary = "List sales", description = "Get a list of all Sales")
+    @Operation(summary = "List all sales", description = "Returns all registered sales")
     public ResponseEntity<List<SaleResponseDTO>> listSales() {
         return ResponseEntity.ok(saleService.listSales());
     }
+
     @GetMapping("/{id}")
-    @Operation(summary = "Get Sale by ID", description = "Retrieve a sale by their unique identifier")
+    @Operation(summary = "Get sale by ID", description = "Returns the sale matching the provided identifier")
     public ResponseEntity<SaleResponseDTO> getSaleById(@PathVariable Integer id) {
         return ResponseEntity.ok(saleService.getSaleById(id));
     }
+
     @PatchMapping("/finalize/{id}")
-    @Operation(summary = "finalize buy", description = "finalize buy a product")
+    @Operation(summary = "Finalize a sale", description = "Finalizes the sale identified by the provided ID")
     public ResponseEntity<SaleResponseDTO> finalizeSale(@PathVariable Integer id, @RequestBody @Valid SaleRequestDTO dto) {
         return ResponseEntity.ok(saleService.finalizeSale(id));
-
     }
+
     @PatchMapping("/cancel/{id}")
-    @Operation(summary = "cancel buy", description = "cancel buy a product")
+    @Operation(summary = "Cancel a sale", description = "Cancels the sale identified by the provided ID")
     public ResponseEntity<SaleResponseDTO> cancelSale(@PathVariable Integer id, @RequestBody @Valid SaleRequestDTO dto) {
         return ResponseEntity.ok(saleService.cancelSale(id));
     }

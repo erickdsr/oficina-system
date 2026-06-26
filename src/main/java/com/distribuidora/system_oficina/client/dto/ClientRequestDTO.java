@@ -17,42 +17,42 @@ public class ClientRequestDTO {
   
    @NotBlank
     @Size(max = 150)
-    @Schema(description = "Nome do cliente", example = "Cliente João")
+    @Schema(description = "Client full name", example = "John Smith")
     private String name;
     
     @NotBlank
     @Size(max = 20)
-    @Schema(description = "CPF ou CNPJ do cliente", example = "123.456.789.00, 12.345.678/0001-90")
+    @Schema(description = "Client CPF or CNPJ", example = "123.456.789-00")
     private String cpfcnpj;
     
     @NotBlank
     @Size(max = 254)
-    @Schema(description = "Email do cliente", example = "contato@clientexyz.com")
+    @Schema(description = "Client email address", example = "john.smith@email.com")
     private String email;
 
     @NotBlank
     @Size(max = 254)
-    @Schema(description = "Tipo de cliente", example = "FISICA, JURIDICA")
+    @Schema(description = "Client type", example = "INDIVIDUAL")
     private String clientype;
     
     @NotBlank
     @Size(max = 20)
-    @Schema(description = "Telefone do cliente", example = "(11) 98765-4321")
+    @Schema(description = "Client phone number", example = "(11) 98765-4321")
     private String phone;
 
     @Size(max = 255)
-    @Schema(description = "Endereço do cliente", example = "Rua das Flores, 123, Bairro Jardim")
+    @Schema(description = "Client address", example = "Main Street, 123")
     private String address;
 
     @Size(max = 100)
-    @Schema(description = "Cidade do cliente", example = "São Paulo")
+    @Schema(description = "Client city", example = "São Paulo")
     private String city;
 
     @Size(max = 100)
-    @Schema(description = "Estado do cliente", example = "SP")
+    @Schema(description = "Client state", example = "SP")
     private String state;
 
     @NotNull
-    @Schema(description = "Status do cliente", example = "true")
+    @Schema(description = "Client active status", example = "true")
     private Boolean status;
 }

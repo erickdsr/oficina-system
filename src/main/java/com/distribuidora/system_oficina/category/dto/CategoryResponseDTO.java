@@ -17,16 +17,16 @@ import lombok.Builder;
 public class CategoryResponseDTO {
     
 
-    @Schema(description = "ID da categoria")
+    @Schema(description = "Category identifier", example = "1")
     private Integer id;
 
-    @Schema(description = "Nome da categoria")
+    @Schema(description = "Category name", example = "Electronics")
     private String name;
 
-    @Schema(description = "Descrição da categoria")
+    @Schema(description = "Category description", example = "Products related to electronic items")
     private String description;
 
-    @Schema(description = "Data de criação da categoria")
+    @Schema(description = "Creation date", example = "2026-01-15T10:30:00")
     private Timestamp createdAt;
 
     public static CategoryResponseDTO fromEntity(Category category) {

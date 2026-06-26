@@ -23,33 +23,37 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 @RestController
 @RequestMapping("/categories")
-@Tag(name = "Categories", description = "Operations related to categories")
+@Tag(name = "Categories", description = "Category management endpoints")
 public class CategoryController {
 
-   private final CategoryService categoryService;
+    private final CategoryService categoryService;
 
     @GetMapping
-    @Operation(summary = "List categories", description = "Obtenha uma lista de todas as categorias.")
+    @Operation(summary = "List all categories", description = "Returns all registered categories")
     public ResponseEntity<List<CategoryResponseDTO>> listCategory() {
         return ResponseEntity.ok(categoryService.listCategory());
     }
+
     @GetMapping("/{id}")
-    @Operation(summary = "Get category by ID", description = "Obtenha uma categoria pelo seu ID")
+    @Operation(summary = "Get category by ID", description = "Returns the category matching the provided identifier")
     public ResponseEntity<CategoryResponseDTO> getCategoryById(@PathVariable Integer id) {
         return ResponseEntity.ok(categoryService.getCategoryById(id));
     }
+
     @PostMapping
-    @Operation(summary = "Create category", description = "Crie uma nova categoria")
+    @Operation(summary = "Create a new category", description = "Creates a new category with the supplied details")
     public ResponseEntity<CategoryResponseDTO> createCategory(@RequestBody @Valid CategoryRequestDTO requestDTO) {
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.createCategory(requestDTO));
     }
+
     @PutMapping("/{id}")
-    @Operation(summary = "Update category", description = "Atualizar uma categoria existente")
-    public ResponseEntity<CategoryResponseDTO> updateCategory(@PathVariable Integer id, @RequestBody @Valid CategoryRequestDTO requestDTO) {    
+    @Operation(summary = "Update a category", description = "Updates the category information for the specified identifier")
+    public ResponseEntity<CategoryResponseDTO> updateCategory(@PathVariable Integer id, @RequestBody @Valid CategoryRequestDTO requestDTO) {
         return ResponseEntity.ok(categoryService.updateCategory(id, requestDTO));
     }
+
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete category", description = "Excluir uma categoria existente")
+    @Operation(summary = "Delete a category", description = "Deletes the category identified by the provided ID")
     public ResponseEntity<String> deleteCategory(@PathVariable Integer id) {
         categoryService.deleteCategory(id);
         return ResponseEntity.noContent().build();

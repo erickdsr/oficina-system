@@ -14,40 +14,40 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @NoArgsConstructor    
 public class ClientResponseDTO {
 
-    @Schema(description = "ID do fornecedor")
+    @Schema(description = "Client identifier", example = "1")
     private Integer id;
 
-    @Schema(description = "Nome do fornecedor")
+    @Schema(description = "Client full name", example = "John Smith")
     private String name;
 
-    @Schema(description = "CNPJ do fornecedor")
+    @Schema(description = "Client CPF or CNPJ", example = "123.456.789-00")
     private String cpfcnpj;
      
-    @Schema(description = "Tipo de cliente")
+    @Schema(description = "Client type", example = "INDIVIDUAL")
     private String clientype;
 
-    @Schema(description = "Email do fornecedor")
+    @Schema(description = "Client email address", example = "john.smith@email.com")
     private String email;
 
-    @Schema(description = "Telefone do fornecedor")
+    @Schema(description = "Client phone number", example = "(11) 98765-4321")
     private String phone;
 
-    @Schema(description = "Endereço do fornecedor")
+    @Schema(description = "Client address", example = "Main Street, 123")
     private String address;
 
-    @Schema(description = "Cidade do fornecedor")
+    @Schema(description = "Client city", example = "São Paulo")
     private String city;
 
-    @Schema(description = "Estado do fornecedor")
+    @Schema(description = "Client state", example = "SP")
     private String state;
 
-    @Schema(description = "Status do fornecedor")
+    @Schema(description = "Client active status", example = "true")
     private Boolean status;
 
-    @Schema(description = "Data de criação do fornecedor")
+    @Schema(description = "Creation date", example = "2026-01-15T10:30:00")
     private Timestamp createdAt;
 
-    @Schema(description = "Data de atualização do fornecedor")
+    @Schema(description = "Last update date", example = "2026-01-15T10:30:00")
     private Timestamp updatedAt;
 
     public static ClientResponseDTO fromEntity(Client client) {

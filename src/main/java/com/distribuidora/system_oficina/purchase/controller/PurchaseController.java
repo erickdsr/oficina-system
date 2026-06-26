@@ -26,35 +26,38 @@ import org.springframework.web.bind.annotation.PathVariable;
 @RestController
 @RequestMapping("/purchases")
 @RequiredArgsConstructor
-@Tag(name = "purchases", description = "Operations related to purchases")
+@Tag(name = "Purchases", description = "Purchase management endpoints")
 public class PurchaseController {
-     
+
     private final PurchaseService purchaseService;
 
     @PostMapping
-    @Operation(summary = "fazer compras", description = "Buy a new Product")
-    public ResponseEntity<PurchaseResponseDTO> createPurchase(@Valid @RequestBody PurchaseRequestDTO dto){
+    @Operation(summary = "Create a new purchase", description = "Registers a new purchase request with items and supplier information")
+    public ResponseEntity<PurchaseResponseDTO> createPurchase(@Valid @RequestBody PurchaseRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(purchaseService.createPurchase(dto));
     }
+
     @GetMapping
-    @Operation(summary = "List Products", description = "Get a list of all Purchases")
+    @Operation(summary = "List all purchases", description = "Returns all purchase records")
     public ResponseEntity<List<PurchaseResponseDTO>> listPurchases() {
         return ResponseEntity.ok(purchaseService.listPurchases());
     }
+
     @GetMapping("/{id}")
-    @Operation(summary = "Get Purchase by ID", description = "Retrieve a Purchse by their unique identifier")
+    @Operation(summary = "Get purchase by ID", description = "Returns the purchase matching the provided identifier")
     public ResponseEntity<PurchaseResponseDTO> getPurchaseById(@PathVariable Integer id) {
         return ResponseEntity.ok(purchaseService.getPurchaseById(id));
     }
+
     @PatchMapping("/confirm/{id}")
-    @Operation(summary = "Confirm buy", description = "Confirm a purchase")
+    @Operation(summary = "Confirm a purchase", description = "Marks the purchase as received and updates stock")
     public ResponseEntity<PurchaseResponseDTO> confirmPurchase(@PathVariable Integer id) {
-    return ResponseEntity.ok(purchaseService.confirmPurchase(id));
+        return ResponseEntity.ok(purchaseService.confirmPurchase(id));
     }
 
     @PatchMapping("/cancel/{id}")
-    @Operation(summary = "Cancel buy", description = "Cancel a purchase")
+    @Operation(summary = "Cancel a purchase", description = "Cancels the purchase identified by the provided ID")
     public ResponseEntity<PurchaseResponseDTO> cancelPurchase(@PathVariable Integer id) {
-    return ResponseEntity.ok(purchaseService.cancelPurchase(id));
+        return ResponseEntity.ok(purchaseService.cancelPurchase(id));
     }
 }

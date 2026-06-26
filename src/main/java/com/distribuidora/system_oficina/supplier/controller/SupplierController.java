@@ -24,38 +24,37 @@ import jakarta.validation.Valid;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/suppliers")
-@Tag(name = "Suppliers", description = "Operations related to suppliers")
+@Tag(name = "Suppliers", description = "Supplier management endpoints")
 public class SupplierController {
 
-   
     private final SupplierService supplierService;
 
     @GetMapping
-    @Operation(summary = "List suppliers", description = "Get a list of all suppliers")
+    @Operation(summary = "List all suppliers", description = "Returns all registered suppliers")
     public ResponseEntity<List<SupplierResponseDTO>> listSupplier() {
         return ResponseEntity.ok(supplierService.listSupplier());
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get supplier by ID", description = "Retrieve a supplier by their unique identifier")
+    @Operation(summary = "Get supplier by ID", description = "Returns the supplier matching the provided identifier")
     public ResponseEntity<SupplierResponseDTO> getSupplierById(@PathVariable Integer id) {
         return ResponseEntity.ok(supplierService.getSupplierById(id));
     }
 
     @PostMapping
-    @Operation(summary = "Create supplier", description = "Create a new supplier")
+    @Operation(summary = "Create a new supplier", description = "Creates a new supplier record with the provided details")
     public ResponseEntity<SupplierResponseDTO> createSupplier(@RequestBody @Valid SupplierRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(supplierService.createSupplier(dto));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update supplier", description = "Update an existing supplier")
+    @Operation(summary = "Update an existing supplier", description = "Updates the supplier information for the specified identifier")
     public ResponseEntity<SupplierResponseDTO> updateSupplier(@PathVariable Integer id, @RequestBody @Valid SupplierRequestDTO dto) {
         return ResponseEntity.ok(supplierService.updateSupplier(id, dto));
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete supplier", description = "Delete a supplier by their unique identifier")
+    @Operation(summary = "Delete a supplier", description = "Deletes the supplier identified by the provided ID")
     public ResponseEntity<String> deleteSupplier(@PathVariable Integer id) {
         supplierService.deleteSupplier(id);
         return ResponseEntity.noContent().build();
