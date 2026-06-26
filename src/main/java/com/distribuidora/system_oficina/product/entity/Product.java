@@ -50,9 +50,9 @@ public class Product {
     @ManyToOne
     @JoinColumn(name = "category_id", nullable = false)
     private Category category;
-
-    @Column(name = "unit", nullable = false)
+    
     @Enumerated(EnumType.STRING)
+    @Column(name = "unit", nullable = false)
     private Unit unit;
 
     @Column(name = "cost_price", nullable = false)

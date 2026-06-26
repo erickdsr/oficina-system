@@ -79,10 +79,10 @@ public class SaleService {
     public SaleResponseDTO createSale(SaleRequestDTO dto) {
 
     Client client = clientRepository.findById(dto.getClientId())
-            .orElseThrow(() -> new RuntimeException("Client not found"));
+        .orElseThrow(() -> new RuntimeException("Client not found"));
 
     Employee employee = employeeRepository.findById(dto.getEmployeeId())
-            .orElseThrow(() -> new RuntimeException("Employee not found"));
+        .orElseThrow(() -> new RuntimeException("Employee not found"));
 
     Sale sale = new Sale();
     sale.setClient(client);

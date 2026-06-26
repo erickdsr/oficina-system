@@ -32,7 +32,7 @@ public class ClientRequestDTO {
 
     @NotBlank
     @Size(max = 254)
-    @Schema(description = "Tipo de cliente", example = "Web/Browser, ios/Android ou desktop")
+    @Schema(description = "Tipo de cliente", example = "FISICA, JURIDICA")
     private String clientype;
     
     @NotBlank

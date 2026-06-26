@@ -35,7 +35,7 @@ public class SaleRequestDTO {
     private String notes;
 
     @NotNull
-    @Schema(description = "lista de itens", example = "Pneu,Oleo")
+    @Schema(description = "lista de itens", example = "[{ \\\"productId\\\": 1, \\\"quantity\\\": 1 }]")
     private List<SaleItemDTO> items;
 
     @NotNull

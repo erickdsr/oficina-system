@@ -1,11 +1,13 @@
 package com.distribuidora.system_oficina.purchase.service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.distribuidora.system_oficina.employee.entity.Employee;
@@ -54,33 +56,42 @@ public class PurchaseService {
     private PurchaseResponseDTO toResponseDTO(Purchase entity) {
         return PurchaseResponseDTO.fromEntity(entity);
     }
-    public PurchaseResponseDTO createPurchase(PurchaseRequestDTO dto){
-        Purchase purchase = toEntity(dto.getSupplierId(), dto.getEmployeeId(), dto);
-        purchase = purchaseRepository.save(purchase);
+    @Transactional
+public PurchaseResponseDTO createPurchase(PurchaseRequestDTO dto) {
 
-        BigDecimal total = BigDecimal.ZERO;
-        
-        for (PurchaseItemDTO itemDto : dto.getItems()) {
-        
+    Purchase purchase = toEntity(dto.getSupplierId(), dto.getEmployeeId(), dto);
+
+    BigDecimal totalGeral = BigDecimal.ZERO;
+
+    if (purchase.getItems() == null) {
+        purchase.setItems(new ArrayList<>());
+    }
+    
+
+    for (PurchaseItemDTO itemDto : dto.getItems()) {
         Product product = productRepository.findById(itemDto.getProductId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found"));
         
+
         BigDecimal subtotal = BigDecimal.valueOf(itemDto.getQuantity()).multiply(itemDto.getUnitCost());
-        
-        total = total.add(subtotal);
-   
+        totalGeral = totalGeral.add(subtotal);
+
         PurchaseItem purchaseItem = new PurchaseItem();
-        purchaseItem.setPurchase(purchase);
         purchaseItem.setProduct(product);
         purchaseItem.setQuantity(itemDto.getQuantity());
         purchaseItem.setUnitCost(itemDto.getUnitCost());
         purchaseItem.setSubtotal(subtotal);
         
-        purchaseItemRepository.save(purchaseItem);
+        purchaseItem.setPurchase(purchase);
+        purchase.getItems().add(purchaseItem);
     }
-    Purchase updatedPurchase = purchaseRepository.save(purchase);
-    return toResponseDTO(updatedPurchase);
-    }
+
+    purchase.setTotal(totalGeral);
+
+    Purchase savedPurchase = purchaseRepository.save(purchase);
+
+    return toResponseDTO(savedPurchase);
+}
     public List<PurchaseResponseDTO> listPurchases(){
         return purchaseRepository.findAll().stream()
                 .map(this::toResponseDTO)

@@ -2,6 +2,7 @@ package com.distribuidora.system_oficina.purchase.entity;
 
 import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -63,7 +64,7 @@ public class Purchase {
       @Column(name = "updated_at")
       private Timestamp updatedAt;
 
-      @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL)
-      private List<PurchaseItem> items;
+      @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL, orphanRemoval = true)
+      private List<PurchaseItem> items = new ArrayList<>();
 
 }

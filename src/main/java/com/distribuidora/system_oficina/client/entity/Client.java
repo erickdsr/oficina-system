@@ -37,10 +37,10 @@ public class Client {
     @Column(name = "cpf_cnpj", nullable = false, length = 20)
     private String cpfCnpj;
 
-    @Column(name = "clien_type", nullable = false, length = 10)
+    @Column(name = "client_type", nullable = false, length = 10)
     private String clientType;
 
-    @Column(name = "adress", length = 255)
+    @Column(name = "address", length = 255)
     private String address;
 
     @Column(name = "city", length = 150)

@@ -47,14 +47,14 @@ public class PurchaseController {
         return ResponseEntity.ok(purchaseService.getPurchaseById(id));
     }
     @PatchMapping("/confirm/{id}")
-    @Operation(summary = "confirm buy", description = "confirm buy a product")
-    public ResponseEntity<PurchaseResponseDTO> confirmPurchase(@PathVariable Integer id, @RequestBody @Valid PurchaseRequestDTO dto) {
-        return ResponseEntity.ok(purchaseService.confirmPurchase(id));
-
+    @Operation(summary = "Confirm buy", description = "Confirm a purchase")
+    public ResponseEntity<PurchaseResponseDTO> confirmPurchase(@PathVariable Integer id) {
+    return ResponseEntity.ok(purchaseService.confirmPurchase(id));
     }
+
     @PatchMapping("/cancel/{id}")
-    @Operation(summary = "cancel buy", description = "cancel buy a product")
-    public ResponseEntity<PurchaseResponseDTO> cancelPurchase(@PathVariable Integer id, @RequestBody @Valid PurchaseRequestDTO dto) {
-        return ResponseEntity.ok(purchaseService.cancelPurchase(id));
+    @Operation(summary = "Cancel buy", description = "Cancel a purchase")
+    public ResponseEntity<PurchaseResponseDTO> cancelPurchase(@PathVariable Integer id) {
+    return ResponseEntity.ok(purchaseService.cancelPurchase(id));
     }
 }
