@@ -9,8 +9,8 @@ import com.distribuidora.system_oficina.sale.entity.Sale;
 
 public interface SaleRepository extends JpaRepository <Sale, Integer> {
 
-    List <Sale> findByClient(Integer clientId);
-    List <Sale> findByEmployee(Integer employeeId);
+    List <Sale> findByClientId(Integer clientId);
+    List <Sale> findByEmployeeId(Integer employeeId);
     List <Sale> findByStatus(Status status);
     
 }

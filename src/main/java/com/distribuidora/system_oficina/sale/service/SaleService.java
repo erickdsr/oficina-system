@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.distribuidora.system_oficina.client.entity.Client;
@@ -74,6 +75,7 @@ public class SaleService {
     private SalePaymentDTO toPaymentDTO(SalePayments payment){
         return SalePaymentDTO.fromEntity(payment);
     }
+    @Transactional
     public SaleResponseDTO createSale(SaleRequestDTO dto) {
 
     Client client = clientRepository.findById(dto.getClientId())
@@ -145,6 +147,7 @@ public class SaleService {
         return toResponseDTO(saleRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sale not found")));
 
     }
+    @Transactional
     public SaleResponseDTO finalizeSale(Integer id){
         Sale sale = saleRepository.findById(id).orElseThrow(() -> new RuntimeException("Sale not found"));
 

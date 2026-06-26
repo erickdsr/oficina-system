@@ -10,6 +10,6 @@ public interface SalePaymentsRepository extends JpaRepository <SalePayments, Int
     
 
     List <SalePayments> findBySaleId(Integer saleId);
-    List <SalePayments> findByPaymentMethodId(Integer paymentMethodId);
-    List <SalePayments> findByAmout(BigDecimal amount);
+    List <SalePayments> findByPaymentMethodId_Id(Integer Id);
+    List <SalePayments> findByAmount(BigDecimal amount);
 }
