@@ -73,10 +73,10 @@ public class SaleResponseDTO {
         .notes(sale.getNotes())
         .createdAt(sale.getCreatedAt())
         .updatedAt(sale.getUpdatedAt())
-        .items(sale.getItems().stream()
+        .items(sale.getItems() == null ? List.of() : sale.getItems().stream()
         .map(SaleItemDTO::fromEntity)
         .collect(Collectors.toList()))
-        .payments(sale.getPayments().stream()
+        .payments(sale.getPayments() == null ? List.of() : sale.getPayments().stream()
         .map(SalePaymentDTO::fromEntity)
         .collect(Collectors.toList()))
         .build();

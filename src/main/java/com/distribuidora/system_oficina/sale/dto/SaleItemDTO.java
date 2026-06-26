@@ -45,7 +45,7 @@ public class SaleItemDTO {
     public static SaleItemDTO fromEntity(SaleItem saleItem) {
         return SaleItemDTO.builder()
 
-        .productId(saleItem.getProduct() != null ? saleItem.getId() : null)
+        .productId(saleItem.getProduct() != null ? saleItem.getProduct().getId() : null)
         .quantity(saleItem.getQuantity())
         .unitPrice(saleItem.getUnitPrice())
         .discount(saleItem.getDiscount())

@@ -87,27 +87,23 @@ public class StockService {
 
     if (type == StockMovementType.ENTRADA) {
         stock.setQuantity(stock.getQuantity() + quantity);
-        stockRepository.save(stock);
-
     } else if (type == StockMovementType.SAIDA) {
         if (quantity > stock.getQuantity()) {
             throw new RuntimeException("Estoque insuficiente");
         }
         stock.setQuantity(stock.getQuantity() - quantity);
-        stockRepository.save(stock);
-
     } else if (type == StockMovementType.AJUSTE) {
         stock.setQuantity(quantity);
-        stockRepository.save(stock);
-    
-     StockMovement movement = new StockMovement();
+    }
 
-       movement.setProduct(product);
-       movement.setEmployee(employee);
-       movement.setType(type);
-       movement.setQuantity(quantity);
-       movement.setReason(reason);
-       stockMovementRepository.save(movement);
-    } 
+    stockRepository.save(stock);
+
+    StockMovement movement = new StockMovement();
+    movement.setProduct(product);
+    movement.setEmployee(employee);
+    movement.setType(type);
+    movement.setQuantity(quantity);
+    movement.setReason(reason);
+    stockMovementRepository.save(movement);
     }
 }

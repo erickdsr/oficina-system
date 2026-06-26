@@ -6,6 +6,8 @@ import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.product.entity.Product;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -35,7 +37,8 @@ public class StockMovement {
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
 
-    @Column(name = "type", nullable = false, length = 10)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", nullable = false, length = 20)
     private StockMovementType type;
 
     @Column(name = "reason", length = 255)

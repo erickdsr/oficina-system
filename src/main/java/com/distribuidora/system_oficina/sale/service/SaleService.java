@@ -1,6 +1,7 @@
 package com.distribuidora.system_oficina.sale.service;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -94,6 +95,8 @@ public class SaleService {
 
     Sale savedSale = saleRepository.save(sale);
 
+    List<SaleItem> saleItems = new ArrayList<>();
+    List<SalePayments> salePayments = new ArrayList<>();
     BigDecimal total = BigDecimal.ZERO;
 
     for (SaleItemDTO itemDTO : dto.getItems()) {
@@ -114,6 +117,7 @@ public class SaleService {
         item.setDiscount(discount);
         item.setSubtotal(subtotal);
 
+        saleItems.add(item);
         saleItemRepository.save(item);
 
         total = total.add(subtotal);
@@ -129,10 +133,13 @@ public class SaleService {
         payment.setPaymentMethodId(paymentMethod);
         payment.setAmount(paymentDTO.getAmount());
 
+        salePayments.add(payment);
         salePaymentsRepository.save(payment);
     }
 
     BigDecimal totalFinal = total.subtract(savedSale.getDiscount());
+    savedSale.setItems(saleItems);
+    savedSale.setPayments(salePayments);
     savedSale.setTotal(totalFinal);
     saleRepository.save(savedSale);
 
@@ -154,17 +161,21 @@ public class SaleService {
         if(sale.getStatus() != Status.PENDENTE){
             throw new RuntimeException("nao pode finalizar, compra ja recebido ou cancelado");
         }
+
+        if (sale.getItems() != null) {
             for (SaleItem item : sale.getItems()) {
                 stockService.registerMovement(
-                item.getProduct(),
-                sale.getEmployee(),
-                StockMovementType.SAIDA,
-                item.getQuantity(),
-                 "Venda #" + sale.getId()
+                        item.getProduct(),
+                        sale.getEmployee(),
+                        StockMovementType.SAIDA,
+                        item.getQuantity(),
+                        "Venda #" + sale.getId()
                 );
-           }
-           sale.setStatus(Status.RECEBIDA);
-           return toResponseDTO(saleRepository.save(sale));
+            }
+        }
+
+        sale.setStatus(Status.RECEBIDA);
+        return toResponseDTO(saleRepository.save(sale));
     }    
     public SaleResponseDTO cancelSale(Integer id){
         Sale sale = saleRepository.findById(id).orElseThrow(() -> new RuntimeException("Sale not found"));

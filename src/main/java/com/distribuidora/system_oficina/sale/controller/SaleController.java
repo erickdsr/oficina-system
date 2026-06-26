@@ -51,13 +51,13 @@ public class SaleController {
 
     @PatchMapping("/finalize/{id}")
     @Operation(summary = "Finalize a sale", description = "Finalizes the sale identified by the provided ID")
-    public ResponseEntity<SaleResponseDTO> finalizeSale(@PathVariable Integer id, @RequestBody @Valid SaleRequestDTO dto) {
+    public ResponseEntity<SaleResponseDTO> finalizeSale(@PathVariable Integer id) {
         return ResponseEntity.ok(saleService.finalizeSale(id));
     }
 
     @PatchMapping("/cancel/{id}")
     @Operation(summary = "Cancel a sale", description = "Cancels the sale identified by the provided ID")
-    public ResponseEntity<SaleResponseDTO> cancelSale(@PathVariable Integer id, @RequestBody @Valid SaleRequestDTO dto) {
+    public ResponseEntity<SaleResponseDTO> cancelSale(@PathVariable Integer id) {
         return ResponseEntity.ok(saleService.cancelSale(id));
     }
 }
