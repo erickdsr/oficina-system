@@ -55,20 +55,20 @@ public class PurchaseResponseDTO {
 
     public static PurchaseResponseDTO fromEntity(Purchase purchase) {
         return PurchaseResponseDTO.builder()
-                .id(purchase.getId())
-                .supplierId(purchase.getSupplier () != null ? purchase.getSupplier().getId() : null)
-                .supplierName(purchase.getSupplier() != null ? purchase.getSupplier().getName() : null)
-                .employeeId(purchase.getEmployee() != null ? purchase.getEmployee().getId() : null)
-                .employeeName(purchase.getEmployee() != null ? purchase.getEmployee().getName() : null)
-                .total(purchase.getTotal())
-                .status(purchase.getStatus())
-                .notes(purchase.getNotes())
-                .createdAt(purchase.getCreatedAt())
-                .updatedAt(purchase.getUpdatedAt())
-                .items(purchase.getItems().stream()
-                .map(PurchaseItemDTO::fromEntity)
-                .collect(Collectors.toList()))
-                .build();
+            .id(purchase.getId())
+            .supplierId(purchase.getSupplier () != null ? purchase.getSupplier().getId() : null)
+            .supplierName(purchase.getSupplier() != null ? purchase.getSupplier().getName() : null)
+            .employeeId(purchase.getEmployee() != null ? purchase.getEmployee().getId() : null)
+            .employeeName(purchase.getEmployee() != null ? purchase.getEmployee().getName() : null)
+            .total(purchase.getTotal())
+            .status(purchase.getStatus())
+            .notes(purchase.getNotes())
+            .createdAt(purchase.getCreatedAt())
+            .updatedAt(purchase.getUpdatedAt())
+            .items(purchase.getItems().stream()
+            .map(PurchaseItemDTO::fromEntity)
+            .collect(Collectors.toList()))
+            .build();
     
     }
 }

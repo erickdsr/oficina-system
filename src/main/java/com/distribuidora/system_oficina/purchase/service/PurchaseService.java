@@ -105,14 +105,14 @@ public class PurchaseService {
             item.getQuantity(),
             "Compra #" + purchase.getId() + " recebida"
         );
-    }
+        }
         return toResponseDTO(purchaseRepository.save(purchase));
     }
     public PurchaseResponseDTO cancelPurchase(Integer id){
         Purchase purchase = purchaseRepository.findById(id).orElseThrow(() -> new RuntimeException("Purchase not found"));
 
         if(purchase.getStatus() == Status.RECEBIDA){
-           throw new RuntimeException("nao pode cancelar, compra ja recebida");
+        
         } 
             purchase.setStatus(Status.CANCELADA);
             return toResponseDTO(purchaseRepository.save(purchase));
