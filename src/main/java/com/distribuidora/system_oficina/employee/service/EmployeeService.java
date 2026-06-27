@@ -2,6 +2,7 @@ package com.distribuidora.system_oficina.employee.service;
 
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import com.distribuidora.system_oficina.employee.dto.EmployeeRequestDTO;
@@ -19,6 +20,7 @@ public class EmployeeService {
     
     private final EmployeeRepository employeeRepository;
     private final RoleRepository roleRepository;
+    private final PasswordEncoder passwordEncoder;
 
     private Employee toEntity(EmployeeRequestDTO dto) {
         Employee entity = new Employee();
@@ -27,7 +29,7 @@ public class EmployeeService {
         entity.setCpf(dto.getCpf());
         entity.setEmail(dto.getEmail());
         entity.setPhone(dto.getPhone());
-        entity.setPassword(dto.getPassword());
+        entity.setPassword(passwordEncoder.encode(dto.getPassword()));
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
         entity.setRole(role);
         return entity;
@@ -54,7 +56,7 @@ public class EmployeeService {
             entity.setCpf(dto.getCpf());
             entity.setRole(role);
             entity.setEmail(dto.getEmail());
-            entity.setPassword(dto.getPassword());
+            entity.setPassword(passwordEncoder.encode(dto.getPassword()));
             entity.setPhone(dto.getPhone());
             entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
         

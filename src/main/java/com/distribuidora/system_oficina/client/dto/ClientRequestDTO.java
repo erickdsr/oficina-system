@@ -15,7 +15,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @NoArgsConstructor
 public class ClientRequestDTO {
   
-   @NotBlank
+    @NotBlank
     @Size(max = 150)
     @Schema(description = "Client full name", example = "John Smith")
     private String name;
