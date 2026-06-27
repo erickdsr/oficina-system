@@ -6,6 +6,8 @@ import java.util.Collection;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import com.distribuidora.system_oficina.role.entity.Role;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -20,7 +22,7 @@ import lombok.NoArgsConstructor;
 public class UserDeatailsServiceImpl implements UserDetails {
      
     private Integer id;
-    private Role roleId;
+    private Role role;
     private Boolean status;
     private Timestamp createdAt;
     private Timestamp updatedAt;
