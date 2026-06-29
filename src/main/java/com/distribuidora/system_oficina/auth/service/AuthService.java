@@ -22,6 +22,7 @@ public class AuthService {
     private final EmployeeRepository employeeRepository;
 
     public LoginResponseDTO authenticate(LoginRequestDTO request) {
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );

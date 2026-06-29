@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +44,9 @@ class SaleServiceIntegrationTest {
 
     @Autowired
     private SaleService saleService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private ClientRepository clientRepository;
@@ -91,7 +95,7 @@ class SaleServiceIntegrationTest {
         employee.setName("João");
         employee.setCpf("11111111111");
         employee.setEmail("joao@example.com");
-        employee.setPassword("123456");
+        employee.setPassword(passwordEncoder.encode("123456"));
         employee.setPhone("11888888888");
         employee.setRole(role);
         employee.setStatus(true);

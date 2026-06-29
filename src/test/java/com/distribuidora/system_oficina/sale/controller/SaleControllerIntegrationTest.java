@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +53,9 @@ class SaleControllerIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @Autowired
     private ClientRepository clientRepository;
 
     @Autowired
@@ -75,8 +79,10 @@ class SaleControllerIntegrationTest {
     @Autowired
     private StockRepository stockRepository;
 
+    private String accessToken;
+
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         Role role = new Role();
         role.setName("ADMIN");
         role.setDescription("Administrator");
@@ -98,7 +104,7 @@ class SaleControllerIntegrationTest {
         employee.setName("João");
         employee.setCpf("11111111111");
         employee.setEmail("joao@example.com");
-        employee.setPassword("123456");
+        employee.setPassword(passwordEncoder.encode("123456"));
         employee.setPhone("11888888888");
         employee.setRole(role);
         employee.setStatus(true);
@@ -143,6 +149,22 @@ class SaleControllerIntegrationTest {
         PaymentMethod paymentMethod = new PaymentMethod();
         paymentMethod.setName("Dinheiro");
         paymentMethodRepository.saveAndFlush(paymentMethod);
+
+        accessToken = obtainAccessToken();
+    }
+
+    private String obtainAccessToken() throws Exception {
+        String loginPayload = "{\"email\":\"joao@example.com\",\"password\":\"123456\"}";
+
+        String responseBody = mockMvc.perform(post("/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginPayload))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+
+        return objectMapper.readTree(responseBody).get("token").asText();
     }
 
     @Test
@@ -171,6 +193,7 @@ class SaleControllerIntegrationTest {
                 "}";
 
         String responseBody = mockMvc.perform(post("/sales")
+                .header("Authorization", "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(createPayload))
                 .andExpect(status().isCreated())
@@ -180,11 +203,13 @@ class SaleControllerIntegrationTest {
 
         Integer saleId = objectMapper.readTree(responseBody).get("id").asInt();
 
-        mockMvc.perform(get("/sales"))
+        mockMvc.perform(get("/sales")
+                .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)));
 
-        mockMvc.perform(get("/sales/" + saleId))
+        mockMvc.perform(get("/sales/" + saleId)
+                .header("Authorization", "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(saleId)));
 
@@ -198,6 +223,7 @@ class SaleControllerIntegrationTest {
                 "}";
 
         mockMvc.perform(patch("/sales/finalize/" + saleId)
+                .header("Authorization", "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(finalizePayload))
                 .andExpect(status().isOk())

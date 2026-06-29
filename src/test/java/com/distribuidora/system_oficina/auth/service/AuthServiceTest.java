@@ -5,6 +5,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,6 +20,9 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import com.distribuidora.system_oficina.auth.dto.LoginRequestDTO;
 import com.distribuidora.system_oficina.auth.dto.LoginResponseDTO;
+import com.distribuidora.system_oficina.employee.entity.Employee;
+import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
+import com.distribuidora.system_oficina.role.entity.Role;
 import com.distribuidora.system_oficina.security.JwtService;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +33,9 @@ class AuthServiceTest {
 
     @Mock
     private JwtService jwtService;
+
+    @Mock
+    private EmployeeRepository employeeRepository;
 
     @InjectMocks
     private AuthService authService;
@@ -40,8 +48,18 @@ class AuthServiceTest {
                 null
         );
 
+        Employee employee = new Employee();
+        employee.setId(1);
+        employee.setName("Funcionário");
+        employee.setEmail("funcionario@email.com");
+        employee.setPassword("encoded-password");
+        Role role = new Role();
+        role.setName("ADMIN");
+        employee.setRole(role);
+
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class))).thenReturn(authentication);
         when(jwtService.generateToken(any(UserDetails.class))).thenReturn("jwt-token");
+        when(employeeRepository.findByEmail("funcionario@email.com")).thenReturn(Optional.of(employee));
 
         LoginResponseDTO response = authService.authenticate(request);
 
