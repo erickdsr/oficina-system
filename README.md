@@ -31,7 +31,7 @@ O projeto foi desenvolvido com foco em boas práticas de desenvolvimento backend
 
 ---
 
-## 🛠 Tecnologias
+## Tecnologias
 
 | Tecnologia | Versão | Uso |
 |---|---|---|
