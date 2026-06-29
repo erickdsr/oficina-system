@@ -18,6 +18,6 @@ public class LoginRequestDTO {
     private String email;
 
     @NotBlank
-    @Schema(description = "User password", example = "1234567890")
+    @Schema(description = "User password", example = "123456")
     private String password;
 }

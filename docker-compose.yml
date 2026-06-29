@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: system_oficina_postgres
     environment:
-      POSTGRES_DB: system_oficina_db
+      POSTGRES_DB: system_oficina
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
