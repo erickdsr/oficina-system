@@ -40,7 +40,8 @@ import com.distribuidora.system_oficina.supplier.repository.SupplierRepository;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-class SaleServiceIntegrationTest {
+@ExtendWith(MockitoExtension.class)
+class SaleServiceTest {
 
     @Autowired
     private SaleService saleService;
