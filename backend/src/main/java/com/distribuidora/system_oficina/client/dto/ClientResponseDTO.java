@@ -11,7 +11,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Data
 @Builder
 @AllArgsConstructor
-@NoArgsConstructor    
+@NoArgsConstructor
 public class ClientResponseDTO {
 
     @Schema(description = "Client identifier", example = "1")
@@ -21,10 +21,10 @@ public class ClientResponseDTO {
     private String name;
 
     @Schema(description = "Client CPF or CNPJ", example = "123.456.789-00")
-    private String cpfcnpj;
-     
+    private String cpfCnpj;
+
     @Schema(description = "Client type", example = "INDIVIDUAL")
-    private String clientype;
+    private String clientType;
 
     @Schema(description = "Client email address", example = "john.smith@email.com")
     private String email;
@@ -54,7 +54,8 @@ public class ClientResponseDTO {
         return ClientResponseDTO.builder()
                 .id(client.getId())
                 .name(client.getName())
-                .clientype(client.getClientType())
+                .cpfCnpj(client.getCpfCnpj())
+                .clientType(client.getClientType())
                 .email(client.getEmail())
                 .phone(client.getPhone())
                 .address(client.getAddress())

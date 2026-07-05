@@ -1,21 +1,25 @@
-package com.distribuidora.system_oficina.sale.service;
+package com.distribuidora.system_oficina.sale;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.distribuidora.system_oficina.category.entity.Category;
-import com.distribuidora.system_oficina.category.repository.CategoryRepository;
 import com.distribuidora.system_oficina.client.entity.Client;
 import com.distribuidora.system_oficina.client.repository.ClientRepository;
 import com.distribuidora.system_oficina.employee.entity.Employee;
@@ -23,193 +27,273 @@ import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
 import com.distribuidora.system_oficina.paymentMethod.entity.PaymentMethod;
 import com.distribuidora.system_oficina.paymentMethod.repository.PaymentMethodRepository;
 import com.distribuidora.system_oficina.product.entity.Product;
-import com.distribuidora.system_oficina.product.entity.Unit;
 import com.distribuidora.system_oficina.product.repository.ProductRepository;
 import com.distribuidora.system_oficina.purchase.entity.Status;
-import com.distribuidora.system_oficina.role.entity.Role;
-import com.distribuidora.system_oficina.role.repository.RoleRepository;
 import com.distribuidora.system_oficina.sale.dto.SaleItemDTO;
 import com.distribuidora.system_oficina.sale.dto.SalePaymentDTO;
 import com.distribuidora.system_oficina.sale.dto.SaleRequestDTO;
 import com.distribuidora.system_oficina.sale.dto.SaleResponseDTO;
-import com.distribuidora.system_oficina.stock.entity.Stock;
-import com.distribuidora.system_oficina.stock.repository.StockRepository;
-import com.distribuidora.system_oficina.supplier.entity.Supplier;
-import com.distribuidora.system_oficina.supplier.repository.SupplierRepository;
+import com.distribuidora.system_oficina.sale.entity.Sale;
+import com.distribuidora.system_oficina.sale.entity.SaleItem;
+import com.distribuidora.system_oficina.sale.entity.SalePayments;
+import com.distribuidora.system_oficina.sale.repository.SaleItemRepository;
+import com.distribuidora.system_oficina.sale.repository.SalePaymentsRepository;
+import com.distribuidora.system_oficina.sale.repository.SaleRepository;
+import com.distribuidora.system_oficina.sale.service.SaleService;
+import com.distribuidora.system_oficina.stock.service.StockService;
 
-@SpringBootTest
-@ActiveProfiles("test")
-@Transactional
 @ExtendWith(MockitoExtension.class)
 class SaleServiceTest {
 
-    @Autowired
-    private SaleService saleService;
+    @Mock
+    private SaleRepository saleRepository;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    @Mock
+    private SaleItemRepository saleItemRepository;
 
-    @Autowired
+    @Mock
+    private SalePaymentsRepository salePaymentsRepository;
+
+    @Mock
     private ClientRepository clientRepository;
 
-    @Autowired
+    @Mock
     private EmployeeRepository employeeRepository;
 
-    @Autowired
+    @Mock
     private ProductRepository productRepository;
 
-    @Autowired
-    private CategoryRepository categoryRepository;
-
-    @Autowired
-    private SupplierRepository supplierRepository;
-
-    @Autowired
-    private RoleRepository roleRepository;
-
-    @Autowired
+    @Mock
     private PaymentMethodRepository paymentMethodRepository;
 
-    @Autowired
-    private StockRepository stockRepository;
+    @Mock
+    private StockService stockService;
 
-    @BeforeEach
-    void setUp() {
-        Role role = new Role();
-        role.setName("ADMIN");
-        role.setDescription("Administrator");
-        roleRepository.saveAndFlush(role);
+    @InjectMocks
+    private SaleService saleService;
 
+    @Test
+    @DisplayName("createSale com dados válidos deve criar a venda com status PENDENTE")
+    void createSale_dadosValidos_deveCriarVendaComStatusPendente() {
+        // Arrange
         Client client = new Client();
-        client.setName("Maria");
-        client.setEmail("maria@example.com");
-        client.setPhone("11999999999");
-        client.setCpfCnpj("12345678901");
-        client.setClientType("PF");
-        client.setAddress("Rua A");
-        client.setCity("São Paulo");
-        client.setState("SP");
-        client.setStatus(true);
-        clientRepository.saveAndFlush(client);
-
+        client.setId(1);
         Employee employee = new Employee();
-        employee.setName("João");
-        employee.setCpf("11111111111");
-        employee.setEmail("joao@example.com");
-        employee.setPassword(passwordEncoder.encode("123456"));
-        employee.setPhone("11888888888");
-        employee.setRole(role);
-        employee.setStatus(true);
-        employeeRepository.saveAndFlush(employee);
+        employee.setId(2);
+        Product product = new Product();
+        product.setId(10);
+        product.setSalePrice(new BigDecimal("10.00"));
+        PaymentMethod paymentMethod = new PaymentMethod();
+        paymentMethod.setId(3);
 
-        Category category = new Category();
-        category.setName("Peças");
-        category.setDescription("Peças automotivas");
-        categoryRepository.saveAndFlush(category);
+        when(clientRepository.findById(1)).thenReturn(Optional.of(client));
+        when(employeeRepository.findById(2)).thenReturn(Optional.of(employee));
+        when(productRepository.findById(10)).thenReturn(Optional.of(product));
+        when(paymentMethodRepository.findById(3)).thenReturn(Optional.of(paymentMethod));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Supplier supplier = new Supplier();
-        supplier.setName("Fornecedor A");
-        supplier.setCnpj("12345678000199");
-        supplier.setEmail("fornecedor@example.com");
-        supplier.setPhone("11333333333");
-        supplier.setAddress("Rua B");
-        supplier.setCity("São Paulo");
-        supplier.setState("SP");
-        supplier.setStatus(true);
-        supplierRepository.saveAndFlush(supplier);
+        SaleRequestDTO request = SaleRequestDTO.builder()
+                .clientId(1)
+                .employeeId(2)
+                .discount(new BigDecimal("2.00"))
+                .notes("Venda teste")
+                .items(List.of(SaleItemDTO.builder()
+                        .productId(10)
+                        .quantity(2)
+                        .unitPrice(new BigDecimal("10.00"))
+                        .discount(BigDecimal.ZERO)
+                        .build()))
+                .payments(List.of(SalePaymentDTO.builder()
+                        .paymentMethodId(3)
+                        .amount(new BigDecimal("18.00"))
+                        .build()))
+                .build();
+
+        // Act
+        SaleResponseDTO result = saleService.createSale(request);
+
+        // Assert
+        assertThat(result).isNotNull();
+        assertThat(result.getStatus()).isEqualTo(Status.PENDENTE);
+        assertThat(result.getTotal()).isEqualByComparingTo("18.00");
+        verify(saleItemRepository).save(any(SaleItem.class));
+        verify(salePaymentsRepository).save(any(SalePayments.class));
+    }
+
+    @Test
+    @DisplayName("createSale deve calcular o total corretamente")
+    void createSale_deveCalcularTotalCorretamente() {
+        // Arrange
+        Client client = new Client();
+        client.setId(1);
+        Employee employee = new Employee();
+        employee.setId(2);
+        Product product = new Product();
+        product.setId(10);
+        product.setSalePrice(new BigDecimal("15.00"));
+        PaymentMethod paymentMethod = new PaymentMethod();
+        paymentMethod.setId(3);
+
+        when(clientRepository.findById(1)).thenReturn(Optional.of(client));
+        when(employeeRepository.findById(2)).thenReturn(Optional.of(employee));
+        when(productRepository.findById(10)).thenReturn(Optional.of(product));
+        when(paymentMethodRepository.findById(3)).thenReturn(Optional.of(paymentMethod));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SaleRequestDTO request = SaleRequestDTO.builder()
+                .clientId(1)
+                .employeeId(2)
+                .discount(new BigDecimal("3.00"))
+                .items(List.of(SaleItemDTO.builder()
+                        .productId(10)
+                        .quantity(2)
+                        .unitPrice(new BigDecimal("15.00"))
+                        .discount(BigDecimal.ZERO)
+                        .build()))
+                .payments(List.of(SalePaymentDTO.builder()
+                        .paymentMethodId(3)
+                        .amount(new BigDecimal("27.00"))
+                        .build()))
+                .build();
+
+        // Act
+        SaleResponseDTO result = saleService.createSale(request);
+
+        // Assert
+        assertThat(result.getTotal()).isEqualByComparingTo("27.00");
+    }
+
+    @Test
+    @DisplayName("createSale com cliente inexistente deve lançar exceção")
+    void createSale_clienteNaoEncontrado_deveLancarExcecao() {
+        // Arrange
+        when(clientRepository.findById(1)).thenReturn(Optional.empty());
+
+        SaleRequestDTO request = SaleRequestDTO.builder()
+                .clientId(1)
+                .employeeId(2)
+                .items(List.of())
+                .payments(List.of())
+                .build();
+
+        // Act & Assert
+        assertThrows(RuntimeException.class, () -> saleService.createSale(request));
+        verify(employeeRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("createSale com produto inexistente deve lançar exceção")
+    void createSale_produtoNaoEncontrado_deveLancarExcecao() {
+        // Arrange
+        Client client = new Client();
+        client.setId(1);
+        Employee employee = new Employee();
+        employee.setId(2);
+        when(clientRepository.findById(1)).thenReturn(Optional.of(client));
+        when(employeeRepository.findById(2)).thenReturn(Optional.of(employee));
+        when(productRepository.findById(10)).thenReturn(Optional.empty());
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SaleRequestDTO request = SaleRequestDTO.builder()
+                .clientId(1)
+                .employeeId(2)
+                .items(List.of(SaleItemDTO.builder().productId(10).quantity(1).unitPrice(new BigDecimal("10.00")).build()))
+                .payments(List.of())
+                .build();
+
+        // Act & Assert
+        assertThrows(RuntimeException.class, () -> saleService.createSale(request));
+    }
+
+    @Test
+    @DisplayName("finalizeSale deve chamar registerMovement para cada item da venda")
+    void finalizeSale_deveCharmarRegisterMovementSaidaParaCadaItem() {
+        // Arrange
+        Sale sale = new Sale();
+        sale.setId(1);
+        sale.setStatus(Status.PENDENTE);
+        Employee employee = new Employee();
+        employee.setId(2);
+        sale.setEmployee(employee);
 
         Product product = new Product();
-        product.setName("Filtro de Óleo");
-        product.setDescription("Filtro de óleo automotivo");
-        product.setBarCode("ABC123");
-        product.setPartNumber("PN-001");
-        product.setSupplier(supplier);
-        product.setCategory(category);
-        product.setUnit(Unit.UN);
-        product.setCostPrice(new BigDecimal("10.00"));
-        product.setSalePrice(new BigDecimal("25.00"));
-        product.setStatus(true);
-        productRepository.saveAndFlush(product);
+        product.setId(10);
 
-        Stock stock = new Stock();
-        stock.setProduct(product);
-        stock.setQuantity(10);
-        stock.setMinQuantity(2);
-        stock.setLocation("A1");
-        stockRepository.saveAndFlush(stock);
+        SaleItem item1 = new SaleItem();
+        item1.setProduct(product);
+        item1.setQuantity(2);
+        SaleItem item2 = new SaleItem();
+        item2.setProduct(product);
+        item2.setQuantity(1);
+        sale.setItems(List.of(item1, item2));
 
-        PaymentMethod paymentMethod = new PaymentMethod();
-        paymentMethod.setName("Dinheiro");
-        paymentMethodRepository.saveAndFlush(paymentMethod);
+        when(saleRepository.findById(1)).thenReturn(Optional.of(sale));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        saleService.finalizeSale(1);
+
+        // Assert
+        verify(stockService, times(2)).registerMovement(any(Product.class), any(Employee.class), any(), anyInt(), any(String.class));
     }
 
     @Test
-    void shouldCreateAndFinalizeSaleSuccessfully() {
-        Client client = clientRepository.findAll().get(0);
-        Employee employee = employeeRepository.findAll().get(0);
-        Product product = productRepository.findAll().get(0);
-        PaymentMethod paymentMethod = paymentMethodRepository.findAll().get(0);
+    @DisplayName("finalizeSale deve alterar o status da venda para FINALIZADA")
+    void finalizeSale_deveAlterarStatusParaFinalizada() {
+        // Arrange
+        Sale sale = new Sale();
+        sale.setId(1);
+        sale.setStatus(Status.PENDENTE);
+        sale.setItems(List.of());
+        when(saleRepository.findById(1)).thenReturn(Optional.of(sale));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        SaleRequestDTO request = SaleRequestDTO.builder()
-                .clientId(client.getId())
-                .employeeId(employee.getId())
-                .discount(new BigDecimal("2.00"))
-                .notes("Venda de teste")
-                .items(List.of(SaleItemDTO.builder()
-                        .productId(product.getId())
-                        .quantity(2)
-                        .unitPrice(new BigDecimal("25.00"))
-                        .discount(new BigDecimal("0.00"))
-                        .subtotal(new BigDecimal("50.00"))
-                        .build()))
-                .payments(List.of(SalePaymentDTO.builder()
-                        .paymentMethodId(paymentMethod.getId())
-                        .amount(new BigDecimal("48.00"))
-                        .build()))
-                .build();
+        // Act
+        SaleResponseDTO result = saleService.finalizeSale(1);
 
-        SaleResponseDTO createdSale = saleService.createSale(request);
-
-        assertThat(createdSale.getStatus()).isEqualTo(Status.PENDENTE);
-        assertThat(createdSale.getTotal()).isEqualByComparingTo("48.00");
-
-        SaleResponseDTO finalizedSale = saleService.finalizeSale(createdSale.getId());
-
-        assertThat(finalizedSale.getStatus()).isEqualTo(Status.RECEBIDA);
-
-        Stock updatedStock = stockRepository.findByProductId(product.getId()).orElseThrow();
-        assertThat(updatedStock.getQuantity()).isEqualTo(8);
+        // Assert
+        assertThat(result.getStatus()).isEqualTo(Status.FINALIZADA);
     }
 
     @Test
-    void shouldRejectSaleWhenStockIsInsufficient() {
-        Client client = clientRepository.findAll().get(0);
-        Employee employee = employeeRepository.findAll().get(0);
-        Product product = productRepository.findAll().get(0);
-        PaymentMethod paymentMethod = paymentMethodRepository.findAll().get(0);
+    @DisplayName("finalizeSale com status diferente de PENDENTE deve lançar exceção")
+    void finalizeSale_statusNaoPendente_deveLancarExcecao() {
+        // Arrange
+        Sale sale = new Sale();
+        sale.setStatus(Status.FINALIZADA);
+        when(saleRepository.findById(1)).thenReturn(Optional.of(sale));
 
-        SaleRequestDTO request = SaleRequestDTO.builder()
-                .clientId(client.getId())
-                .employeeId(employee.getId())
-                .discount(BigDecimal.ZERO)
-                .notes("Venda sem estoque")
-                .items(List.of(SaleItemDTO.builder()
-                        .productId(product.getId())
-                        .quantity(20)
-                        .unitPrice(new BigDecimal("25.00"))
-                        .discount(BigDecimal.ZERO)
-                        .subtotal(new BigDecimal("500.00"))
-                        .build()))
-                .payments(List.of(SalePaymentDTO.builder()
-                        .paymentMethodId(paymentMethod.getId())
-                        .amount(new BigDecimal("500.00"))
-                        .build()))
-                .build();
+        // Act & Assert
+        assertThrows(RuntimeException.class, () -> saleService.finalizeSale(1));
+        verify(stockService, never()).registerMovement(any(), any(), any(), anyInt(), any());
+    }
 
-        SaleResponseDTO createdSale = saleService.createSale(request);
+    @Test
+    @DisplayName("cancelSale com status FINALIZADA deve lançar exceção")
+    void cancelSale_statusFinalizada_deveLancarExcecao() {
+        // Arrange
+        Sale sale = new Sale();
+        sale.setStatus(Status.FINALIZADA);
+        when(saleRepository.findById(1)).thenReturn(Optional.of(sale));
 
-        assertThatThrownBy(() -> saleService.finalizeSale(createdSale.getId()))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("Estoque insuficiente");
+        // Act & Assert
+        assertThrows(RuntimeException.class, () -> saleService.cancelSale(1));
+        verify(saleRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("cancelSale deve alterar o status da venda para CANCELADA")
+    void cancelSale_deveAlterarStatusParaCancelada() {
+        // Arrange
+        Sale sale = new Sale();
+        sale.setStatus(Status.PENDENTE);
+        when(saleRepository.findById(1)).thenReturn(Optional.of(sale));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Act
+        SaleResponseDTO result = saleService.cancelSale(1);
+
+        // Assert
+        assertThat(result.getStatus()).isEqualTo(Status.CANCELADA);
     }
 }

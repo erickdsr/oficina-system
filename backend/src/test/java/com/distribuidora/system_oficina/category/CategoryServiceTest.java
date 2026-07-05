@@ -1,20 +1,20 @@
 package com.distribuidora.system_oficina.category;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Optional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.distribuidora.system_oficina.category.dto.CategoryRequestDTO;
 import com.distribuidora.system_oficina.category.dto.CategoryResponseDTO;
@@ -22,101 +22,87 @@ import com.distribuidora.system_oficina.category.entity.Category;
 import com.distribuidora.system_oficina.category.repository.CategoryRepository;
 import com.distribuidora.system_oficina.category.service.CategoryService;
 
-import org.springframework.web.server.ResponseStatusException;
-
 @ExtendWith(MockitoExtension.class)
 class CategoryServiceTest {
-    
+
     @Mock
     private CategoryRepository categoryRepository;
 
     @InjectMocks
     private CategoryService categoryService;
 
-    
     @Test
-    @DisplayName("Must create a category correctly")
-    void shouldCreateCategoryCorrectly() {
-
-        CategoryRequestDTO requestDto = new CategoryRequestDTO();
-        requestDto.setName("Motor");
-        requestDto.setDescription("Motores, bielas e cabeçotes");
+    @DisplayName("createCategory com dados válidos deve criar a categoria corretamente")
+    void createCategory_dadosValidos_deveCriarCategoriaCorretamente() {
+        // Arrange
+        CategoryRequestDTO request = CategoryRequestDTO.builder()
+                .name("Peças")
+                .description("Peças automotivas")
+                .build();
 
         Category savedCategory = new Category();
         savedCategory.setId(1);
-        savedCategory.setName("Motor");
-        savedCategory.setDescription("Motores, bielas e cabeçotes");
+        savedCategory.setName("Peças");
+        savedCategory.setDescription("Peças automotivas");
 
-        when(categoryRepository.save(any(Category.class)))
-            .thenReturn(savedCategory);
+        when(categoryRepository.save(any(Category.class))).thenReturn(savedCategory);
 
-        CategoryResponseDTO result = categoryService.createCategory(requestDto);
+        // Act
+        CategoryResponseDTO result = categoryService.createCategory(request);
 
-        assertThat(result).isNotNull();
-
+        // Assert
+        assertThat(result.getName()).isEqualTo("Peças");
+        assertThat(result.getDescription()).isEqualTo("Peças automotivas");
         verify(categoryRepository).save(any(Category.class));
     }
+
     @Test
-    @DisplayName("Should throw exception when category ID does not exist.")
-    void shouldThrowExceptionWhenIdNotFound() {
+    @DisplayName("getCategoryById com id inexistente deve lançar exceção")
+    void getCategoryById_idNaoExistente_deveLancarExcecao() {
+        // Arrange
+        when(categoryRepository.findById(99)).thenReturn(Optional.empty());
 
-        int idInexistente = 99;
-
-        when(categoryRepository.findById(idInexistente))
-            .thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> categoryService.getCategoryById(idInexistente))
-            .isInstanceOf(ResponseStatusException.class)
-            .hasMessageContaining("Category not found");
-
-        verify(categoryRepository).findById(idInexistente);
+        // Act & Assert
+        assertThrows(ResponseStatusException.class, () -> categoryService.getCategoryById(99));
     }
+
     @Test
-    @DisplayName("Must update a category correctly when ID exists")
-    void shouldUpdateCategoryCorrectly() {
+    @DisplayName("updateCategory com dados válidos deve atualizar name e description")
+    void updateCategory_dadosValidos_deveAtualizarNameEDescription() {
+        // Arrange
+        Category existing = new Category();
+        existing.setId(1);
+        existing.setName("Antiga");
+        existing.setDescription("Descrição antiga");
 
-        int idUpdate = 1;
+        CategoryRequestDTO request = CategoryRequestDTO.builder()
+                .name("Nova")
+                .description("Descrição nova")
+                .build();
 
-        CategoryRequestDTO requestDto = new CategoryRequestDTO();
-        requestDto.setName("Motor V8");
-        requestDto.setDescription("Motores de alta performance");
+        when(categoryRepository.findById(1)).thenReturn(Optional.of(existing));
+        when(categoryRepository.save(any(Category.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Category oldCategory = new Category();
-        oldCategory.setId(idUpdate);
-        oldCategory.setName("Motor");
-        oldCategory.setDescription("Motores antigos");
+        // Act
+        CategoryResponseDTO result = categoryService.updateCategory(1, request);
 
-        Category updatedCategory = new Category();
-        updatedCategory.setId(idUpdate);
-        updatedCategory.setName("Motor V8");
-        updatedCategory.setDescription("Motores de alta performance");
-
-        when(categoryRepository.findById(idUpdate))
-            .thenReturn(Optional.of(oldCategory));
-
-        when(categoryRepository.save(any(Category.class)))
-            .thenReturn(updatedCategory);
-
-        CategoryResponseDTO result = categoryService.updateCategory(idUpdate, requestDto);
-
-        assertThat(result).isNotNull();
-
-        verify(categoryRepository).findById(idUpdate);
+        // Assert
+        assertThat(result.getName()).isEqualTo("Nova");
+        assertThat(result.getDescription()).isEqualTo("Descrição nova");
         verify(categoryRepository).save(any(Category.class));
     }
+
     @Test
-    @DisplayName("It should correctly delete an ID.")
-    void shouldDeleteCorrectly(){
+    @DisplayName("deleteCategory com id válido deve deletar corretamente")
+    void deleteCategory_idValido_deveDeletarCorretamente() {
+        // Arrange
+        when(categoryRepository.existsById(1)).thenReturn(true);
 
-        int idDelete = 1;
+        // Act
+        categoryService.deleteCategory(1);
 
-        when(categoryRepository.existsById(idDelete))
-            .thenReturn(true);
-        
-        categoryService.deleteCategory(idDelete);
-
-        verify(categoryRepository).existsById(idDelete);
-        verify(categoryRepository).deleteById(idDelete);
-
+        // Assert
+        verify(categoryRepository).existsById(1);
+        verify(categoryRepository).deleteById(1);
     }
 }

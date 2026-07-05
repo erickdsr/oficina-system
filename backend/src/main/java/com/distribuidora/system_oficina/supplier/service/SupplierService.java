@@ -53,6 +53,7 @@ public class SupplierService {
             entity.setAddress(dto.getAddress());
             entity.setCity(dto.getCity());
             entity.setState(dto.getState());
+            entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
         return toResponseDTO(supplierRepository.save(entity));
     }
     public void deleteSupplier(Integer id){

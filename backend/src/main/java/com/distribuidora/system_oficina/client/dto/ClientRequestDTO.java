@@ -9,12 +9,12 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-@AllArgsConstructor  
+@AllArgsConstructor
 @Data
 @Builder
 @NoArgsConstructor
 public class ClientRequestDTO {
-  
+
     @NotBlank
     @Size(max = 150)
     @Schema(description = "Client full name", example = "John Smith")
@@ -23,7 +23,7 @@ public class ClientRequestDTO {
     @NotBlank
     @Size(max = 20)
     @Schema(description = "Client CPF or CNPJ", example = "123.456.789-00")
-    private String cpfcnpj;
+    private String cpfCnpj;
     
     @NotBlank
     @Size(max = 254)
@@ -33,7 +33,7 @@ public class ClientRequestDTO {
     @NotBlank
     @Size(max = 254)
     @Schema(description = "Client type", example = "INDIVIDUAL")
-    private String clientype;
+    private String clientType;
     
     @NotBlank
     @Size(max = 20)

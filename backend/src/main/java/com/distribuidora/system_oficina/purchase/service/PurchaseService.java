@@ -123,9 +123,12 @@ public PurchaseResponseDTO createPurchase(PurchaseRequestDTO dto) {
         Purchase purchase = purchaseRepository.findById(id).orElseThrow(() -> new RuntimeException("Purchase not found"));
 
         if(purchase.getStatus() == Status.RECEBIDA){
-        
-        } 
-            purchase.setStatus(Status.CANCELADA);
-            return toResponseDTO(purchaseRepository.save(purchase));
+            throw new RuntimeException("nao pode cancelar, compra ja recebida");
+        }
+        if(purchase.getStatus() == Status.CANCELADA){
+            throw new RuntimeException("nao pode cancelar, compra ja cancelada");
+        }
+        purchase.setStatus(Status.CANCELADA);
+        return toResponseDTO(purchaseRepository.save(purchase));
     }
 }

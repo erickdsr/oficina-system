@@ -174,14 +174,14 @@ public class SaleService {
             }
         }
 
-        sale.setStatus(Status.RECEBIDA);
+        sale.setStatus(Status.FINALIZADA);
         return toResponseDTO(saleRepository.save(sale));
     }    
     public SaleResponseDTO cancelSale(Integer id){
         Sale sale = saleRepository.findById(id).orElseThrow(() -> new RuntimeException("Sale not found"));
 
-        if(sale.getStatus() == Status.RECEBIDA){
-            throw new RuntimeException("nao pode cancelar, compra ja recebida");
+        if(sale.getStatus() == Status.FINALIZADA){
+            throw new RuntimeException("nao pode cancelar, venda ja finalizada");
         }
         else if (sale.getStatus() == Status.CANCELADA){
             throw new RuntimeException("nao pode cancelar, compra ja cancelada");
