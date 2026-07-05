@@ -55,6 +55,7 @@ public class ClientService {
             entity.setAddress(dto.getAddress());
             entity.setCity(dto.getCity());
             entity.setState(dto.getState());
+            entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
         return toResponseDTO(clientRepository.save(entity));
     }
     public void deleteClient(Integer id){
