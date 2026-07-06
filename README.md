@@ -46,6 +46,10 @@ O projeto foi desenvolvido com foco em boas práticas de desenvolvimento backend
 | Swagger/OpenAPI | 2.3.0 | Documentação da API |
 | Maven | 3.x | Gerenciador de dependências |
 | Bean Validation | 3.x | Validação de dados de entrada |
+| JUnit 5        | 5.x    | Testes unitários |
+| Mockito        | 5.x    | Mock de dependências nos testes |
+| Docker         | 27.x   | Containerização da aplicação |
+| Docker Compose | 2.x    | Orquestração dos containers |
 
 ---
 
@@ -140,6 +144,16 @@ O projeto segue a **Arquitetura em Camadas (Layered Architecture)** com separaç
 - Fluxo de status: pendente → finalizada → cancelada
 - **Saída automática do estoque** ao finalizar a venda
 - **Validação de estoque insuficiente** antes de finalizar
+
+### Testes
+
+- O projeto conta com testes unitários nos Services mais críticos, 
+seguindo o padrão **AAA (Arrange, Act, Assert)** com JUnit 5 e Mockito.
+
+### Docker
+
+- O projeto está containerizado com Docker e Docker Compose, 
+incluindo o banco de dados PostgreSQL.
 
 ---
 
@@ -412,8 +426,71 @@ Todas as outras rotas exigem token JWT válido.
 | PATCH | `/sales/{id}/finalize` | Finalizar venda → saída do estoque |
 | PATCH | `/sales/{id}/cancel` | Cancelar venda |
 
+### Cobertura de testes
+| Service | Métodos testados |
+|---|---|
+| `StockService` | registerMovement (ENTRADA, SAIDA, AJUSTE, estoque insuficiente, produto não encontrado), listLowStock |
+| `AuthService` | authenticate (sucesso, email inexistente, senha errada) |
+| `SaleService` | createSale, finalizeSale, cancelSale |
+| `PurchaseService` | createPurchase, confirmPurchase, cancelPurchase |
+| `EmployeeService` | createEmployee, getEmployeeById, updateEmployee |
+| `ProductService` | createProduct, getProductById |
+| `CategoryService` | createCategory, getCategoryById, updateCategory, deleteCategory |
+
+### Containers
+| Container | Imagem | Porta |
+|---|---|---|
+| `system_oficina_backend` | eclipse-temurin:21 | 8080 |
+| `system_oficina_db` | postgres:17-alpine | 5432 |
+
 ---
 
+### Pré-requisitos
+
+- Docker 27+
+- Docker Compose 2+
+
+### Variáveis de ambiente
+
+Crie um arquivo `.env` na raiz do projeto:
+
+```env
+DB_USERNAME=postgres
+DB_PASSWORD=sua_senha
+JWT_SECRET=sua_chave_secreta_longa
+JWT_EXPIRATION=86400000
+```
+
+### Comandos
+
+```bash
+# Subir todos os containers
+docker-compose up --build
+
+# Subir só o banco (para desenvolvimento local)
+docker-compose up postgres
+
+# Ver logs do backend
+docker-compose logs -f backend
+
+# Parar todos os containers
+docker-compose down
+
+# Parar e remover os dados do banco
+docker-compose down -v
+```
+### Como executar os testes
+
+```bash
+# Executar todos os testes
+./mvnw test
+
+# Executar testes de um módulo específico
+./mvnw test -Dtest=StockServiceTest
+
+# Executar com relatório de cobertura
+./mvnw verify
+```
 ## Como Executar
 
 ### Pré-requisitos
@@ -423,6 +500,8 @@ Java 21+
 Maven 3.x
 PostgreSQL 17+
 ```
+
+### Opção 1 — Localmente
 
 ### 1. Clone o repositório
 
@@ -462,6 +541,22 @@ jwt.expiration=86400000
 ```
 
 ### 6. Acesse a documentação
+
+```
+http://localhost:8080/swagger-ui/index.html
+```
+
+### Opção 2 — Docker (recomendado)
+
+1. Clone o repositório
+2. Crie o arquivo `.env` na raiz com as variáveis acima
+3. Execute o comando:
+
+```bash
+docker-compose up --build
+```
+
+4. Acesse a documentação:
 
 ```
 http://localhost:8080/swagger-ui/index.html
