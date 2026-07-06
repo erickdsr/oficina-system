@@ -445,12 +445,15 @@ Todas as outras rotas exigem token JWT válido.
 
 ---
 
+### Variáveis de ambiente
+
+
 ### Pré-requisitos
+
 
 - Docker 27+
 - Docker Compose 2+
 
-### Variáveis de ambiente
 
 Crie um arquivo `.env` na raiz do projeto:
 
