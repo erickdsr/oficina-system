@@ -1,11 +1,11 @@
-package com.distribuidora.system_oficina.paymentMethod.repository;
+package com.distribuidora.system_oficina.paymentmethod.repository;
 
 
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.distribuidora.system_oficina.paymentMethod.entity.PaymentMethod;
+import com.distribuidora.system_oficina.paymentmethod.entity.PaymentMethod;
 
 public interface PaymentMethodRepository extends JpaRepository <PaymentMethod, Integer> {
     

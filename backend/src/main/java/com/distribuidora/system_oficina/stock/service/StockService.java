@@ -2,9 +2,11 @@ package com.distribuidora.system_oficina.stock.service;
 
 import java.util.List;
 import java.util.stream.Collectors;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.product.entity.Product;
 import com.distribuidora.system_oficina.product.repository.ProductRepository;
@@ -22,88 +24,101 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class StockService {
-    
+
     private final StockRepository stockRepository;
     private final StockMovementRepository stockMovementRepository;
     private final ProductRepository productRepository;
 
-     private Stock toEntity(StockRequestDTO dto) {
+    private Stock toEntity(StockRequestDTO dto) {
         Stock entity = new Stock();
         updateEntityFromDto(entity, dto);
         return entity;
     }
+
     private void updateEntityFromDto(Stock entity, StockRequestDTO dto) {
-        Product product = productRepository.findById(dto.getProductId()).orElseThrow(() -> new RuntimeException("Product not found"));
+        Product product = productRepository.findById(dto.getProductId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Product not found with id: " + dto.getProductId()));
         entity.setProduct(product);
         entity.setQuantity(dto.getQuantity());
         entity.setMinQuantity(dto.getMinQuantity());
         entity.setLocation(dto.getLocation());
     }
+
     private StockResponseDTO toResponseDTO(Stock entity) {
         return StockResponseDTO.fromEntity(entity);
     }
+
     private StockMovementDTO toMovementDTO(StockMovement entity) {
         return StockMovementDTO.fromEntity(entity);
     }
 
-    public StockResponseDTO createStock(StockRequestDTO dto){
-        Stock stock = toEntity(dto);
-        return toResponseDTO(stockRepository.save(stock));
+    public StockResponseDTO createStock(StockRequestDTO dto) {
+        return toResponseDTO(stockRepository.save(toEntity(dto)));
     }
-    public List<StockResponseDTO> listStock(){
+
+    public List<StockResponseDTO> listStock() {
         return stockRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
-    public StockResponseDTO getStockById(Integer id){
-        return toResponseDTO(stockRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "product not found")));
+
+    public StockResponseDTO getStockById(Integer id) {
+        return toResponseDTO(stockRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found with id: " + id)));
     }
-    public List<StockResponseDTO> listLowStock(){
+
+    public List<StockResponseDTO> listLowStock() {
         return stockRepository.findAll().stream()
                 .filter(stock -> stock.getQuantity() < stock.getMinQuantity())
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
-    public StockResponseDTO updateStock(Integer id, StockRequestDTO dto){
-        Stock entity = stockRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "product not found"));
-        
+
+    public StockResponseDTO updateStock(Integer id, StockRequestDTO dto) {
+        Stock entity = stockRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Stock not found with id: " + id));
         updateEntityFromDto(entity, dto);
-        
         return toResponseDTO(stockRepository.save(entity));
     }
-    public List<StockMovementDTO> listMovementStock(){
+
+    public List<StockMovementDTO> listMovementStock() {
         return stockMovementRepository.findAll().stream()
                 .map(this::toMovementDTO)
                 .collect(Collectors.toList());
     }
-    public List<StockMovementDTO> listMovementProduct(Integer productId){
+
+    public List<StockMovementDTO> listMovementProduct(Integer productId) {
         return stockMovementRepository.findByProductId(productId).stream()
                 .map(this::toMovementDTO)
                 .collect(Collectors.toList());
     }
-    public void registerMovement(Product product, Employee employee, StockMovementType type, Integer quantity, String reason){
-    Stock stock = stockRepository.findByProduct(product)
-            .orElseThrow(() -> new RuntimeException("Stock not found"));
 
-    if (type == StockMovementType.ENTRADA) {
-        stock.setQuantity(stock.getQuantity() + quantity);
-    } else if (type == StockMovementType.SAIDA) {
-        if (quantity > stock.getQuantity()) {
-            throw new RuntimeException("Estoque insuficiente");
+    public void registerMovement(Product product, Employee employee, StockMovementType type, Integer quantity, String reason) {
+        Stock stock = stockRepository.findByProduct(product)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Stock not found for product id: " + product.getId()));
+
+        if (type == StockMovementType.ENTRADA) {
+            stock.setQuantity(stock.getQuantity() + quantity);
+        } else if (type == StockMovementType.SAIDA) {
+            if (quantity > stock.getQuantity()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "Insufficient stock for product id: " + product.getId());
+            }
+            stock.setQuantity(stock.getQuantity() - quantity);
+        } else if (type == StockMovementType.AJUSTE) {
+            stock.setQuantity(quantity);
         }
-        stock.setQuantity(stock.getQuantity() - quantity);
-    } else if (type == StockMovementType.AJUSTE) {
-        stock.setQuantity(quantity);
-    }
 
-    stockRepository.save(stock);
+        stockRepository.save(stock);
 
-    StockMovement movement = new StockMovement();
-    movement.setProduct(product);
-    movement.setEmployee(employee);
-    movement.setType(type);
-    movement.setQuantity(quantity);
-    movement.setReason(reason);
-    stockMovementRepository.save(movement);
+        StockMovement movement = new StockMovement();
+        movement.setProduct(product);
+        movement.setEmployee(employee);
+        movement.setType(type);
+        movement.setQuantity(quantity);
+        movement.setReason(reason);
+        stockMovementRepository.save(movement);
     }
 }

@@ -40,8 +40,8 @@ public class StockMovementDTO {
      
     public static StockMovementDTO fromEntity(StockMovement stock) {
         return StockMovementDTO.builder()
-                .product(stock.getProduct() != null? stock.getProduct().getId() : null)
-                .employee(stock.getEmployee() != null? stock.getProduct().getId() : null)
+                .product(stock.getProduct() != null ? stock.getProduct().getId() : null)
+                .employee(stock.getEmployee() != null ? stock.getEmployee().getId() : null)
                 .type(stock.getType())
                 .reason(stock.getReason())
                 .quantity(stock.getQuantity())

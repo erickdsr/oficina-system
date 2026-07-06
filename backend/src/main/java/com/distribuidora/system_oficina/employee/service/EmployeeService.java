@@ -24,7 +24,8 @@ public class EmployeeService {
 
     private Employee toEntity(EmployeeRequestDTO dto) {
         Employee entity = new Employee();
-        Role role = roleRepository.findByName(dto.getRoleName()).orElseThrow(() -> new RuntimeException("Role not found"));
+        Role role = roleRepository.findByName(dto.getRoleName()).orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND, "Role not found with name: " + dto.getRoleName()));
         entity.setName(dto.getName());
         entity.setCpf(dto.getCpf());
         entity.setEmail(dto.getEmail());
@@ -37,34 +38,37 @@ public class EmployeeService {
     private EmployeeResponseDTO toResponseDTO(Employee entity) {
         return EmployeeResponseDTO.fromEntity(entity);
     }
-    public List<EmployeeResponseDTO> listEmployees(){
+    public List<EmployeeResponseDTO> listEmployees() {
         return employeeRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
-    public EmployeeResponseDTO getEmployeeById(Integer id){
-        return toResponseDTO(employeeRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "employee not found")));
+    public EmployeeResponseDTO getEmployeeById(Integer id) {
+        return toResponseDTO(employeeRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found with id: " + id)));
     }
-    public EmployeeResponseDTO createEmployee(EmployeeRequestDTO dto){
+    public EmployeeResponseDTO createEmployee(EmployeeRequestDTO dto) {
         Employee employee = toEntity(dto);
         return toResponseDTO(employeeRepository.save(employee));
     }
-    public EmployeeResponseDTO updateEmployee(Integer id, EmployeeRequestDTO dto){
-        Employee entity = employeeRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "employee not found"));
-        Role role = roleRepository.findByName(dto.getRoleName()).orElseThrow(() -> new RuntimeException("Role not found"));
-            entity.setName(dto.getName());
-            entity.setCpf(dto.getCpf());
-            entity.setRole(role);
-            entity.setEmail(dto.getEmail());
-            entity.setPassword(passwordEncoder.encode(dto.getPassword()));
-            entity.setPhone(dto.getPhone());
-            entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
-        
+    public EmployeeResponseDTO updateEmployee(Integer id, EmployeeRequestDTO dto) {
+        Employee entity = employeeRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found with id: " + id));
+        Role role = roleRepository.findByName(dto.getRoleName()).orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND, "Role not found with name: " + dto.getRoleName()));
+        entity.setName(dto.getName());
+        entity.setCpf(dto.getCpf());
+        entity.setRole(role);
+        entity.setEmail(dto.getEmail());
+        entity.setPassword(passwordEncoder.encode(dto.getPassword()));
+        entity.setPhone(dto.getPhone());
+        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
+
         return toResponseDTO(employeeRepository.save(entity));
     }
-    public void deleteEmployee(Integer id){
+    public void deleteEmployee(Integer id) {
         if (!employeeRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "employee not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found with id: " + id);
         }
         employeeRepository.deleteById(id);
     }

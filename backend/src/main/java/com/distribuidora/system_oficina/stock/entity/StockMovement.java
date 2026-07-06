@@ -27,7 +27,7 @@ public class StockMovement {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer Id;
+    private Integer id;
     
     @ManyToOne
     @JoinColumn(name = "product_id", nullable = false)

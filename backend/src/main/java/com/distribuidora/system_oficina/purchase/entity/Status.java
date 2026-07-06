@@ -4,7 +4,6 @@ public enum Status {
 
     PENDENTE,
     RECEBIDA,
-    FINALIZADA,
     CANCELADA
     
 }

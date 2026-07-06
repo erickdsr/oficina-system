@@ -32,33 +32,35 @@ public class SupplierService {
     private SupplierResponseDTO toResponseDTO(Supplier entity) {
         return SupplierResponseDTO.fromEntity(entity);
     }
-    public List<SupplierResponseDTO> listSupplier(){
+    public List<SupplierResponseDTO> listSupplier() {
         return supplierRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
-    public SupplierResponseDTO getSupplierById(Integer id){
-        return toResponseDTO(supplierRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found")));
+    public SupplierResponseDTO getSupplierById(Integer id) {
+        return toResponseDTO(supplierRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found with id: " + id)));
     }
-    public SupplierResponseDTO createSupplier(SupplierRequestDTO dto){
+    public SupplierResponseDTO createSupplier(SupplierRequestDTO dto) {
         Supplier supplier = toEntity(dto);
         return toResponseDTO(supplierRepository.save(supplier));
     }
-    public SupplierResponseDTO updateSupplier(Integer id, SupplierRequestDTO dto){
-        Supplier entity = supplierRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found"));
-            entity.setName(dto.getName());
-            entity.setCnpj(dto.getCnpj());
-            entity.setEmail(dto.getEmail());
-            entity.setPhone(dto.getPhone());
-            entity.setAddress(dto.getAddress());
-            entity.setCity(dto.getCity());
-            entity.setState(dto.getState());
-            entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
+    public SupplierResponseDTO updateSupplier(Integer id, SupplierRequestDTO dto) {
+        Supplier entity = supplierRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found with id: " + id));
+        entity.setName(dto.getName());
+        entity.setCnpj(dto.getCnpj());
+        entity.setEmail(dto.getEmail());
+        entity.setPhone(dto.getPhone());
+        entity.setAddress(dto.getAddress());
+        entity.setCity(dto.getCity());
+        entity.setState(dto.getState());
+        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
         return toResponseDTO(supplierRepository.save(entity));
     }
-    public void deleteSupplier(Integer id){
+    public void deleteSupplier(Integer id) {
         if (!supplierRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found with id: " + id);
         }
         supplierRepository.deleteById(id);
     }

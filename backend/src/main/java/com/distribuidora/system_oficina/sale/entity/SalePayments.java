@@ -5,7 +5,7 @@ import java.sql.Timestamp;
 
 import org.hibernate.annotations.CreationTimestamp;
 
-import com.distribuidora.system_oficina.paymentMethod.entity.PaymentMethod;
+import com.distribuidora.system_oficina.paymentmethod.entity.PaymentMethod;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -36,7 +36,7 @@ public class SalePayments {
 
     @ManyToOne
     @JoinColumn(name = "payment_method_id", nullable = false)
-    private PaymentMethod paymentMethodId;
+    private PaymentMethod paymentMethod;
 
     @Column(name = "amount", nullable = false)
     private BigDecimal amount;

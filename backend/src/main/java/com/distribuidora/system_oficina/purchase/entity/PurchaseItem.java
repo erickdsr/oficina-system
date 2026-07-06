@@ -28,19 +28,19 @@ public class PurchaseItem {
     private Integer id;
     
     @ManyToOne
-    @JoinColumn(name = "purchase_id")
+    @JoinColumn(name = "purchase_id", nullable = false)
     private Purchase purchase;
     
     @ManyToOne
-    @JoinColumn(name = "product_id")
+    @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @Column(name = "quantity")
+    @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
-    @Column(name = "unit_cost")
+    @Column(name = "unit_cost", nullable = false)
     private BigDecimal unitCost;
 
-    @Column(name = "subtotal")
+    @Column(name = "subtotal", nullable = false)
     private BigDecimal subtotal;
 }

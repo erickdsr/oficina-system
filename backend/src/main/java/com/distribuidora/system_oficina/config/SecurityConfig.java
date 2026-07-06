@@ -28,27 +28,19 @@ public class SecurityConfig {
     private final UserDetailsServiceImpl userDetailsService;
 
     @Bean
-public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-    return http
-
-            .csrf(csrf -> csrf.disable())
-            
-
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            
-            .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/login", "/auth/login").permitAll()
-            .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-
-            .requestMatchers(HttpMethod.POST, "/employees")
-            .hasRole("ADMIN")
-            .anyRequest().authenticated()
-            )
-        
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            .build(); 
-}
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        return http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/login", "/auth/login").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/employees").hasRole("ADMIN")
+                        .anyRequest().authenticated())
+                .authenticationProvider(authenticationProvider())
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .build();
+    }
 
     @Bean
     public AuthenticationManager authenticationManager() {
@@ -67,6 +59,5 @@ public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
-    
 }
 

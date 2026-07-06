@@ -4,13 +4,13 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.distribuidora.system_oficina.purchase.entity.Status;
 import com.distribuidora.system_oficina.sale.entity.Sale;
+import com.distribuidora.system_oficina.sale.entity.SaleStatus;
 
 public interface SaleRepository extends JpaRepository <Sale, Integer> {
 
     List <Sale> findByClientId(Integer clientId);
     List <Sale> findByEmployeeId(Integer employeeId);
-    List <Sale> findByStatus(Status status);
+    List <Sale> findByStatus(SaleStatus status);
     
 }

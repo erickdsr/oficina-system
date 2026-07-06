@@ -22,7 +22,7 @@ public class EmployeeResponseDTO {
 
     @Schema(description = "Employee CPF", example = "123.456.789-00")
     private String cpf;
-     
+
     @Schema(description = "Employee email address", example = "joao.silva@email.com")
     private String email;
 

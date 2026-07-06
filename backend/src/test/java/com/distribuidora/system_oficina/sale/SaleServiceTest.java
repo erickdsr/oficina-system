@@ -24,11 +24,10 @@ import com.distribuidora.system_oficina.client.entity.Client;
 import com.distribuidora.system_oficina.client.repository.ClientRepository;
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
-import com.distribuidora.system_oficina.paymentMethod.entity.PaymentMethod;
-import com.distribuidora.system_oficina.paymentMethod.repository.PaymentMethodRepository;
+import com.distribuidora.system_oficina.paymentmethod.entity.PaymentMethod;
+import com.distribuidora.system_oficina.paymentmethod.repository.PaymentMethodRepository;
 import com.distribuidora.system_oficina.product.entity.Product;
 import com.distribuidora.system_oficina.product.repository.ProductRepository;
-import com.distribuidora.system_oficina.purchase.entity.Status;
 import com.distribuidora.system_oficina.sale.dto.SaleItemDTO;
 import com.distribuidora.system_oficina.sale.dto.SalePaymentDTO;
 import com.distribuidora.system_oficina.sale.dto.SaleRequestDTO;
@@ -36,6 +35,7 @@ import com.distribuidora.system_oficina.sale.dto.SaleResponseDTO;
 import com.distribuidora.system_oficina.sale.entity.Sale;
 import com.distribuidora.system_oficina.sale.entity.SaleItem;
 import com.distribuidora.system_oficina.sale.entity.SalePayments;
+import com.distribuidora.system_oficina.sale.entity.SaleStatus;
 import com.distribuidora.system_oficina.sale.repository.SaleItemRepository;
 import com.distribuidora.system_oficina.sale.repository.SalePaymentsRepository;
 import com.distribuidora.system_oficina.sale.repository.SaleRepository;
@@ -114,7 +114,7 @@ class SaleServiceTest {
 
         // Assert
         assertThat(result).isNotNull();
-        assertThat(result.getStatus()).isEqualTo(Status.PENDENTE);
+        assertThat(result.getStatus()).isEqualTo(SaleStatus.PENDENTE);
         assertThat(result.getTotal()).isEqualByComparingTo("18.00");
         verify(saleItemRepository).save(any(SaleItem.class));
         verify(salePaymentsRepository).save(any(SalePayments.class));
@@ -211,7 +211,7 @@ class SaleServiceTest {
         // Arrange
         Sale sale = new Sale();
         sale.setId(1);
-        sale.setStatus(Status.PENDENTE);
+        sale.setStatus(SaleStatus.PENDENTE);
         Employee employee = new Employee();
         employee.setId(2);
         sale.setEmployee(employee);
@@ -243,7 +243,7 @@ class SaleServiceTest {
         // Arrange
         Sale sale = new Sale();
         sale.setId(1);
-        sale.setStatus(Status.PENDENTE);
+        sale.setStatus(SaleStatus.PENDENTE);
         sale.setItems(List.of());
         when(saleRepository.findById(1)).thenReturn(Optional.of(sale));
         when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -252,7 +252,7 @@ class SaleServiceTest {
         SaleResponseDTO result = saleService.finalizeSale(1);
 
         // Assert
-        assertThat(result.getStatus()).isEqualTo(Status.FINALIZADA);
+        assertThat(result.getStatus()).isEqualTo(SaleStatus.FINALIZADA);
     }
 
     @Test
@@ -260,7 +260,7 @@ class SaleServiceTest {
     void finalizeSale_statusNaoPendente_deveLancarExcecao() {
         // Arrange
         Sale sale = new Sale();
-        sale.setStatus(Status.FINALIZADA);
+        sale.setStatus(SaleStatus.FINALIZADA);
         when(saleRepository.findById(1)).thenReturn(Optional.of(sale));
 
         // Act & Assert
@@ -273,7 +273,7 @@ class SaleServiceTest {
     void cancelSale_statusFinalizada_deveLancarExcecao() {
         // Arrange
         Sale sale = new Sale();
-        sale.setStatus(Status.FINALIZADA);
+        sale.setStatus(SaleStatus.FINALIZADA);
         when(saleRepository.findById(1)).thenReturn(Optional.of(sale));
 
         // Act & Assert
@@ -286,7 +286,7 @@ class SaleServiceTest {
     void cancelSale_deveAlterarStatusParaCancelada() {
         // Arrange
         Sale sale = new Sale();
-        sale.setStatus(Status.PENDENTE);
+        sale.setStatus(SaleStatus.PENDENTE);
         when(saleRepository.findById(1)).thenReturn(Optional.of(sale));
         when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -294,6 +294,6 @@ class SaleServiceTest {
         SaleResponseDTO result = saleService.cancelSale(1);
 
         // Assert
-        assertThat(result.getStatus()).isEqualTo(Status.CANCELADA);
+        assertThat(result.getStatus()).isEqualTo(SaleStatus.CANCELADA);
     }
 }

@@ -33,34 +33,36 @@ public class ClientService {
     private ClientResponseDTO toResponseDTO(Client entity) {
         return ClientResponseDTO.fromEntity(entity);
     }
-    public List<ClientResponseDTO> listClients(){
+    public List<ClientResponseDTO> listClients() {
         return clientRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
-    public ClientResponseDTO getClientById(Integer id){
-        return toResponseDTO(clientRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found")));
+    public ClientResponseDTO getClientById(Integer id) {
+        return toResponseDTO(clientRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found with id: " + id)));
     }
-    public ClientResponseDTO createClient(ClientRequestDTO dto){
+    public ClientResponseDTO createClient(ClientRequestDTO dto) {
         Client client = toEntity(dto);
         return toResponseDTO(clientRepository.save(client));
     }
-    public ClientResponseDTO updateClient(Integer id, ClientRequestDTO dto){
-        Client entity = clientRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found"));
-            entity.setName(dto.getName());
-            entity.setCpfCnpj(dto.getCpfCnpj());
-            entity.setClientType(dto.getClientType());
-            entity.setEmail(dto.getEmail());
-            entity.setPhone(dto.getPhone());
-            entity.setAddress(dto.getAddress());
-            entity.setCity(dto.getCity());
-            entity.setState(dto.getState());
-            entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
+    public ClientResponseDTO updateClient(Integer id, ClientRequestDTO dto) {
+        Client entity = clientRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found with id: " + id));
+        entity.setName(dto.getName());
+        entity.setCpfCnpj(dto.getCpfCnpj());
+        entity.setClientType(dto.getClientType());
+        entity.setEmail(dto.getEmail());
+        entity.setPhone(dto.getPhone());
+        entity.setAddress(dto.getAddress());
+        entity.setCity(dto.getCity());
+        entity.setState(dto.getState());
+        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
         return toResponseDTO(clientRepository.save(entity));
     }
-    public void deleteClient(Integer id){
+    public void deleteClient(Integer id) {
         if (!clientRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found with id: " + id);
         }
         clientRepository.deleteById(id);
     }

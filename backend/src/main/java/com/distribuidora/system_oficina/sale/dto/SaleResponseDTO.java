@@ -5,8 +5,8 @@ import java.sql.Timestamp;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.distribuidora.system_oficina.purchase.entity.Status;
 import com.distribuidora.system_oficina.sale.entity.Sale;
+import com.distribuidora.system_oficina.sale.entity.SaleStatus;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -42,7 +42,7 @@ public class SaleResponseDTO {
     private BigDecimal discount;
 
     @Schema(description = "status de sale")
-    private Status status;
+    private SaleStatus status;
 
     @Schema(description = "notes")
     private String notes;

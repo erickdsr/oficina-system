@@ -39,18 +39,18 @@ public class Purchase {
       private Integer id;
       
       @ManyToOne
-      @JoinColumn(name = "supplier_id")
+      @JoinColumn(name = "supplier_id", nullable = false)
       private Supplier supplier;
       
       @ManyToOne
-      @JoinColumn(name = "employee_id")
+      @JoinColumn(name = "employee_id", nullable = false)
       private Employee employee;
        
-      @Column(name = "total")
+      @Column(name = "total", nullable = false)
       private BigDecimal total;
       
       @Enumerated(EnumType.STRING)
-      @Column(name = "status")
+      @Column(name = "status", nullable = false)
       private Status status;
       
       @Column(name = "notes")

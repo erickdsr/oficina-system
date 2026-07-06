@@ -35,15 +35,15 @@ public class SaleItem {
     @JoinColumn(name = "product_id", nullable = false)         
     private Product product;  
     
-    @Column(name = "quantity")
+    @Column(name = "quantity", nullable = false)
     private Integer quantity;
 
-    @Column(name = "unit_price")
+    @Column(name = "unit_price", nullable = false)
     private  BigDecimal unitPrice;
 
-    @Column(name = "discount")
+    @Column(name = "discount", nullable = false)
     private BigDecimal discount;
     
-    @Column(name = "subtotal")
+    @Column(name = "subtotal", nullable = false)
     private BigDecimal subtotal;
 }

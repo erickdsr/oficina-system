@@ -9,8 +9,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import com.distribuidora.system_oficina.client.entity.Client;
 import com.distribuidora.system_oficina.employee.entity.Employee;
-import com.distribuidora.system_oficina.purchase.entity.Status;
-
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -54,7 +52,7 @@ public class Sale {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
-    private Status status;
+    private SaleStatus status;
     
     @Column(name = "notes")
     private String notes;
@@ -67,10 +65,10 @@ public class Sale {
     @Column(name = "updated_at", nullable = false)
     private Timestamp updatedAt;
 
-    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SaleItem> items;
 
-    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SalePayments> payments;
 
 }

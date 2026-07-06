@@ -28,7 +28,7 @@ public class SalePaymentDTO {
     public static SalePaymentDTO fromEntity(SalePayments salePayments) {
         return SalePaymentDTO.builder()
 
-        .paymentMethodId(salePayments.getPaymentMethodId().getId())
+        .paymentMethodId(salePayments.getPaymentMethod().getId())
         .amount(salePayments.getAmount())
         .build();
         

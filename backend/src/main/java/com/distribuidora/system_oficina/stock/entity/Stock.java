@@ -29,7 +29,7 @@ public class Stock {
     private Integer id;
      
     @ManyToOne
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "product_id", nullable = false, unique = true)
     private Product product;
     
     @Column(name = "quantity", nullable = false)

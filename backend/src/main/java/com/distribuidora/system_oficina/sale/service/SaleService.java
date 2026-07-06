@@ -14,11 +14,10 @@ import com.distribuidora.system_oficina.client.entity.Client;
 import com.distribuidora.system_oficina.client.repository.ClientRepository;
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
-import com.distribuidora.system_oficina.paymentMethod.entity.PaymentMethod;
-import com.distribuidora.system_oficina.paymentMethod.repository.PaymentMethodRepository;
+import com.distribuidora.system_oficina.paymentmethod.entity.PaymentMethod;
+import com.distribuidora.system_oficina.paymentmethod.repository.PaymentMethodRepository;
 import com.distribuidora.system_oficina.product.entity.Product;
 import com.distribuidora.system_oficina.product.repository.ProductRepository;
-import com.distribuidora.system_oficina.purchase.entity.Status;
 import com.distribuidora.system_oficina.sale.dto.SaleItemDTO;
 import com.distribuidora.system_oficina.sale.dto.SalePaymentDTO;
 import com.distribuidora.system_oficina.sale.dto.SaleRequestDTO;
@@ -26,6 +25,7 @@ import com.distribuidora.system_oficina.sale.dto.SaleResponseDTO;
 import com.distribuidora.system_oficina.sale.entity.Sale;
 import com.distribuidora.system_oficina.sale.entity.SaleItem;
 import com.distribuidora.system_oficina.sale.entity.SalePayments;
+import com.distribuidora.system_oficina.sale.entity.SaleStatus;
 import com.distribuidora.system_oficina.sale.repository.SaleItemRepository;
 import com.distribuidora.system_oficina.sale.repository.SalePaymentsRepository;
 import com.distribuidora.system_oficina.sale.repository.SaleRepository;
@@ -36,9 +36,8 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-
 public class SaleService {
-    
+
     private final SaleRepository saleRepository;
     private final SaleItemRepository saleItemRepository;
     private final SalePaymentsRepository salePaymentsRepository;
@@ -48,118 +47,100 @@ public class SaleService {
     private final PaymentMethodRepository paymentMethodRepository;
     private final StockService stockService;
 
-   private Sale toEntity(SaleRequestDTO dto) {
+    private Sale toEntity(SaleRequestDTO dto) {
+        Client client = clientRepository.findById(dto.getClientId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Client not found with id: " + dto.getClientId()));
+        Employee employee = employeeRepository.findById(dto.getEmployeeId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Employee not found with id: " + dto.getEmployeeId()));
 
-    Client client = clientRepository.findById(dto.getClientId())
-            .orElseThrow(() -> new RuntimeException("Client not found"));
+        Sale sale = new Sale();
+        sale.setClient(client);
+        sale.setEmployee(employee);
+        sale.setDiscount(dto.getDiscount() != null ? dto.getDiscount() : BigDecimal.ZERO);
+        sale.setNotes(dto.getNotes());
+        sale.setStatus(SaleStatus.PENDENTE);
+        sale.setTotal(BigDecimal.ZERO);
+        sale.setItems(new ArrayList<>());
+        sale.setPayments(new ArrayList<>());
+        return sale;
+    }
 
-    Employee employee = employeeRepository.findById(dto.getEmployeeId())
-            .orElseThrow(() -> new RuntimeException("Employee not found"));
-
-    Sale sale = new Sale();
-    sale.setClient(client);
-    sale.setEmployee(employee);
-    sale.setDiscount(dto.getDiscount() != null ? dto.getDiscount() : BigDecimal.ZERO);
-    sale.setNotes(dto.getNotes());
-    sale.setStatus(Status.PENDENTE);
-    sale.setTotal(BigDecimal.ZERO);
-
-    return sale;
-}
-
-    private SaleResponseDTO toResponseDTO(Sale entity){
+    private SaleResponseDTO toResponseDTO(Sale entity) {
         return SaleResponseDTO.fromEntity(entity);
     }
-    private SaleItemDTO toItemDTO(SaleItem item){
-        return SaleItemDTO.fromEntity(item);
-    }
-    private SalePaymentDTO toPaymentDTO(SalePayments payment){
-        return SalePaymentDTO.fromEntity(payment);
-    }
+
     @Transactional
     public SaleResponseDTO createSale(SaleRequestDTO dto) {
+        Sale savedSale = saleRepository.save(toEntity(dto));
 
-    Client client = clientRepository.findById(dto.getClientId())
-        .orElseThrow(() -> new RuntimeException("Client not found"));
+        List<SaleItem> saleItems = new ArrayList<>();
+        List<SalePayments> salePayments = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
 
-    Employee employee = employeeRepository.findById(dto.getEmployeeId())
-        .orElseThrow(() -> new RuntimeException("Employee not found"));
+        for (SaleItemDTO itemDTO : dto.getItems()) {
+            Product product = productRepository.findById(itemDTO.getProductId())
+                    .orElseThrow(() -> new ResponseStatusException(
+                            HttpStatus.NOT_FOUND, "Product not found with id: " + itemDTO.getProductId()));
 
-    Sale sale = new Sale();
-    sale.setClient(client);
-    sale.setEmployee(employee);
-    sale.setDiscount(dto.getDiscount() != null ? dto.getDiscount() : BigDecimal.ZERO);
-    sale.setNotes(dto.getNotes());
-    sale.setStatus(Status.PENDENTE);
-    sale.setTotal(BigDecimal.ZERO);
+            BigDecimal discount = itemDTO.getDiscount() != null ? itemDTO.getDiscount() : BigDecimal.ZERO;
+            BigDecimal subtotal = product.getSalePrice()
+                    .multiply(BigDecimal.valueOf(itemDTO.getQuantity()))
+                    .subtract(discount);
 
-    Sale savedSale = saleRepository.save(sale);
+            SaleItem item = new SaleItem();
+            item.setSale(savedSale);
+            item.setProduct(product);
+            item.setQuantity(itemDTO.getQuantity());
+            item.setUnitPrice(product.getSalePrice());
+            item.setDiscount(discount);
+            item.setSubtotal(subtotal);
 
-    List<SaleItem> saleItems = new ArrayList<>();
-    List<SalePayments> salePayments = new ArrayList<>();
-    BigDecimal total = BigDecimal.ZERO;
+            saleItems.add(item);
+            saleItemRepository.save(item);
+            total = total.add(subtotal);
+        }
 
-    for (SaleItemDTO itemDTO : dto.getItems()) {
+        for (SalePaymentDTO paymentDTO : dto.getPayments()) {
+            PaymentMethod paymentMethod = paymentMethodRepository.findById(paymentDTO.getPaymentMethodId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                            "Payment method not found with id: " + paymentDTO.getPaymentMethodId()));
 
-        Product product = productRepository.findById(itemDTO.getProductId())
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+            SalePayments payment = new SalePayments();
+            payment.setSale(savedSale);
+            payment.setPaymentMethod(paymentMethod);
+            payment.setAmount(paymentDTO.getAmount());
 
-        BigDecimal discount = itemDTO.getDiscount() != null ? itemDTO.getDiscount() : BigDecimal.ZERO;
-        BigDecimal subtotal = product.getSalePrice()
-                .multiply(BigDecimal.valueOf(itemDTO.getQuantity()))
-                .subtract(discount);
+            salePayments.add(payment);
+            salePaymentsRepository.save(payment);
+        }
 
-        SaleItem item = new SaleItem();
-        item.setSale(savedSale);
-        item.setProduct(product);
-        item.setQuantity(itemDTO.getQuantity());
-        item.setUnitPrice(product.getSalePrice());
-        item.setDiscount(discount);
-        item.setSubtotal(subtotal);
-
-        saleItems.add(item);
-        saleItemRepository.save(item);
-
-        total = total.add(subtotal);
+        savedSale.setItems(saleItems);
+        savedSale.setPayments(salePayments);
+        savedSale.setTotal(total.subtract(savedSale.getDiscount()));
+        return toResponseDTO(saleRepository.save(savedSale));
     }
 
-    for (SalePaymentDTO paymentDTO : dto.getPayments()) {
-
-        PaymentMethod paymentMethod = paymentMethodRepository.findById(paymentDTO.getPaymentMethodId())
-                .orElseThrow(() -> new RuntimeException("PaymentMethod not found"));
-
-        SalePayments payment = new SalePayments();
-        payment.setSale(savedSale);
-        payment.setPaymentMethodId(paymentMethod);
-        payment.setAmount(paymentDTO.getAmount());
-
-        salePayments.add(payment);
-        salePaymentsRepository.save(payment);
-    }
-
-    BigDecimal totalFinal = total.subtract(savedSale.getDiscount());
-    savedSale.setItems(saleItems);
-    savedSale.setPayments(salePayments);
-    savedSale.setTotal(totalFinal);
-    saleRepository.save(savedSale);
-
-    return toResponseDTO(savedSale);
-}
-    public List<SaleResponseDTO> listSales(){
+    public List<SaleResponseDTO> listSales() {
         return saleRepository.findAll().stream()
-            .map(this::toResponseDTO)
-            .collect(Collectors.toList());
+                .map(this::toResponseDTO)
+                .collect(Collectors.toList());
     }
-    public SaleResponseDTO getSaleById(Integer id){
-        return toResponseDTO(saleRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sale not found")));
 
+    public SaleResponseDTO getSaleById(Integer id) {
+        return toResponseDTO(saleRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sale not found with id: " + id)));
     }
+
     @Transactional
-    public SaleResponseDTO finalizeSale(Integer id){
-        Sale sale = saleRepository.findById(id).orElseThrow(() -> new RuntimeException("Sale not found"));
+    public SaleResponseDTO finalizeSale(Integer id) {
+        Sale sale = saleRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sale not found with id: " + id));
 
-        if(sale.getStatus() != Status.PENDENTE){
-            throw new RuntimeException("nao pode finalizar, compra ja recebido ou cancelado");
+        if (sale.getStatus() != SaleStatus.PENDENTE) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "Cannot finalize sale that is not pending with id: " + id);
         }
 
         if (sale.getItems() != null) {
@@ -169,26 +150,27 @@ public class SaleService {
                         sale.getEmployee(),
                         StockMovementType.SAIDA,
                         item.getQuantity(),
-                        "Venda #" + sale.getId()
-                );
+                        "Venda #" + sale.getId());
             }
         }
 
-        sale.setStatus(Status.FINALIZADA);
+        sale.setStatus(SaleStatus.FINALIZADA);
         return toResponseDTO(saleRepository.save(sale));
-    }    
-    public SaleResponseDTO cancelSale(Integer id){
-        Sale sale = saleRepository.findById(id).orElseThrow(() -> new RuntimeException("Sale not found"));
-
-        if(sale.getStatus() == Status.FINALIZADA){
-            throw new RuntimeException("nao pode cancelar, venda ja finalizada");
-        }
-        else if (sale.getStatus() == Status.CANCELADA){
-            throw new RuntimeException("nao pode cancelar, compra ja cancelada");
-        }
-        sale.setStatus(Status.CANCELADA);
-        return toResponseDTO(saleRepository.save(sale));
-
     }
 
+    @Transactional
+    public SaleResponseDTO cancelSale(Integer id) {
+        Sale sale = saleRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sale not found with id: " + id));
+
+        if (sale.getStatus() == SaleStatus.FINALIZADA) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot cancel finalized sale with id: " + id);
+        }
+        if (sale.getStatus() == SaleStatus.CANCELADA) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sale already canceled with id: " + id);
+        }
+
+        sale.setStatus(SaleStatus.CANCELADA);
+        return toResponseDTO(saleRepository.save(sale));
+    }
 }
