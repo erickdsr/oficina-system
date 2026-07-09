@@ -35,7 +35,7 @@ O projeto foi desenvolvido com foco em boas práticas de desenvolvimento backend
 
 | Tecnologia | Versão | Uso |
 |---|---|---|
-| Java | 21 | Linguagem principal |
+| Java | 25 LTS | Linguagem principal |
 | Spring Boot | 3.5.14 | Framework principal |
 | Spring Security | 3.x | Autenticação e autorização |
 | Spring Data JPA | 3.x | ORM e persistência |
@@ -419,7 +419,7 @@ Todas as outras rotas exigem token JWT válido.
 ### Pré-requisitos
 
 ```
-Java 21+
+Java 25+
 Maven 3.x
 PostgreSQL 17+
 ```
