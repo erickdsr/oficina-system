@@ -7,7 +7,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.util.StringUtils;
 
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
@@ -26,7 +28,8 @@ public class SystemOficinaApplication {
 	CommandLineRunner createDefaultEmployee(
 			EmployeeRepository employeeRepository,
 			RoleRepository roleRepository,
-			PasswordEncoder passwordEncoder) {
+			PasswordEncoder passwordEncoder,
+			Environment environment) {
 		return args -> {
 			Role role = roleRepository.findByName("admin")
 					.orElseGet(() -> {
@@ -37,15 +40,22 @@ public class SystemOficinaApplication {
 						return roleRepository.save(newRole);
 					});
 
-			Employee employee = employeeRepository.findByEmail("Email@email.com")
-					.orElseGet(Employee::new);
-			employee.setName("Usuario Teste");
-			employee.setCpf("00000000000");
-			employee.setEmail("Email@email.com");
-			if (employee.getPassword() == null || !passwordEncoder.matches("123456", employee.getPassword())) {
-				employee.setPassword(passwordEncoder.encode("123456"));
+			String adminEmail = environment.getProperty("ADMIN_EMAIL");
+			String adminPassword = environment.getProperty("ADMIN_PASSWORD");
+
+			if (!StringUtils.hasText(adminEmail) || !StringUtils.hasText(adminPassword)) {
+				return;
 			}
-			employee.setPhone("11999999999");
+
+			Employee employee = employeeRepository.findByEmail(adminEmail)
+					.orElseGet(Employee::new);
+			employee.setName(environment.getProperty("ADMIN_NAME", "Administrador"));
+			employee.setCpf("00000000000");
+			employee.setEmail(adminEmail);
+			if (employee.getPassword() == null || !passwordEncoder.matches(adminPassword, employee.getPassword())) {
+				employee.setPassword(passwordEncoder.encode(adminPassword));
+			}
+			employee.setPhone(environment.getProperty("ADMIN_PHONE", "11999999999"));
 			employee.setRole(role);
 			employee.setStatus(true);
 
