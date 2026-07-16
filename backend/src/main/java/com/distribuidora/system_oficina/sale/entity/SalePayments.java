@@ -5,7 +5,7 @@ import java.sql.Timestamp;
 
 import org.hibernate.annotations.CreationTimestamp;
 
-import com.distribuidora.system_oficina.paymentmethod.entity.PaymentMethod;
+import com.distribuidora.system_oficina.paymentMethod.entity.PaymentMethod;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

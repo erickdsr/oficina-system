@@ -89,12 +89,14 @@ public class PurchaseService {
         return toResponseDTO(purchaseRepository.save(purchase));
     }
 
+    @Transactional(readOnly = true)
     public List<PurchaseResponseDTO> listPurchases() {
         return purchaseRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public PurchaseResponseDTO getPurchaseById(Integer id) {
         return toResponseDTO(purchaseRepository.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase not found with id: " + id)));

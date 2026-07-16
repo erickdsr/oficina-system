@@ -1,29 +1,24 @@
 import type { ApiDateTime, ApiId } from "./api.types";
 
-export interface Client{
+export interface Employee{
 
     id: ApiId;
     name: string;
-    cpfCnpj: string;
-    clientType: string;
+    cpf: string;
     email: string;
     phone: string;
-    address: string;
-    city: string;
-    state: string;
+    roleName: string;
     status: boolean;
     createdAt: ApiDateTime;
     updatedAt: ApiDateTime;
 }
-export interface ClientRequest{
+export interface EmployeeRequest{
 
     name: string;
-    cpfCnpj: string;
+    cpf: string;
     email: string;
-    clientType: string;
+    password: string;
+    roleName: string;
     phone: string;
-    address: string;
-    city: string;
-    state: string;
     status: boolean;
 }

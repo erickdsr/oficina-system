@@ -14,8 +14,8 @@ import com.distribuidora.system_oficina.client.entity.Client;
 import com.distribuidora.system_oficina.client.repository.ClientRepository;
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
-import com.distribuidora.system_oficina.paymentmethod.entity.PaymentMethod;
-import com.distribuidora.system_oficina.paymentmethod.repository.PaymentMethodRepository;
+import com.distribuidora.system_oficina.paymentMethod.entity.PaymentMethod;
+import com.distribuidora.system_oficina.paymentMethod.repository.PaymentMethodRepository;
 import com.distribuidora.system_oficina.product.entity.Product;
 import com.distribuidora.system_oficina.product.repository.ProductRepository;
 import com.distribuidora.system_oficina.sale.dto.SaleItemDTO;
@@ -122,12 +122,14 @@ public class SaleService {
         return toResponseDTO(saleRepository.save(savedSale));
     }
 
+    @Transactional(readOnly = true)
     public List<SaleResponseDTO> listSales() {
         return saleRepository.findAll().stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public SaleResponseDTO getSaleById(Integer id) {
         return toResponseDTO(saleRepository.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Sale not found with id: " + id)));

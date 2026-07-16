@@ -1,4 +1,4 @@
-package com.distribuidora.system_oficina.paymentmethod.entity;
+package com.distribuidora.system_oficina.paymentMethod.entity;
 
 
 import jakarta.persistence.Column;
