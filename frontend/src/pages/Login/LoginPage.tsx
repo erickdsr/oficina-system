@@ -35,14 +35,14 @@ export function LoginPage() {
 
         try {
             await login(data);
-            navigate("/dashboard", { replace: true });
+            navigate("/", { replace: true });
         } catch (error) {
             setServerError(getApiErrorMessage(error, "Nao foi possivel entrar. Verifique seus dados."));
         }
     }
 
     if (isAuthenticated) {
-        return <Navigate to="/dashboard" replace />;
+        return <Navigate to="/" replace />;
     }
 
     return (
