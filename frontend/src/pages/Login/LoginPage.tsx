@@ -1,8 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff, LoaderCircle, Lock, Mail } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
+import logoWithText from "../../assets/logo-transaparente -2.0.png";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
 
@@ -17,10 +19,12 @@ export function LoginPage() {
     const navigate = useNavigate();
     const { isAuthenticated, login } = useAuth();
     const [serverError, setServerError] = useState<string | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
 
     const {
         register,
         handleSubmit,
+        watch,
         formState: { errors, isSubmitting },
     } = useForm<LoginFormData>({
         resolver: zodResolver(loginSchema),
@@ -29,6 +33,8 @@ export function LoginPage() {
             password: "",
         },
     });
+    const emailValue = watch("email");
+    const passwordValue = watch("password");
 
     async function onSubmit(data: LoginFormData) {
         setServerError(null);
@@ -47,51 +53,72 @@ export function LoginPage() {
 
     return (
         <main className="login-page">
-            <section className="login-panel" aria-labelledby="login-title">
-                <div className="login-heading">
-                    <span className="login-kicker">System Oficina</span>
-                    <h1 id="login-title">Entrar</h1>
-                    <p>Acesse sua conta para continuar.</p>
-                </div>
+            <div className="login-stack">
+                <img className="login-logo" src={logoWithText} alt="GarageOS" />
 
-                <form className="login-form" onSubmit={handleSubmit(onSubmit)} noValidate>
-                    <label className="form-field" htmlFor="email">
-                        <span>E-mail</span>
-                        <input
-                            id="email"
-                            type="email"
-                            autoComplete="email"
-                            placeholder="usuario@empresa.com"
-                            aria-invalid={Boolean(errors.email)}
-                            {...register("email")}
-                        />
-                        {errors.email && <small>{errors.email.message}</small>}
-                    </label>
+                <section className="login-panel" aria-labelledby="login-title">
+                    <div className="login-heading">
+                        <h1 id="login-title">Entrar</h1>
+                        <p>Acesse sua conta para continuar.</p>
+                    </div>
 
-                    <label className="form-field" htmlFor="password">
-                        <span>Senha</span>
-                        <input
-                            id="password"
-                            type="password"
-                            autoComplete="current-password"
-                            placeholder="Digite sua senha"
-                            aria-invalid={Boolean(errors.password)}
-                            {...register("password")}
-                        />
-                        {errors.password && <small>{errors.password.message}</small>}
-                    </label>
+                    <form className="login-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+                        <label className="form-field" htmlFor="email">
+                            <span>E-mail</span>
+                            <div className="login-input-wrap">
+                                <Mail className="login-input-icon" size={18} aria-hidden="true" />
+                                <input
+                                    id="email"
+                                    type="email"
+                                    autoComplete="email"
+                                    autoFocus
+                                    placeholder="Digite seu e-mail"
+                                    aria-invalid={Boolean(errors.email)}
+                                    className={emailValue && !errors.email ? "is-valid" : undefined}
+                                    {...register("email")}
+                                />
+                            </div>
+                            {errors.email && <small>{errors.email.message}</small>}
+                        </label>
 
-                    {serverError && (
-                        <div className="form-error" role="alert">
-                            {serverError}
-                        </div>
-                    )}
+                        <label className="form-field" htmlFor="password">
+                            <span>Senha</span>
+                            <div className="login-input-wrap">
+                                <Lock className="login-input-icon" size={18} aria-hidden="true" />
+                                <input
+                                    id="password"
+                                    type={showPassword ? "text" : "password"}
+                                    autoComplete="current-password"
+                                    placeholder="Digite sua senha"
+                                    aria-invalid={Boolean(errors.password)}
+                                    className={passwordValue && !errors.password ? "is-valid" : undefined}
+                                    {...register("password")}
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle"
+                                    onClick={() => setShowPassword((current) => !current)}
+                                    aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                                >
+                                    {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                                </button>
+                            </div>
+                            {errors.password && <small>{errors.password.message}</small>}
+                        </label>
 
-                    <button type="submit" disabled={isSubmitting}>
-                        {isSubmitting ? "Entrando..." : "Entrar"}
-                    </button>
-                </form>
-            </section>
+                        {serverError && (
+                            <div className="form-error" role="alert">
+                                {serverError}
+                            </div>
+                        )}
+
+                        <button type="submit" className="login-submit" disabled={isSubmitting}>
+                            {isSubmitting && <LoaderCircle className="login-spinner" size={18} aria-hidden="true" />}
+                            {isSubmitting ? "Entrando..." : "Entrar"}
+                        </button>
+                    </form>
+                </section>
+            </div>
         </main>
     );
 }
