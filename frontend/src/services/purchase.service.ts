@@ -21,12 +21,12 @@ export const purchaseService = {
     },
 
     async confirm(id: ApiId) {
-        const { data } = await api.patch<PurchaseResponse>(`${RESOURCE}/confirm/${id}`);
+        const { data } = await api.patch<PurchaseResponse>(`${RESOURCE}/${id}/confirm`);
         return data;
     },
 
     async cancel(id: ApiId) {
-        const { data } = await api.patch<PurchaseResponse>(`${RESOURCE}/cancel/${id}`);
+        const { data } = await api.patch<PurchaseResponse>(`${RESOURCE}/${id}/cancel`);
         return data;
     },
 };

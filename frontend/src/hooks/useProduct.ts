@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { getApiErrorMessage } from "../services/api";
 import productService from "../services/product.service";
 import type { ApiId } from "../types/api.types";
@@ -19,17 +20,42 @@ export function useProduct() {
         } catch (loadError) {
             const message = getApiErrorMessage(loadError, "Nao foi possivel carregar produtos.");
             setError(message);
+            toast.error(message);
             throw loadError;
         } finally {
             setLoading(false);
         }
     }, []);
 
-    const createProduct = useCallback((product: ProductRequest) => productService.create(product), []);
-    const updateProduct = useCallback((id: ApiId, product: ProductRequest) => productService.update(id, product), []);
-    const removeProduct = useCallback((id: ApiId) => productService.remove(id), []);
+    const createProduct = useCallback(async (product: ProductRequest) => {
+        const data = await productService.create(product);
+        toast.success("Produto criado com sucesso.");
+        return data;
+    }, []);
+    const updateProduct = useCallback(async (id: ApiId, product: ProductRequest) => {
+        const data = await productService.update(id, product);
+        toast.success("Produto atualizado com sucesso.");
+        return data;
+    }, []);
+    const removeProduct = useCallback(async (id: ApiId) => {
+        await productService.remove(id);
+        toast.success("Produto removido com sucesso.");
+    }, []);
 
-    return { products, loading, error, setError, loadProducts, createProduct, updateProduct, removeProduct };
+    return {
+        products,
+        loading,
+        error,
+        setError,
+        fetchAll: loadProducts,
+        create: createProduct,
+        update: updateProduct,
+        remove: removeProduct,
+        loadProducts,
+        createProduct,
+        updateProduct,
+        removeProduct,
+    };
 }
 
 export default useProduct;

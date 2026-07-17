@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
+import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
 import usePurchase from "../../hooks/usePurchase";
@@ -57,13 +58,14 @@ export function PurchaseDetail() {
             <PageHeader
                 eyebrow="Compras"
                 title={`Compra #${purchase.id}`}
-                description={`${purchase.status} - ${formatDateTime(purchase.createdAt)}`}
+                description={`Criada em ${formatDateTime(purchase.createdAt)}`}
                 action={<Link className="secondary-button link-button" to="/purchases">Voltar</Link>}
             />
             {error && <div className="form-error">{error}</div>}
             <div className="detail-grid">
                 <div><span>Fornecedor</span><strong>{purchase.supplierName ?? "-"}</strong></div>
                 <div><span>Funcionario</span><strong>{purchase.employeeName ?? "-"}</strong></div>
+                <div><span>Status</span><strong><StatusBadge label={purchase.status} /></strong></div>
                 <div><span>Total</span><strong>{formatCurrency(purchase.total)}</strong></div>
                 <div><span>Atualizada</span><strong>{formatDateTime(purchase.updatedAt)}</strong></div>
             </div>

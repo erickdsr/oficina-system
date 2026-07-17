@@ -4,6 +4,7 @@ import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import SearchInput from "../../components/common/SearchInput";
+import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import useSale from "../../hooks/useSale";
 import { formatCurrency, formatDateTime } from "../../utils/formatters";
@@ -42,7 +43,7 @@ export function SaleList() {
                                 <tr key={sale.id}>
                                     <td>#{sale.id}</td>
                                     <td>{sale.clientName ?? "-"}</td>
-                                    <td>{sale.status}</td>
+                                    <td><StatusBadge label={sale.status} /></td>
                                     <td>{formatCurrency(sale.total)}</td>
                                     <td>{formatDateTime(sale.createdAt)}</td>
                                     <td className="table-actions"><Link className="secondary-button link-button" to={`/sales/${sale.id}`}>Detalhes</Link></td>

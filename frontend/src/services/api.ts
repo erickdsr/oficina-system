@@ -21,6 +21,21 @@ api.interceptors.request.use((config) => {
     return config;
 });
 
+api.interceptors.response.use(
+    (response) => response,
+    (error: unknown) => {
+        if (axios.isAxiosError<ApiError>(error) && error.response?.status === 401) {
+            clearAuthToken();
+
+            if (window.location.pathname !== "/login") {
+                window.location.assign("/login");
+            }
+        }
+
+        return Promise.reject(error);
+    },
+);
+
 export function setAuthToken(token: string) {
     localStorage.setItem(TOKEN_STORAGE_KEY, token);
 }

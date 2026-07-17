@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { getApiErrorMessage } from "../services/api";
 import purchaseService from "../services/purchase.service";
 import type { ApiId } from "../types/api.types";
@@ -20,6 +21,7 @@ export function usePurchase() {
         } catch (loadError) {
             const message = getApiErrorMessage(loadError, "Nao foi possivel carregar compras.");
             setError(message);
+            toast.error(message);
             throw loadError;
         } finally {
             setLoading(false);
@@ -36,17 +38,47 @@ export function usePurchase() {
         } catch (loadError) {
             const message = getApiErrorMessage(loadError, "Nao foi possivel carregar a compra.");
             setError(message);
+            toast.error(message);
             throw loadError;
         } finally {
             setLoading(false);
         }
     }, []);
 
-    const createPurchase = useCallback((data: PurchaseRequest) => purchaseService.create(data), []);
-    const confirmPurchase = useCallback((id: ApiId) => purchaseService.confirm(id), []);
-    const cancelPurchase = useCallback((id: ApiId) => purchaseService.cancel(id), []);
+    const createPurchase = useCallback(async (data: PurchaseRequest) => {
+        const purchase = await purchaseService.create(data);
+        toast.success("Compra criada com sucesso.");
+        return purchase;
+    }, []);
+    const confirmPurchase = useCallback(async (id: ApiId) => {
+        const purchase = await purchaseService.confirm(id);
+        toast.success("Compra confirmada com sucesso.");
+        return purchase;
+    }, []);
+    const cancelPurchase = useCallback(async (id: ApiId) => {
+        const purchase = await purchaseService.cancel(id);
+        toast.success("Compra cancelada com sucesso.");
+        return purchase;
+    }, []);
 
-    return { purchases, purchase, setPurchase, loading, error, setError, loadPurchases, loadPurchase, createPurchase, confirmPurchase, cancelPurchase };
+    return {
+        purchases,
+        purchase,
+        setPurchase,
+        loading,
+        error,
+        setError,
+        fetchAll: loadPurchases,
+        getById: loadPurchase,
+        create: createPurchase,
+        confirm: confirmPurchase,
+        cancel: cancelPurchase,
+        loadPurchases,
+        loadPurchase,
+        createPurchase,
+        confirmPurchase,
+        cancelPurchase,
+    };
 }
 
 export default usePurchase;

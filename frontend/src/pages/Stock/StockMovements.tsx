@@ -3,6 +3,7 @@ import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import SearchInput from "../../components/common/SearchInput";
+import StatusBadge from "../../components/common/StatusBadge";
 import { getApiErrorMessage } from "../../services/api";
 import useStock from "../../hooks/useStock";
 import productService from "../../services/product.service";
@@ -57,7 +58,7 @@ export function StockMovements() {
                             {filteredMovements.map((movement, index) => (
                                 <tr key={`${movement.product}-${movement.type}-${index}`}>
                                     <td>{productNameById.get(movement.product ?? 0) ?? `Produto #${movement.product ?? "-"}`}</td>
-                                    <td>{movement.type}</td>
+                                    <td><StatusBadge label={movement.type} /></td>
                                     <td>{movement.quantity}</td>
                                     <td>{movement.reason}</td>
                                     <td>{movement.employee ?? "-"}</td>

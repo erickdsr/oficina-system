@@ -4,6 +4,7 @@ import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import SearchInput from "../../components/common/SearchInput";
+import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import usePurchase from "../../hooks/usePurchase";
 import { formatCurrency, formatDateTime } from "../../utils/formatters";
@@ -53,7 +54,7 @@ export function PurchaseList() {
                                 <tr key={purchase.id}>
                                     <td>#{purchase.id}</td>
                                     <td>{purchase.supplierName ?? "-"}</td>
-                                    <td>{purchase.status}</td>
+                                    <td><StatusBadge label={purchase.status} /></td>
                                     <td>{formatCurrency(purchase.total)}</td>
                                     <td>{formatDateTime(purchase.createdAt)}</td>
                                     <td className="table-actions"><Link className="secondary-button link-button" to={`/purchases/${purchase.id}`}>Detalhes</Link></td>

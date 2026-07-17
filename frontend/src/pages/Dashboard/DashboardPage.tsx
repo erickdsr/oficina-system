@@ -13,6 +13,7 @@ import {
 import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
+import StatusBadge from "../../components/common/StatusBadge";
 import { getApiErrorMessage } from "../../services/api";
 import productService from "../../services/product.service";
 import saleService from "../../services/sale.service";
@@ -164,7 +165,7 @@ export function DashboardPage() {
                             <tr key={sale.id}>
                                 <td>#{sale.id}</td>
                                 <td>{sale.clientName ?? "-"}</td>
-                                <td>{sale.status}</td>
+                                <td><StatusBadge label={sale.status} /></td>
                                 <td>{formatCurrency(sale.total)}</td>
                                 <td>{formatDateTime(sale.createdAt)}</td>
                             </tr>

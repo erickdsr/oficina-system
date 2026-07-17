@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import EmptyState from "../../components/common/EmptyState";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import DataTable from "../../components/common/DataTable";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import SearchInput from "../../components/common/SearchInput";
@@ -71,6 +73,7 @@ export function CategoryList() {
                 action={
                     canManage(user?.role, ["admin", "gerente", "estoquista"]) && (
                         <button type="button" className="primary-button" onClick={() => setShowForm(true)}>
+                            <Plus size={18} aria-hidden="true" />
                             Nova categoria
                         </button>
                     )
@@ -92,50 +95,59 @@ export function CategoryList() {
             {error && <div className="form-error">{error}</div>}
             {loading ? (
                 <LoadingState />
-            ) : filteredCategories.length === 0 ? (
-                <EmptyState />
             ) : (
-                <div className="table-wrap">
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Nome</th>
-                                <th>Descricao</th>
-                                <th>Acoes</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredCategories.map((category) => (
-                                <tr key={category.id}>
-                                    <td>{category.name}</td>
-                                    <td>{category.description}</td>
-                                    <td className="table-actions">
-                                        {canManage(user?.role, ["admin", "gerente", "estoquista"]) && (
-                                            <button
-                                                type="button"
-                                                className="secondary-button"
-                                                onClick={() => {
-                                                    setEditingCategory(category);
-                                                    setShowForm(true);
-                                                }}
-                                            >
-                                                Editar
-                                            </button>
-                                        )}
-                                        {canDelete(user?.role) && (
-                                            <button type="button" className="danger-button" onClick={() => void handleRemove(category)}>
-                                                Excluir
-                                            </button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable data={filteredCategories} columns={categoryColumns()} />
             )}
         </section>
     );
+
+    function categoryColumns(): ColumnDef<Category>[] {
+        return [
+            {
+                accessorKey: "id",
+                header: "ID",
+            },
+            {
+                accessorKey: "name",
+                header: "Nome",
+            },
+            {
+                accessorKey: "description",
+                header: "Descricao",
+            },
+            {
+                id: "actions",
+                header: "Acoes",
+                cell: ({ row }) => {
+                    const category = row.original;
+
+                    return (
+                        <div className="table-actions">
+                            {canManage(user?.role, ["admin", "gerente", "estoquista"]) && (
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={() => {
+                                        setEditingCategory(category);
+                                        setShowForm(true);
+                                    }}
+                                >
+                                    <Pencil size={16} aria-hidden="true" />
+                                    Editar
+                                </button>
+                            )}
+                            {canDelete(user?.role) && (
+                                <button type="button" className="danger-button" onClick={() => void handleRemove(category)}>
+                                    <Trash2 size={16} aria-hidden="true" />
+                                    Excluir
+                                </button>
+                            )}
+                        </div>
+                    );
+                },
+            },
+        ];
+    }
 }
 
 export default CategoryList;

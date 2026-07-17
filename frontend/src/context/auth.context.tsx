@@ -7,7 +7,7 @@ import {
     type ReactNode,
 } from "react";
 import authService from "../services/auth.service";
-import { getAuthToken } from "../services/api";
+import { clearAuthToken, getAuthToken } from "../services/api";
 import type { LoginRequest, LoginResponse } from "../types/auth.types";
 
 type AuthUser = Omit<LoginResponse, "token" | "type">;
@@ -27,6 +27,18 @@ interface AuthProviderProps {
 const AUTH_USER_STORAGE_KEY = "authUser";
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+function getStoredSession() {
+    const storedUser = getStoredUser();
+    const storedToken = getAuthToken();
+
+    if (storedToken && !storedUser) {
+        clearAuthToken();
+        return { user: null, token: null };
+    }
+
+    return { user: storedUser, token: storedToken };
+}
 
 function getStoredUser() {
     const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
@@ -52,16 +64,15 @@ function createAuthUser(response: LoginResponse): AuthUser {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-    const [user, setUser] = useState<AuthUser | null>(() => getStoredUser());
-    const [token, setToken] = useState<string | null>(() => getAuthToken());
+    const [session, setSession] = useState(getStoredSession);
+    const { user, token } = session;
 
     const login = useCallback(async (credentials: LoginRequest) => {
         const response = await authService.login(credentials);
         const authUser = createAuthUser(response);
 
         localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(authUser));
-        setUser(authUser);
-        setToken(response.token);
+        setSession({ user: authUser, token: response.token });
 
         return response;
     }, []);
@@ -69,15 +80,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const logout = useCallback(() => {
         authService.logout();
         localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-        setUser(null);
-        setToken(null);
+        setSession({ user: null, token: null });
     }, []);
 
     const value = useMemo<AuthContextValue>(
         () => ({
             user,
             token,
-            isAuthenticated: Boolean(token),
+            isAuthenticated: Boolean(token && user),
             login,
             logout,
         }),

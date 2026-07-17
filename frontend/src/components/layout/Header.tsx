@@ -1,3 +1,4 @@
+import { LogOut } from "lucide-react";
 import { useAuth } from "../../context/auth.context";
 
 function formatRole(role?: string) {
@@ -23,7 +24,8 @@ export function Header() {
                     <strong>{user?.name ?? "Usuario"}</strong>
                     <span>{formatRole(user?.role)}</span>
                 </div>
-                <button type="button" onClick={logout}>
+                <button type="button" className="icon-button-text" onClick={logout}>
+                    <LogOut size={18} aria-hidden="true" />
                     Sair
                 </button>
             </div>

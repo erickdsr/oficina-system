@@ -6,37 +6,23 @@ import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
-import clientService from "../../services/client.service";
+import useClient from "../../hooks/useClient";
 import type { Client, ClientRequest } from "../../types/client.types";
 import { canDelete, canManage } from "../../utils/permissions";
 import ClientForm from "./ClientForm";
 
 export function ClientList() {
     const { user } = useAuth();
-    const [clients, setClients] = useState<Client[]>([]);
+    const { clients, loading, error, setError, fetchAll, create, update, remove } = useClient();
     const [search, setSearch] = useState("");
-    const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
     const [showForm, setShowForm] = useState(false);
 
-    async function loadClients() {
-        setLoading(true);
-        setError(null);
-        try {
-            setClients(await clientService.list());
-        } catch (loadError) {
-            setError(getApiErrorMessage(loadError, "Nao foi possivel carregar clientes."));
-        } finally {
-            setLoading(false);
-        }
-    }
-
     useEffect(() => {
-        void loadClients();
-    }, []);
+        void fetchAll().catch(() => undefined);
+    }, [fetchAll]);
 
     const filteredClients = useMemo(() => {
         const term = search.toLowerCase();
@@ -50,13 +36,13 @@ export function ClientList() {
         setFormError(null);
         try {
             if (editingClient) {
-                await clientService.update(editingClient.id, data);
+                await update(editingClient.id, data);
             } else {
-                await clientService.create(data);
+                await create(data);
             }
             setShowForm(false);
             setEditingClient(null);
-            await loadClients();
+            await fetchAll();
         } catch (submitError) {
             setFormError(getApiErrorMessage(submitError, "Nao foi possivel salvar o cliente."));
         } finally {
@@ -69,8 +55,8 @@ export function ClientList() {
             return;
         }
         try {
-            await clientService.remove(client.id);
-            await loadClients();
+            await remove(client.id);
+            await fetchAll();
         } catch (removeError) {
             setError(getApiErrorMessage(removeError, "Nao foi possivel excluir o cliente."));
         }

@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from "react-router-dom"
+import { Toaster } from "sonner"
 import './App.css'
 import PrivateRoute from './components/PrivateRoute'
 import MainLayout from './components/layout/MainLayout'
@@ -20,40 +21,43 @@ import SupplierList from './pages/Supplier/SupplierList'
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route
-        element={
-          <PrivateRoute>
-            <MainLayout />
-          </PrivateRoute>
-        }
-      >
-        <Route path="/" element={<DashboardPage />} />
-        <Route path="/categories" element={<CategoryList />} />
-        <Route path="/suppliers" element={<SupplierList />} />
-        <Route path="/clients" element={<ClientList />} />
-        <Route path="/employees" element={<EmployeeList />} />
-        <Route path="/products" element={<ProductList />} />
-        <Route path="/stock" element={<StockList />} />
-        <Route path="/stock/movements" element={<StockMovements />} />
-        <Route path="/purchases" element={<PurchaseList />} />
-        <Route path="/purchases/new" element={<PurchaseForm />} />
-        <Route path="/purchases/:id" element={<PurchaseDetail />} />
-        <Route path="/sales" element={<SaleList />} />
-        <Route path="/sales/new" element={<SaleForm />} />
-        <Route path="/sales/:id" element={<SaleDetail />} />
-      </Route>
-      <Route
-        path="/dashboard"
-        element={
-          <PrivateRoute>
-            <Navigate to="/" replace />
-          </PrivateRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route
+          element={
+            <PrivateRoute>
+              <MainLayout />
+            </PrivateRoute>
+          }
+        >
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/categories" element={<CategoryList />} />
+          <Route path="/suppliers" element={<SupplierList />} />
+          <Route path="/clients" element={<ClientList />} />
+          <Route path="/employees" element={<EmployeeList />} />
+          <Route path="/products" element={<ProductList />} />
+          <Route path="/stock" element={<StockList />} />
+          <Route path="/stock/movements" element={<StockMovements />} />
+          <Route path="/purchases" element={<PurchaseList />} />
+          <Route path="/purchases/new" element={<PurchaseForm />} />
+          <Route path="/purchases/:id" element={<PurchaseDetail />} />
+          <Route path="/sales" element={<SaleList />} />
+          <Route path="/sales/new" element={<SaleForm />} />
+          <Route path="/sales/:id" element={<SaleDetail />} />
+        </Route>
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <Navigate to="/" replace />
+            </PrivateRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+      <Toaster richColors position="top-right" theme="dark" />
+    </>
   )
 }
 

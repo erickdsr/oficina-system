@@ -6,37 +6,23 @@ import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
-import employeeService from "../../services/employee.service";
+import useEmployee from "../../hooks/useEmployee";
 import type { Employee, EmployeeRequest } from "../../types/employee.types";
 import { canDelete, canManage } from "../../utils/permissions";
 import EmployeeForm from "./EmployeeForm";
 
 export function EmployeeList() {
     const { user } = useAuth();
-    const [employees, setEmployees] = useState<Employee[]>([]);
+    const { employees, loading, error, setError, fetchAll, create, update, remove } = useEmployee();
     const [search, setSearch] = useState("");
-    const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
     const [showForm, setShowForm] = useState(false);
 
-    async function loadEmployees() {
-        setLoading(true);
-        setError(null);
-        try {
-            setEmployees(await employeeService.list());
-        } catch (loadError) {
-            setError(getApiErrorMessage(loadError, "Nao foi possivel carregar funcionarios."));
-        } finally {
-            setLoading(false);
-        }
-    }
-
     useEffect(() => {
-        void loadEmployees();
-    }, []);
+        void fetchAll().catch(() => undefined);
+    }, [fetchAll]);
 
     const filteredEmployees = useMemo(() => {
         const term = search.toLowerCase();
@@ -50,13 +36,13 @@ export function EmployeeList() {
         setFormError(null);
         try {
             if (editingEmployee) {
-                await employeeService.update(editingEmployee.id, data);
+                await update(editingEmployee.id, data);
             } else {
-                await employeeService.create(data);
+                await create(data);
             }
             setShowForm(false);
             setEditingEmployee(null);
-            await loadEmployees();
+            await fetchAll();
         } catch (submitError) {
             setFormError(getApiErrorMessage(submitError, "Nao foi possivel salvar o funcionario."));
         } finally {
@@ -69,8 +55,8 @@ export function EmployeeList() {
             return;
         }
         try {
-            await employeeService.remove(employee.id);
-            await loadEmployees();
+            await remove(employee.id);
+            await fetchAll();
         } catch (removeError) {
             setError(getApiErrorMessage(removeError, "Nao foi possivel excluir o funcionario."));
         }

@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { toast } from "sonner";
 import { getApiErrorMessage } from "../services/api";
 import stockService from "../services/stock.service";
 import type { ApiId } from "../types/api.types";
@@ -22,6 +23,7 @@ export function useStock() {
         } catch (loadError) {
             const message = getApiErrorMessage(loadError, "Nao foi possivel carregar estoque.");
             setError(message);
+            toast.error(message);
             throw loadError;
         } finally {
             setLoading(false);
@@ -38,16 +40,40 @@ export function useStock() {
         } catch (loadError) {
             const message = getApiErrorMessage(loadError, "Nao foi possivel carregar movimentacoes.");
             setError(message);
+            toast.error(message);
             throw loadError;
         } finally {
             setLoading(false);
         }
     }, []);
 
-    const createStock = useCallback((stock: StockRequest) => stockService.create(stock), []);
-    const updateStock = useCallback((id: ApiId, stock: StockRequest) => stockService.update(id, stock), []);
+    const createStock = useCallback(async (stock: StockRequest) => {
+        const data = await stockService.create(stock);
+        toast.success("Estoque criado com sucesso.");
+        return data;
+    }, []);
+    const updateStock = useCallback(async (id: ApiId, stock: StockRequest) => {
+        const data = await stockService.update(id, stock);
+        toast.success("Estoque ajustado com sucesso.");
+        return data;
+    }, []);
 
-    return { stocks, lowStock, movements, loading, error, setError, loadStock, loadMovements, createStock, updateStock };
+    return {
+        stocks,
+        lowStock,
+        movements,
+        loading,
+        error,
+        setError,
+        fetchAll: loadStock,
+        fetchLow: loadStock,
+        fetchMovements: loadMovements,
+        adjust: updateStock,
+        loadStock,
+        loadMovements,
+        createStock,
+        updateStock,
+    };
 }
 
 export default useStock;

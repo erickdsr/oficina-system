@@ -6,37 +6,23 @@ import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
-import supplierService from "../../services/supplier.service";
+import useSupplier from "../../hooks/useSupplier";
 import type { Supplier, SupplierRequest } from "../../types/supplier.types";
 import { canDelete, canManage } from "../../utils/permissions";
 import SupplierForm from "./SupplierForm";
 
 export function SupplierList() {
     const { user } = useAuth();
-    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const { suppliers, loading, error, setError, fetchAll, create, update, remove } = useSupplier();
     const [search, setSearch] = useState("");
-    const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
     const [showForm, setShowForm] = useState(false);
 
-    async function loadSuppliers() {
-        setLoading(true);
-        setError(null);
-        try {
-            setSuppliers(await supplierService.list());
-        } catch (loadError) {
-            setError(getApiErrorMessage(loadError, "Nao foi possivel carregar fornecedores."));
-        } finally {
-            setLoading(false);
-        }
-    }
-
     useEffect(() => {
-        void loadSuppliers();
-    }, []);
+        void fetchAll().catch(() => undefined);
+    }, [fetchAll]);
 
     const filteredSuppliers = useMemo(() => {
         const term = search.toLowerCase();
@@ -50,13 +36,13 @@ export function SupplierList() {
         setFormError(null);
         try {
             if (editingSupplier) {
-                await supplierService.update(editingSupplier.id, data);
+                await update(editingSupplier.id, data);
             } else {
-                await supplierService.create(data);
+                await create(data);
             }
             setShowForm(false);
             setEditingSupplier(null);
-            await loadSuppliers();
+            await fetchAll();
         } catch (submitError) {
             setFormError(getApiErrorMessage(submitError, "Nao foi possivel salvar o fornecedor."));
         } finally {
@@ -69,8 +55,8 @@ export function SupplierList() {
             return;
         }
         try {
-            await supplierService.remove(supplier.id);
-            await loadSuppliers();
+            await remove(supplier.id);
+            await fetchAll();
         } catch (removeError) {
             setError(getApiErrorMessage(removeError, "Nao foi possivel excluir o fornecedor."));
         }

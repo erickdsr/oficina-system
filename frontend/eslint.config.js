@@ -20,6 +20,7 @@ export default defineConfig([
     },
     rules: {
       'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/incompatible-library': 'off',
       'react-refresh/only-export-components': 'off',
     },
   },

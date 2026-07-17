@@ -1,24 +1,38 @@
+import {
+    LayoutDashboard,
+    Package,
+    Receipt,
+    ShoppingCart,
+    Tag,
+    Truck,
+    UserCheck,
+    Users,
+    Warehouse,
+} from "lucide-react";
+import type { ComponentType, SVGProps } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../context/auth.context";
 import { normalizeRole, type AppRole } from "../../utils/permissions";
+
+type MenuIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
 interface MenuItem {
     to: string;
     label: string;
     roles: AppRole[];
+    icon: MenuIcon;
 }
 
 const menuItems: MenuItem[] = [
-    { to: "/", label: "Dashboard", roles: ["admin", "gerente", "vendedor", "estoquista"] },
-    { to: "/categories", label: "Categorias", roles: ["admin", "gerente", "estoquista"] },
-    { to: "/suppliers", label: "Fornecedores", roles: ["admin", "gerente", "estoquista"] },
-    { to: "/clients", label: "Clientes", roles: ["admin", "gerente", "vendedor"] },
-    { to: "/employees", label: "Funcionarios", roles: ["admin", "gerente"] },
-    { to: "/products", label: "Produtos", roles: ["admin", "gerente", "vendedor", "estoquista"] },
-    { to: "/stock", label: "Estoque", roles: ["admin", "gerente", "estoquista"] },
-    { to: "/stock/movements", label: "Movimentacoes", roles: ["admin", "gerente", "estoquista"] },
-    { to: "/purchases", label: "Compras", roles: ["admin", "gerente", "estoquista"] },
-    { to: "/sales", label: "Vendas", roles: ["admin", "gerente", "vendedor"] },
+    { to: "/", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "gerente", "vendedor", "estoquista"] },
+    { to: "/employees", label: "Funcionarios", icon: Users, roles: ["admin", "gerente"] },
+    { to: "/clients", label: "Clientes", icon: UserCheck, roles: ["admin", "gerente", "vendedor"] },
+    { to: "/suppliers", label: "Fornecedores", icon: Truck, roles: ["admin", "gerente", "estoquista"] },
+    { to: "/categories", label: "Categorias", icon: Tag, roles: ["admin", "gerente", "estoquista"] },
+    { to: "/products", label: "Produtos", icon: Package, roles: ["admin", "gerente", "vendedor", "estoquista"] },
+    { to: "/stock", label: "Estoque", icon: Warehouse, roles: ["admin", "gerente", "estoquista"] },
+    { to: "/purchases", label: "Compras", icon: ShoppingCart, roles: ["admin", "gerente", "estoquista"] },
+    { to: "/sales", label: "Vendas", icon: Receipt, roles: ["admin", "gerente", "vendedor"] },
 ];
 
 export function Sidebar() {
@@ -42,6 +56,7 @@ export function Sidebar() {
                         end={item.to === "/"}
                         className={({ isActive }: { isActive: boolean }) => (isActive ? "active" : undefined)}
                     >
+                        <item.icon width={18} height={18} aria-hidden="true" />
                         {item.label}
                     </NavLink>
                 ))}

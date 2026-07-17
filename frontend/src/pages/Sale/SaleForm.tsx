@@ -5,8 +5,10 @@ import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
 import clientService from "../../services/client.service";
 import useSale from "../../hooks/useSale";
+import paymentMethodService from "../../services/payment-method.service";
 import productService from "../../services/product.service";
 import type { Client } from "../../types/client.types";
+import type { PaymentMethod } from "../../types/payment-method.types";
 import type { ProductResponse } from "../../types/product.types";
 import type { SaleItem, SalePayment, SaleRequest } from "../../types/sale.types";
 import { formatCurrency } from "../../utils/formatters";
@@ -24,18 +26,13 @@ const initialPayment: SalePayment = {
     amount: 0,
 };
 
-const paymentMethods = [
-    { id: 1, label: "Dinheiro" },
-    { id: 2, label: "Cartao" },
-    { id: 3, label: "Pix" },
-];
-
 export function SaleForm() {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { createSale } = useSale();
     const [clients, setClients] = useState<Client[]>([]);
     const [products, setProducts] = useState<ProductResponse[]>([]);
+    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [clientId, setClientId] = useState(0);
     const [discount, setDiscount] = useState(0);
     const [notes, setNotes] = useState("");
@@ -47,10 +44,16 @@ export function SaleForm() {
     useEffect(() => {
         async function loadData() {
             try {
-                const [clientData, productData] = await Promise.all([clientService.list(), productService.list()]);
+                const [clientData, productData, paymentMethodData] = await Promise.all([
+                    clientService.list(),
+                    productService.list(),
+                    paymentMethodService.list(),
+                ]);
                 setClients(clientData);
                 setProducts(productData);
+                setPaymentMethods(paymentMethodData);
                 setClientId(clientData[0]?.id ?? 0);
+                setPayments([{ paymentMethodId: paymentMethodData[0]?.id ?? 1, amount: 0 }]);
             } catch (loadError) {
                 setError(getApiErrorMessage(loadError, "Nao foi possivel carregar dados da venda."));
             }
@@ -90,8 +93,8 @@ export function SaleForm() {
             setError("Informe cliente e itens validos.");
             return;
         }
-        if (payments.some((payment) => payment.amount <= 0) || Math.abs(paid - total) > 0.01) {
-            setError("Informe pagamentos que fechem o total da venda.");
+        if (payments.some((payment) => payment.amount <= 0) || paid + 0.01 < total) {
+            setError("Informe pagamentos que cubram o total da venda.");
             return;
         }
 
@@ -151,10 +154,10 @@ export function SaleForm() {
                     ))}
                 </div>
                 <div className="items-panel">
-                    <div className="items-panel__header"><h3>Pagamentos</h3><button type="button" className="secondary-button" onClick={() => setPayments([...payments, { ...initialPayment }])}>Adicionar pagamento</button></div>
+                    <div className="items-panel__header"><h3>Pagamentos</h3><button type="button" className="secondary-button" onClick={() => setPayments([...payments, { paymentMethodId: paymentMethods[0]?.id ?? initialPayment.paymentMethodId, amount: 0 }])}>Adicionar pagamento</button></div>
                     {payments.map((payment, index) => (
                         <div className="payment-row" key={index}>
-                            <label className="form-field"><span>Metodo</span><select value={payment.paymentMethodId} onChange={(event) => updatePayment(index, { paymentMethodId: Number(event.target.value) })}>{paymentMethods.map((method) => <option key={method.id} value={method.id}>{method.label}</option>)}</select></label>
+                            <label className="form-field"><span>Metodo</span><select value={payment.paymentMethodId} onChange={(event) => updatePayment(index, { paymentMethodId: Number(event.target.value) })}>{paymentMethods.map((method) => <option key={method.id} value={method.id}>{method.name}</option>)}</select></label>
                             <label className="form-field"><span>Valor</span><input type="number" min="0" step="0.01" value={payment.amount} onChange={(event) => updatePayment(index, { amount: Number(event.target.value) })} /></label>
                             <button type="button" className="danger-button" onClick={() => setPayments(payments.filter((_, paymentIndex) => paymentIndex !== index))} disabled={payments.length === 1}>Remover</button>
                         </div>

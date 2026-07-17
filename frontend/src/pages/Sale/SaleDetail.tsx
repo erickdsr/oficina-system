@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
+import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
 import useSale from "../../hooks/useSale";
@@ -57,13 +58,14 @@ export function SaleDetail() {
             <PageHeader
                 eyebrow="Vendas"
                 title={`Venda #${sale.id}`}
-                description={`${sale.status} - ${formatDateTime(sale.createdAt)}`}
+                description={`Criada em ${formatDateTime(sale.createdAt)}`}
                 action={<Link className="secondary-button link-button" to="/sales">Voltar</Link>}
             />
             {error && <div className="form-error">{error}</div>}
             <div className="detail-grid">
                 <div><span>Cliente</span><strong>{sale.clientName ?? "-"}</strong></div>
                 <div><span>Funcionario</span><strong>{sale.employeeName ?? "-"}</strong></div>
+                <div><span>Status</span><strong><StatusBadge label={sale.status} /></strong></div>
                 <div><span>Total</span><strong>{formatCurrency(sale.total)}</strong></div>
                 <div><span>Desconto</span><strong>{formatCurrency(sale.discount)}</strong></div>
             </div>
