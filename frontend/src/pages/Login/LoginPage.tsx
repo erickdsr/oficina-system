@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, LoaderCircle, Lock, Mail } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, LoaderCircle, Lock, Mail } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -112,11 +112,21 @@ export function LoginPage() {
                             </div>
                         )}
 
+                        <div className="login-divider" aria-hidden="true">
+                            <span />
+                        </div>
+
                         <button type="submit" className="login-submit" disabled={isSubmitting}>
                             {isSubmitting && <LoaderCircle className="login-spinner" size={18} aria-hidden="true" />}
                             {isSubmitting ? "Entrando..." : "Entrar"}
+                            {!isSubmitting && <ArrowRight size={18} aria-hidden="true" />}
                         </button>
                     </form>
+
+                    <div className="login-status" aria-label="Sistema online">
+                        <span aria-hidden="true" />
+                        ERP v1.0 Online
+                    </div>
                 </section>
             </div>
         </main>
