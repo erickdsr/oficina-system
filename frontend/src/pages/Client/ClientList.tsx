@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
@@ -95,8 +96,28 @@ export function ClientList() {
                                     <td>{client.city} / {client.state}</td>
                                     <td><StatusBadge active={client.status} /></td>
                                     <td className="table-actions">
-                                        {canManage(user?.role, ["admin", "gerente", "vendedor"]) && <button type="button" className="secondary-button" onClick={() => { setEditingClient(client); setShowForm(true); }}>Editar</button>}
-                                        {canDelete(user?.role) && <button type="button" className="danger-button" onClick={() => void handleRemove(client)}>Excluir</button>}
+                                        {canManage(user?.role, ["admin", "gerente", "vendedor"]) && (
+                                            <button
+                                                type="button"
+                                                className="table-action-button table-action-button--edit"
+                                                aria-label={`Editar cliente ${client.name}`}
+                                                title="Editar"
+                                                onClick={() => { setEditingClient(client); setShowForm(true); }}
+                                            >
+                                                <Pencil size={16} aria-hidden="true" />
+                                            </button>
+                                        )}
+                                        {canDelete(user?.role) && (
+                                            <button
+                                                type="button"
+                                                className="table-action-button table-action-button--delete"
+                                                aria-label={`Excluir cliente ${client.name}`}
+                                                title="Excluir"
+                                                onClick={() => void handleRemove(client)}
+                                            >
+                                                <Trash2 size={16} aria-hidden="true" />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

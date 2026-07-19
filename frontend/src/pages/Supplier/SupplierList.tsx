@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
@@ -117,13 +118,25 @@ export function SupplierList() {
                                     <td><StatusBadge active={supplier.status} /></td>
                                     <td className="table-actions">
                                         {canManage(user?.role, ["admin", "gerente", "estoquista"]) && (
-                                            <button type="button" className="secondary-button" onClick={() => { setEditingSupplier(supplier); setShowForm(true); }}>
-                                                Editar
+                                            <button
+                                                type="button"
+                                                className="table-action-button table-action-button--edit"
+                                                aria-label={`Editar fornecedor ${supplier.name}`}
+                                                title="Editar"
+                                                onClick={() => { setEditingSupplier(supplier); setShowForm(true); }}
+                                            >
+                                                <Pencil size={16} aria-hidden="true" />
                                             </button>
                                         )}
                                         {canDelete(user?.role) && (
-                                            <button type="button" className="danger-button" onClick={() => void handleRemove(supplier)}>
-                                                Excluir
+                                            <button
+                                                type="button"
+                                                className="table-action-button table-action-button--delete"
+                                                aria-label={`Excluir fornecedor ${supplier.name}`}
+                                                title="Excluir"
+                                                onClick={() => void handleRemove(supplier)}
+                                            >
+                                                <Trash2 size={16} aria-hidden="true" />
                                             </button>
                                         )}
                                     </td>

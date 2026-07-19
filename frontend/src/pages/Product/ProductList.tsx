@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
@@ -119,8 +120,28 @@ export function ProductList() {
                                     <td>{formatCurrency(product.salePrice)}</td>
                                     <td><StatusBadge active={product.status} /></td>
                                     <td className="table-actions">
-                                        {canManage(user?.role, ["admin", "gerente", "estoquista"]) && <button type="button" className="secondary-button" onClick={() => { setEditingProduct(product); setShowForm(true); }}>Editar</button>}
-                                        {canDelete(user?.role) && <button type="button" className="danger-button" onClick={() => void handleRemove(product)}>Excluir</button>}
+                                        {canManage(user?.role, ["admin", "gerente", "estoquista"]) && (
+                                            <button
+                                                type="button"
+                                                className="table-action-button table-action-button--edit"
+                                                aria-label={`Editar produto ${product.name}`}
+                                                title="Editar"
+                                                onClick={() => { setEditingProduct(product); setShowForm(true); }}
+                                            >
+                                                <Pencil size={16} aria-hidden="true" />
+                                            </button>
+                                        )}
+                                        {canDelete(user?.role) && (
+                                            <button
+                                                type="button"
+                                                className="table-action-button table-action-button--delete"
+                                                aria-label={`Excluir produto ${product.name}`}
+                                                title="Excluir"
+                                                onClick={() => void handleRemove(product)}
+                                            >
+                                                <Trash2 size={16} aria-hidden="true" />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

@@ -126,20 +126,26 @@ export function CategoryList() {
                             {canManage(user?.role, ["admin", "gerente", "estoquista"]) && (
                                 <button
                                     type="button"
-                                    className="secondary-button"
+                                    className="table-action-button table-action-button--edit"
+                                    aria-label={`Editar categoria ${category.name}`}
+                                    title="Editar"
                                     onClick={() => {
                                         setEditingCategory(category);
                                         setShowForm(true);
                                     }}
                                 >
                                     <Pencil size={16} aria-hidden="true" />
-                                    Editar
                                 </button>
                             )}
                             {canDelete(user?.role) && (
-                                <button type="button" className="danger-button" onClick={() => void handleRemove(category)}>
+                                <button
+                                    type="button"
+                                    className="table-action-button table-action-button--delete"
+                                    aria-label={`Excluir categoria ${category.name}`}
+                                    title="Excluir"
+                                    onClick={() => void handleRemove(category)}
+                                >
                                     <Trash2 size={16} aria-hidden="true" />
-                                    Excluir
                                 </button>
                             )}
                         </div>

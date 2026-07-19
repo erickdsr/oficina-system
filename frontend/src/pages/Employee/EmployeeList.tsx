@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
@@ -95,8 +96,28 @@ export function EmployeeList() {
                                     <td>{employee.phone}</td>
                                     <td><StatusBadge active={employee.status} /></td>
                                     <td className="table-actions">
-                                        {canManage(user?.role, ["admin", "gerente"]) && <button type="button" className="secondary-button" onClick={() => { setEditingEmployee(employee); setShowForm(true); }}>Editar</button>}
-                                        {canDelete(user?.role) && <button type="button" className="danger-button" onClick={() => void handleRemove(employee)}>Excluir</button>}
+                                        {canManage(user?.role, ["admin", "gerente"]) && (
+                                            <button
+                                                type="button"
+                                                className="table-action-button table-action-button--edit"
+                                                aria-label={`Editar funcionario ${employee.name}`}
+                                                title="Editar"
+                                                onClick={() => { setEditingEmployee(employee); setShowForm(true); }}
+                                            >
+                                                <Pencil size={16} aria-hidden="true" />
+                                            </button>
+                                        )}
+                                        {canDelete(user?.role) && (
+                                            <button
+                                                type="button"
+                                                className="table-action-button table-action-button--delete"
+                                                aria-label={`Excluir funcionario ${employee.name}`}
+                                                title="Excluir"
+                                                onClick={() => void handleRemove(employee)}
+                                            >
+                                                <Trash2 size={16} aria-hidden="true" />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
