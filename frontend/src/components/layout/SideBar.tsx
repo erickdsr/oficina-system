@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { ComponentType, SVGProps } from "react";
 import { NavLink } from "react-router-dom";
+import logo from "../../assets/logo-transaparente -2.0.png";
 import { useAuth } from "../../context/auth.context";
 import { normalizeRole, type AppRole } from "../../utils/permissions";
 
@@ -44,8 +45,7 @@ export function Sidebar() {
     return (
         <aside className="app-sidebar">
             <div className="app-sidebar__brand">
-                <strong>Oficina</strong>
-                <span>Autopecas</span>
+                <img className="app-sidebar__brand-logo" src={logo} alt="Mainara" />
             </div>
 
             <nav className="app-sidebar__nav" aria-label="Menu principal">
@@ -56,8 +56,8 @@ export function Sidebar() {
                         end={item.to === "/"}
                         className={({ isActive }: { isActive: boolean }) => (isActive ? "active" : undefined)}
                     >
-                        <item.icon width={18} height={18} aria-hidden="true" />
-                        {item.label}
+                        <item.icon width={20} height={20} aria-hidden="true" />
+                        <span>{item.label}</span>
                     </NavLink>
                 ))}
             </nav>

@@ -4,27 +4,37 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  color: #f1f5f9;
+  color: #f8fafc;
   background: #0f172a;
 
   --color-page: #0f172a;
-  --color-surface: #1e293b;
-  --color-surface-muted: #172033;
-  --color-surface-strong: #26364d;
-  --color-text: #f1f5f9;
+  --color-sidebar: #111827;
+  --color-surface: rgba(30, 41, 59, 0.84);
+  --color-surface-muted: rgba(15, 23, 42, 0.64);
+  --color-surface-strong: #1e293b;
+  --color-text: #f8fafc;
   --color-text-muted: #94a3b8;
   --color-border: #334155;
   --color-border-strong: #475569;
-  --color-primary: #3b82f6;
-  --color-primary-hover: #2563eb;
+  --color-primary: #2563eb;
+  --color-primary-hover: #3b82f6;
   --color-danger: #ef4444;
   --color-danger-hover: #dc2626;
   --color-warning: #f59e0b;
   --color-success: #22c55e;
 
-  --shadow-panel: 0 18px 45px rgba(0, 0, 0, 0.28);
-  --radius-sm: 6px;
+  --shadow-panel: 0 24px 70px rgba(2, 6, 23, 0.34);
+  --shadow-soft: 0 12px 36px rgba(2, 6, 23, 0.24);
+  --radius-sm: 12px;
   --radius-md: 12px;
+  --radius-lg: 16px;
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 24px;
+  --space-5: 32px;
+  --motion-fast: 180ms ease;
+  --motion-base: 220ms ease;
 }
 
 * {

@@ -104,7 +104,7 @@ export function EmployeeList() {
                                                 title="Editar"
                                                 onClick={() => { setEditingEmployee(employee); setShowForm(true); }}
                                             >
-                                                <Pencil size={16} aria-hidden="true" />
+                                                <Pencil size={20} aria-hidden="true" />
                                             </button>
                                         )}
                                         {canDelete(user?.role) && (
@@ -115,7 +115,7 @@ export function EmployeeList() {
                                                 title="Excluir"
                                                 onClick={() => void handleRemove(employee)}
                                             >
-                                                <Trash2 size={16} aria-hidden="true" />
+                                                <Trash2 size={20} aria-hidden="true" />
                                             </button>
                                         )}
                                     </td>

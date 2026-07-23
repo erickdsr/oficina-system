@@ -128,7 +128,7 @@ export function ProductList() {
                                                 title="Editar"
                                                 onClick={() => { setEditingProduct(product); setShowForm(true); }}
                                             >
-                                                <Pencil size={16} aria-hidden="true" />
+                                                <Pencil size={20} aria-hidden="true" />
                                             </button>
                                         )}
                                         {canDelete(user?.role) && (
@@ -139,7 +139,7 @@ export function ProductList() {
                                                 title="Excluir"
                                                 onClick={() => void handleRemove(product)}
                                             >
-                                                <Trash2 size={16} aria-hidden="true" />
+                                                <Trash2 size={20} aria-hidden="true" />
                                             </button>
                                         )}
                                     </td>

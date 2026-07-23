@@ -73,7 +73,7 @@ export function CategoryList() {
                 action={
                     canManage(user?.role, ["admin", "gerente", "estoquista"]) && (
                         <button type="button" className="primary-button" onClick={() => setShowForm(true)}>
-                            <Plus size={18} aria-hidden="true" />
+                            <Plus size={20} aria-hidden="true" />
                             Nova categoria
                         </button>
                     )
@@ -134,7 +134,7 @@ export function CategoryList() {
                                         setShowForm(true);
                                     }}
                                 >
-                                    <Pencil size={16} aria-hidden="true" />
+                                    <Pencil size={20} aria-hidden="true" />
                                 </button>
                             )}
                             {canDelete(user?.role) && (
@@ -145,7 +145,7 @@ export function CategoryList() {
                                     title="Excluir"
                                     onClick={() => void handleRemove(category)}
                                 >
-                                    <Trash2 size={16} aria-hidden="true" />
+                                    <Trash2 size={20} aria-hidden="true" />
                                 </button>
                             )}
                         </div>

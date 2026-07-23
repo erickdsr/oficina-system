@@ -66,7 +66,7 @@ export function LoginPage() {
                         <label className="form-field" htmlFor="email">
                             <span>E-mail</span>
                             <div className="login-input-wrap">
-                                <Mail className="login-input-icon" size={18} aria-hidden="true" />
+                                <Mail className="login-input-icon" size={20} aria-hidden="true" />
                                 <input
                                     id="email"
                                     type="email"
@@ -84,7 +84,7 @@ export function LoginPage() {
                         <label className="form-field" htmlFor="password">
                             <span>Senha</span>
                             <div className="login-input-wrap">
-                                <Lock className="login-input-icon" size={18} aria-hidden="true" />
+                                <Lock className="login-input-icon" size={20} aria-hidden="true" />
                                 <input
                                     id="password"
                                     type={showPassword ? "text" : "password"}
@@ -100,7 +100,7 @@ export function LoginPage() {
                                     onClick={() => setShowPassword((current) => !current)}
                                     aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
                                 >
-                                    {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                                    {showPassword ? <EyeOff size={20} aria-hidden="true" /> : <Eye size={20} aria-hidden="true" />}
                                 </button>
                             </div>
                             {errors.password && <small>{errors.password.message}</small>}
@@ -117,9 +117,9 @@ export function LoginPage() {
                         </div>
 
                         <button type="submit" className="login-submit" disabled={isSubmitting}>
-                            {isSubmitting && <LoaderCircle className="login-spinner" size={18} aria-hidden="true" />}
+                            {isSubmitting && <LoaderCircle className="login-spinner" size={20} aria-hidden="true" />}
                             {isSubmitting ? "Entrando..." : "Entrar"}
-                            {!isSubmitting && <ArrowRight size={18} aria-hidden="true" />}
+                            {!isSubmitting && <ArrowRight size={20} aria-hidden="true" />}
                         </button>
                     </form>
 

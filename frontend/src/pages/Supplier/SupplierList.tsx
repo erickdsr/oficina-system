@@ -125,7 +125,7 @@ export function SupplierList() {
                                                 title="Editar"
                                                 onClick={() => { setEditingSupplier(supplier); setShowForm(true); }}
                                             >
-                                                <Pencil size={16} aria-hidden="true" />
+                                                <Pencil size={20} aria-hidden="true" />
                                             </button>
                                         )}
                                         {canDelete(user?.role) && (
@@ -136,7 +136,7 @@ export function SupplierList() {
                                                 title="Excluir"
                                                 onClick={() => void handleRemove(supplier)}
                                             >
-                                                <Trash2 size={16} aria-hidden="true" />
+                                                <Trash2 size={20} aria-hidden="true" />
                                             </button>
                                         )}
                                     </td>
