@@ -1,49 +1,79 @@
-version: '3.8'
-
 services:
-
   postgres:
     image: postgres:17-alpine
-    container_name: system_oficina_db
+    container_name: system_oficina-postgres
+
     environment:
       POSTGRES_DB: system_oficina
-      POSTGRES_USER: ${DB_USERNAME}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
     ports:
       - "5432:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/database/distribuidora_mvp.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - system_oficina_network
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d system_oficina"]
       interval: 10s
       timeout: 5s
       retries: 5
+
+    networks:
+      - system_oficina-network
+
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: system_oficina_backend
+
+    container_name: system_oficina-backend
+
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/system_oficina
-      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
       JWT_SECRET: ${JWT_SECRET}
-      JWT_EXPIRATION: ${JWT_EXPIRATION}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_NAME: ${ADMIN_NAME:-Administrador}
+      ADMIN_PHONE: ${ADMIN_PHONE:-11999999999}
+
     ports:
       - "8080:8080"
+
     depends_on:
       postgres:
         condition: service_healthy
+
     networks:
-      - system_oficina_network
+      - system_oficina-network
+
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    container_name: system_oficina-frontend
+
+    ports:
+      - "3000:80"
+
+    depends_on:
+      - backend
+
+    networks:
+      - system_oficina-network
+
 
 volumes:
   postgres_data:
 
+
 networks:
-  system_oficina_network:
+  system_oficina-network:
     driver: bridge
