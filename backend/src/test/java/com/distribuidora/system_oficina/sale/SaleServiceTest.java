@@ -164,7 +164,47 @@ class SaleServiceTest {
     }
 
     @Test
-    @DisplayName("createSale com cliente inexistente deve lançar exceção")
+    @DisplayName("createSale com pagamento insuficiente deve lancar excecao")
+    void createSale_pagamentoInsuficiente_deveLancarExcecao() {
+        // Arrange
+        Client client = new Client();
+        client.setId(1);
+        Employee employee = new Employee();
+        employee.setId(2);
+        Product product = new Product();
+        product.setId(10);
+        product.setSalePrice(new BigDecimal("15.00"));
+        PaymentMethod paymentMethod = new PaymentMethod();
+        paymentMethod.setId(3);
+
+        when(clientRepository.findById(1)).thenReturn(Optional.of(client));
+        when(employeeRepository.findById(2)).thenReturn(Optional.of(employee));
+        when(productRepository.findById(10)).thenReturn(Optional.of(product));
+        when(paymentMethodRepository.findById(3)).thenReturn(Optional.of(paymentMethod));
+        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        SaleRequestDTO request = SaleRequestDTO.builder()
+                .clientId(1)
+                .employeeId(2)
+                .discount(BigDecimal.ZERO)
+                .items(List.of(SaleItemDTO.builder()
+                        .productId(10)
+                        .quantity(2)
+                        .unitPrice(new BigDecimal("15.00"))
+                        .discount(BigDecimal.ZERO)
+                        .build()))
+                .payments(List.of(SalePaymentDTO.builder()
+                        .paymentMethodId(3)
+                        .amount(new BigDecimal("20.00"))
+                        .build()))
+                .build();
+
+        // Act & Assert
+        assertThrows(RuntimeException.class, () -> saleService.createSale(request));
+    }
+
+    @Test
+    @DisplayName("createSale com cliente inexistente deve lancar excecao")
     void createSale_clienteNaoEncontrado_deveLancarExcecao() {
         // Arrange
         when(clientRepository.findById(1)).thenReturn(Optional.empty());

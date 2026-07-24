@@ -21,12 +21,12 @@ export const saleService = {
     },
 
     async finalize(id: ApiId) {
-        const { data } = await api.patch<SaleResponse>(`${RESOURCE}/${id}/finalize`);
+        const { data } = await api.patch<SaleResponse>(`${RESOURCE}/finalize/${id}`);
         return data;
     },
 
     async cancel(id: ApiId) {
-        const { data } = await api.patch<SaleResponse>(`${RESOURCE}/${id}/cancel`);
+        const { data } = await api.patch<SaleResponse>(`${RESOURCE}/cancel/${id}`);
         return data;
     },
 };

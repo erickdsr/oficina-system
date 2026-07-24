@@ -118,7 +118,19 @@ public class SaleService {
 
         savedSale.setItems(saleItems);
         savedSale.setPayments(salePayments);
-        savedSale.setTotal(total.subtract(savedSale.getDiscount()));
+        BigDecimal finalTotal = total.subtract(savedSale.getDiscount());
+        if (finalTotal.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sale discount cannot exceed item total");
+        }
+
+        BigDecimal paidTotal = salePayments.stream()
+                .map(SalePayments::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (paidTotal.compareTo(finalTotal) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payments do not cover sale total");
+        }
+
+        savedSale.setTotal(finalTotal);
         return toResponseDTO(saleRepository.save(savedSale));
     }
 

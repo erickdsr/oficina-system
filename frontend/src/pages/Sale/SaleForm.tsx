@@ -22,7 +22,7 @@ const initialItem: SaleItem = {
 };
 
 const initialPayment: SalePayment = {
-    paymentMethodId: 1,
+    paymentMethodId: 0,
     amount: 0,
 };
 
@@ -43,19 +43,32 @@ export function SaleForm() {
 
     useEffect(() => {
         async function loadData() {
+            const errors: string[] = [];
             try {
-                const [clientData, productData, paymentMethodData] = await Promise.all([
-                    clientService.list(),
-                    productService.list(),
-                    paymentMethodService.list(),
-                ]);
+                const clientData = await clientService.list();
                 setClients(clientData);
-                setProducts(productData);
-                setPaymentMethods(paymentMethodData);
                 setClientId(clientData[0]?.id ?? 0);
-                setPayments([{ paymentMethodId: paymentMethodData[0]?.id ?? 1, amount: 0 }]);
             } catch (loadError) {
-                setError(getApiErrorMessage(loadError, "Nao foi possivel carregar dados da venda."));
+                errors.push(getApiErrorMessage(loadError, "Nao foi possivel carregar clientes."));
+            }
+
+            try {
+                const productData = await productService.list();
+                setProducts(productData);
+            } catch (loadError) {
+                errors.push(getApiErrorMessage(loadError, "Nao foi possivel carregar produtos."));
+            }
+
+            try {
+                const paymentMethodData = await paymentMethodService.list();
+                setPaymentMethods(paymentMethodData);
+                setPayments([{ paymentMethodId: paymentMethodData[0]?.id ?? initialPayment.paymentMethodId, amount: 0 }]);
+            } catch (loadError) {
+                errors.push(getApiErrorMessage(loadError, "Nao foi possivel carregar formas de pagamento."));
+            }
+
+            if (errors.length > 0) {
+                setError(errors.join(" "));
             }
         }
 
@@ -93,7 +106,11 @@ export function SaleForm() {
             setError("Informe cliente e itens validos.");
             return;
         }
-        if (payments.some((payment) => payment.amount <= 0) || paid + 0.01 < total) {
+        if (paymentMethods.length === 0) {
+            setError("Cadastre ou carregue uma forma de pagamento antes de finalizar a venda.");
+            return;
+        }
+        if (payments.some((payment) => payment.paymentMethodId <= 0 || payment.amount <= 0) || paid + 0.01 < total) {
             setError("Informe pagamentos que cubram o total da venda.");
             return;
         }
@@ -146,7 +163,7 @@ export function SaleForm() {
                         <div className="item-row" key={index}>
                             <label className="form-field"><span>Produto</span><select value={item.productId ?? ""} onChange={(event) => updateItem(index, { productId: event.target.value ? Number(event.target.value) : null })}><option value="">Selecione</option>{products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}</select></label>
                             <label className="form-field"><span>Qtd.</span><input type="number" min="1" value={item.quantity} onChange={(event) => updateItem(index, { quantity: Number(event.target.value) })} /></label>
-                            <label className="form-field"><span>Preco</span><input type="number" min="0" step="0.01" value={item.unitPrice} onChange={(event) => updateItem(index, { unitPrice: Number(event.target.value) })} /></label>
+                            <label className="form-field"><span>Preco</span><input type="number" min="0" step="0.01" value={item.unitPrice} readOnly /></label>
                             <label className="form-field"><span>Desc.</span><input type="number" min="0" step="0.01" value={item.discount} onChange={(event) => updateItem(index, { discount: Number(event.target.value) })} /></label>
                             <strong>{formatCurrency(item.subtotal)}</strong>
                             <button type="button" className="danger-button" onClick={() => setItems(items.filter((_, itemIndex) => itemIndex !== index))} disabled={items.length === 1}>Remover</button>
@@ -154,10 +171,10 @@ export function SaleForm() {
                     ))}
                 </div>
                 <div className="items-panel">
-                    <div className="items-panel__header"><h3>Pagamentos</h3><button type="button" className="secondary-button" onClick={() => setPayments([...payments, { paymentMethodId: paymentMethods[0]?.id ?? initialPayment.paymentMethodId, amount: 0 }])}>Adicionar pagamento</button></div>
+                    <div className="items-panel__header"><h3>Pagamentos</h3><button type="button" className="secondary-button" onClick={() => setPayments([...payments, { paymentMethodId: paymentMethods[0]?.id ?? initialPayment.paymentMethodId, amount: 0 }])} disabled={paymentMethods.length === 0}>Adicionar pagamento</button></div>
                     {payments.map((payment, index) => (
                         <div className="payment-row" key={index}>
-                            <label className="form-field"><span>Metodo</span><select value={payment.paymentMethodId} onChange={(event) => updatePayment(index, { paymentMethodId: Number(event.target.value) })}>{paymentMethods.map((method) => <option key={method.id} value={method.id}>{method.name}</option>)}</select></label>
+                            <label className="form-field"><span>Metodo</span><select value={payment.paymentMethodId} onChange={(event) => updatePayment(index, { paymentMethodId: Number(event.target.value) })}><option value={0}>{paymentMethods.length === 0 ? "Nenhuma forma carregada" : "Selecione"}</option>{paymentMethods.map((method) => <option key={method.id} value={method.id}>{method.name}</option>)}</select></label>
                             <label className="form-field"><span>Valor</span><input type="number" min="0" step="0.01" value={payment.amount} onChange={(event) => updatePayment(index, { amount: Number(event.target.value) })} /></label>
                             <button type="button" className="danger-button" onClick={() => setPayments(payments.filter((_, paymentIndex) => paymentIndex !== index))} disabled={payments.length === 1}>Remover</button>
                         </div>

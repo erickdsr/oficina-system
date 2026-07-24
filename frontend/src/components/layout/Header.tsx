@@ -1,5 +1,6 @@
-import { Bell, ChevronDown, LogOut, MonitorCog, Moon, Search, Settings, UserCircle } from "lucide-react";
+import { Bell, ChevronDown, LogOut, Menu, MonitorCog, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, UserCircle, Zap } from "lucide-react";
 import { useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/auth.context";
 
 function formatRole(role?: string) {
@@ -10,9 +11,48 @@ function formatRole(role?: string) {
     return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
 }
 
-export function Header() {
+interface HeaderProps {
+    sidebarCollapsed: boolean;
+    onToggleSidebar: () => void;
+    onOpenMobileSidebar: () => void;
+}
+
+const routeLabels: Record<string, string> = {
+    "/": "Dashboard",
+    "/categories": "Categorias",
+    "/suppliers": "Fornecedores",
+    "/clients": "Clientes",
+    "/employees": "Funcionarios",
+    "/products": "Produtos",
+    "/stock": "Estoque",
+    "/stock/movements": "Movimentacoes",
+    "/purchases": "Compras",
+    "/purchases/new": "Nova compra",
+    "/sales": "Vendas",
+    "/sales/new": "Nova venda",
+};
+
+function getRouteLabel(pathname: string) {
+    if (routeLabels[pathname]) {
+        return routeLabels[pathname];
+    }
+
+    if (pathname.startsWith("/purchases/")) {
+        return "Detalhe da compra";
+    }
+
+    if (pathname.startsWith("/sales/")) {
+        return "Detalhe da venda";
+    }
+
+    return "GarageOS";
+}
+
+export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar }: HeaderProps) {
     const { user, logout } = useAuth();
+    const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
+    const currentLabel = getRouteLabel(location.pathname);
     const initials = (user?.name ?? "Usuario")
         .split(" ")
         .map((namePart) => namePart[0])
@@ -22,9 +62,21 @@ export function Header() {
 
     return (
         <header className="app-header">
-            <div className="app-header__title">
-                <span className="app-header__eyebrow">System Oficina</span>
-                <h1>Gestao da distribuidora</h1>
+            <div className="app-header__leading">
+                <button type="button" className="header-icon-button header-icon-button--mobile" aria-label="Abrir menu" onClick={onOpenMobileSidebar}>
+                    <Menu size={21} aria-hidden="true" />
+                </button>
+                <button type="button" className="header-icon-button header-icon-button--desktop" aria-label="Recolher menu" onClick={onToggleSidebar}>
+                    {sidebarCollapsed ? <PanelLeftOpen size={21} aria-hidden="true" /> : <PanelLeftClose size={21} aria-hidden="true" />}
+                </button>
+                <div className="app-header__title">
+                    <nav className="breadcrumb" aria-label="Breadcrumb">
+                        <span>GarageOS</span>
+                        <span>/</span>
+                        <strong>{currentLabel}</strong>
+                    </nav>
+                    <h1>{currentLabel}</h1>
+                </div>
             </div>
 
             <div className="app-header__tools">
@@ -32,6 +84,16 @@ export function Header() {
                     <Search size={20} aria-hidden="true" />
                     <input type="search" placeholder="Pesquisar no ERP..." aria-label="Pesquisa global" />
                 </label>
+
+                <Link className="quick-action" to="/sales/new">
+                    <Plus size={18} aria-hidden="true" />
+                    <span>Venda</span>
+                </Link>
+
+                <Link className="quick-action quick-action--ghost" to="/stock/movements">
+                    <Zap size={18} aria-hidden="true" />
+                    <span>Movimentos</span>
+                </Link>
 
                 <button type="button" className="header-icon-button" aria-label="Notificacoes">
                     <Bell size={20} aria-hidden="true" />
