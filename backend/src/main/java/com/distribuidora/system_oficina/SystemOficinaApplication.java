@@ -13,6 +13,7 @@ import org.springframework.util.StringUtils;
 
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
+import com.distribuidora.system_oficina.role.RoleNameNormalizer;
 import com.distribuidora.system_oficina.role.entity.Role;
 import com.distribuidora.system_oficina.role.repository.RoleRepository;
 
@@ -29,16 +30,12 @@ public class SystemOficinaApplication {
 			EmployeeRepository employeeRepository,
 			RoleRepository roleRepository,
 			PasswordEncoder passwordEncoder,
-			Environment environment) {
+		Environment environment) {
 		return args -> {
-			Role role = roleRepository.findByName("admin")
-					.orElseGet(() -> {
-						Role newRole = new Role();
-						newRole.setName("admin");
-						newRole.setDescription("Administrador do sistema");
-						newRole.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-						return roleRepository.save(newRole);
-					});
+			Role role = ensureRole(roleRepository, "admin", "Administrador do sistema");
+			ensureRole(roleRepository, "gerente", "Gerente");
+			ensureRole(roleRepository, "vendedor", "Vendedor");
+			ensureRole(roleRepository, "estoquista", "Estoquista");
 
 			String adminEmail = environment.getProperty("ADMIN_EMAIL");
 			String adminPassword = environment.getProperty("ADMIN_PASSWORD");
@@ -61,6 +58,18 @@ public class SystemOficinaApplication {
 
 			employeeRepository.save(employee);
 		};
+	}
+
+	private Role ensureRole(RoleRepository roleRepository, String name, String description) {
+		String normalizedName = RoleNameNormalizer.normalize(name);
+		return roleRepository.findByNameIgnoreCase(normalizedName)
+				.orElseGet(() -> {
+					Role newRole = new Role();
+					newRole.setName(normalizedName);
+					newRole.setDescription(description);
+					newRole.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+					return roleRepository.save(newRole);
+				});
 	}
 
 }

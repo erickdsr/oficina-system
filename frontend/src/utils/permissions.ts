@@ -1,18 +1,23 @@
 export type AppRole = "admin" | "gerente" | "vendedor" | "estoquista";
 
 export function normalizeRole(role?: string): AppRole | null {
-    const normalizedRole = role?.toLowerCase();
+    const normalizedRole = role
+        ?.normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLowerCase()
+        .replace(/^role[_\s-]*/, "");
 
-    if (
-        normalizedRole === "admin" ||
-        normalizedRole === "gerente" ||
-        normalizedRole === "vendedor" ||
-        normalizedRole === "estoquista"
-    ) {
-        return normalizedRole;
-    }
+    const roleAliases: Record<string, AppRole> = {
+        admin: "admin",
+        administrador: "admin",
+        gerente: "gerente",
+        manager: "gerente",
+        vendedor: "vendedor",
+        estoquista: "estoquista",
+    };
 
-    return null;
+    return normalizedRole ? roleAliases[normalizedRole] ?? null : null;
 }
 
 export function canManage(role?: string, allowedRoles: AppRole[] = ["admin", "gerente"]) {

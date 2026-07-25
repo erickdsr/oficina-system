@@ -11,6 +11,7 @@ import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
+import com.distribuidora.system_oficina.role.RoleNameNormalizer;
 import com.distribuidora.system_oficina.role.entity.Role;
 import com.distribuidora.system_oficina.role.repository.RoleRepository;
 
@@ -24,7 +25,8 @@ public class EmployeeService {
 
     private Employee toEntity(EmployeeRequestDTO dto) {
         Employee entity = new Employee();
-        Role role = roleRepository.findByName(dto.getRoleName()).orElseThrow(() -> new ResponseStatusException(
+        String roleName = RoleNameNormalizer.normalize(dto.getRoleName());
+        Role role = roleRepository.findByNameIgnoreCase(roleName).orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND, "Role not found with name: " + dto.getRoleName()));
         entity.setName(dto.getName());
         entity.setCpf(dto.getCpf());
@@ -54,7 +56,8 @@ public class EmployeeService {
     public EmployeeResponseDTO updateEmployee(Integer id, EmployeeRequestDTO dto) {
         Employee entity = employeeRepository.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found with id: " + id));
-        Role role = roleRepository.findByName(dto.getRoleName()).orElseThrow(() -> new ResponseStatusException(
+        String roleName = RoleNameNormalizer.normalize(dto.getRoleName());
+        Role role = roleRepository.findByNameIgnoreCase(roleName).orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND, "Role not found with name: " + dto.getRoleName()));
         entity.setName(dto.getName());
         entity.setCpf(dto.getCpf());

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
+import com.distribuidora.system_oficina.role.RoleNameNormalizer;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -23,7 +24,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             return org.springframework.security.core.userdetails.User
                 .withUsername(employee.getEmail())
                 .password(employee.getPassword())
-                .authorities("ROLE_" + employee.getRole().getName().toUpperCase())
+                .authorities(RoleNameNormalizer.authority(employee.getRole().getName()))
                 .build();
     }
 }

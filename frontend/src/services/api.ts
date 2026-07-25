@@ -51,6 +51,9 @@ export function clearAuthToken() {
 export function getApiErrorMessage(error: unknown, fallback = "Erro ao comunicar com o servidor") {
     if (axios.isAxiosError<ApiError>(error)) {
         const axiosError = error as AxiosError<ApiError>;
+        if (axiosError.response?.status === 403) {
+            return axiosError.response.data?.message ?? "Sem permissao para executar esta acao.";
+        }
         return axiosError.response?.data?.message ?? axiosError.response?.data?.error ?? fallback;
     }
 

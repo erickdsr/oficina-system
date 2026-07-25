@@ -9,6 +9,7 @@ import com.distribuidora.system_oficina.auth.dto.LoginRequestDTO;
 import com.distribuidora.system_oficina.auth.dto.LoginResponseDTO;
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
+import com.distribuidora.system_oficina.role.RoleNameNormalizer;
 import com.distribuidora.system_oficina.security.JwtService;
 
 import lombok.RequiredArgsConstructor;
@@ -35,7 +36,7 @@ public class AuthService {
                 token,
                 "Bearer",
                 employee.getId(),
-                employee.getRole().getName(),
+                RoleNameNormalizer.normalize(employee.getRole().getName()),
                 employee.getName()
         );
     }
