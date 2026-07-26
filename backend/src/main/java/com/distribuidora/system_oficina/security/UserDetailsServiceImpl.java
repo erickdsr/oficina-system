@@ -20,11 +20,16 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Employee employee =  employeeRepository.findByEmail(username)
             .orElseThrow(() -> new UsernameNotFoundException("Employee not found: " + username));
+
+        if (employee.getRole() == null) {
+            throw new UsernameNotFoundException("Employee has no role: " + username);
+        }
         
             return org.springframework.security.core.userdetails.User
                 .withUsername(employee.getEmail())
                 .password(employee.getPassword())
                 .authorities(RoleNameNormalizer.authority(employee.getRole().getName()))
+                .disabled(Boolean.FALSE.equals(employee.getStatus()))
                 .build();
     }
 }

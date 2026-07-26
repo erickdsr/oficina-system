@@ -1,29 +1,37 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
+import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
+import supplierService from "../../services/supplier.service";
 import useSupplier from "../../hooks/useSupplier";
+import type { DeletionReport } from "../../types/api.types";
 import type { Supplier, SupplierRequest } from "../../types/supplier.types";
 import { canDelete, canManage } from "../../utils/permissions";
 import SupplierForm from "./SupplierForm";
 
 export function SupplierList() {
     const { user } = useAuth();
-    const { suppliers, loading, error, setError, fetchAll, create, update, remove } = useSupplier();
+    const { suppliers, loading, error, setError, fetchAll, create, update, remove, forceDelete } = useSupplier();
     const [search, setSearch] = useState("");
+    const [showInactive, setShowInactive] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+    const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [deletionReport, setDeletionReport] = useState<DeletionReport | null>(null);
     const [showForm, setShowForm] = useState(false);
 
     useEffect(() => {
-        void fetchAll().catch(() => undefined);
-    }, [fetchAll]);
+        void fetchAll(showInactive).catch(() => undefined);
+    }, [fetchAll, showInactive]);
 
     const filteredSuppliers = useMemo(() => {
         const term = search.toLowerCase();
@@ -43,7 +51,7 @@ export function SupplierList() {
             }
             setShowForm(false);
             setEditingSupplier(null);
-            await fetchAll();
+            await fetchAll(showInactive);
         } catch (submitError) {
             setFormError(getApiErrorMessage(submitError, "Nao foi possivel salvar o fornecedor."));
         } finally {
@@ -51,16 +59,64 @@ export function SupplierList() {
         }
     }
 
-    async function handleRemove(supplier: Supplier) {
-        if (!window.confirm(`Excluir fornecedor ${supplier.name}?`)) {
+    async function handleDeleteClick(supplier: Supplier) {
+        setDeleteError(null);
+        setError(null);
+        setSupplierToDelete(supplier);
+        setDeletionReport(null);
+        try {
+            setDeletionReport(await supplierService.getDeletionReport(supplier.id));
+        } catch (reportError) {
+            setDeleteError(getApiErrorMessage(reportError, "Nao foi possivel carregar os vinculos do fornecedor."));
+        }
+    }
+
+    async function handleConfirmDelete() {
+        if (!supplierToDelete || isDeleting) {
             return;
         }
+
+        setIsDeleting(true);
+        setDeleteError(null);
         try {
-            await remove(supplier.id);
-            await fetchAll();
+            await remove(supplierToDelete.id);
+            await fetchAll(showInactive);
+            setSupplierToDelete(null);
+            setDeletionReport(null);
         } catch (removeError) {
-            setError(getApiErrorMessage(removeError, "Nao foi possivel excluir o fornecedor."));
+            setDeleteError(getApiErrorMessage(removeError, "Nao foi possivel excluir o fornecedor. Tente novamente."));
+        } finally {
+            setIsDeleting(false);
         }
+    }
+
+    async function handleForceDelete() {
+        if (!supplierToDelete || isDeleting) {
+            return;
+        }
+
+        setIsDeleting(true);
+        setDeleteError(null);
+        try {
+            await forceDelete(supplierToDelete.id);
+            await fetchAll(showInactive);
+            setSupplierToDelete(null);
+            setDeletionReport(null);
+        } catch (removeError) {
+            setDeleteError(getApiErrorMessage(removeError, "Nao foi possivel excluir definitivamente o fornecedor."));
+        } finally {
+            setIsDeleting(false);
+        }
+    }
+
+    function handleCancelDelete() {
+        if (isDeleting) {
+            return;
+        }
+
+        setSupplierToDelete(null);
+        setDeleteError(null);
+        setDeletionReport(null);
     }
 
     return (
@@ -70,7 +126,7 @@ export function SupplierList() {
                 title="Fornecedores"
                 description="Controle fornecedores da distribuidora."
                 action={
-                    canManage(user?.role, ["admin", "gerente", "estoquista"]) && (
+                    canManage(user?.role, ["ADMIN", "MANAGER", "STOCK"]) && (
                         <button type="button" className="primary-button" onClick={() => setShowForm(true)}>
                             Novo fornecedor
                         </button>
@@ -78,6 +134,10 @@ export function SupplierList() {
                 }
             />
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar fornecedor..." />
+            <label className="checkbox-field">
+                <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
+                Mostrar registros desativados
+            </label>
             {showForm && (
                 <SupplierForm
                     supplier={editingSupplier}
@@ -117,7 +177,7 @@ export function SupplierList() {
                                     <td>{supplier.city} / {supplier.state}</td>
                                     <td><StatusBadge active={supplier.status} /></td>
                                     <td className="table-actions">
-                                        {canManage(user?.role, ["admin", "gerente", "estoquista"]) && (
+                                        {canManage(user?.role, ["ADMIN", "MANAGER", "STOCK"]) && (
                                             <button
                                                 type="button"
                                                 className="table-action-button table-action-button--edit"
@@ -128,13 +188,13 @@ export function SupplierList() {
                                                 <Pencil size={20} aria-hidden="true" />
                                             </button>
                                         )}
-                                        {canDelete(user?.role) && (
+                                        {canDelete(user?.role, ["ADMIN", "MANAGER", "STOCK"]) && (
                                             <button
                                                 type="button"
                                                 className="table-action-button table-action-button--delete"
                                                 aria-label={`Excluir fornecedor ${supplier.name}`}
                                                 title="Excluir"
-                                                onClick={() => void handleRemove(supplier)}
+                                                onClick={() => handleDeleteClick(supplier)}
                                             >
                                                 <Trash2 size={20} aria-hidden="true" />
                                             </button>
@@ -146,6 +206,20 @@ export function SupplierList() {
                     </table>
                 </div>
             )}
+            <ConfirmDeleteModal
+                isOpen={supplierToDelete !== null}
+                title="Excluir fornecedor"
+                itemName={supplierToDelete?.name}
+                description="Esta acao nao podera ser desfeita."
+                confirmLabel="Excluir fornecedor"
+                isLoading={isDeleting}
+                error={deleteError}
+                report={deletionReport}
+                userRole={user?.role}
+                onConfirm={handleConfirmDelete}
+                onForceConfirm={handleForceDelete}
+                onCancel={handleCancelDelete}
+            />
         </section>
     );
 }

@@ -52,6 +52,9 @@ public class Purchase {
       @Enumerated(EnumType.STRING)
       @Column(name = "status", nullable = false)
       private Status status;
+
+      @Column(name = "active")
+      private Boolean active = true;
       
       @Column(name = "notes")
       private String notes;

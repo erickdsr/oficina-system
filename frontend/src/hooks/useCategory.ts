@@ -10,11 +10,11 @@ export function useCategory() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const loadCategories = useCallback(async () => {
+    const loadCategories = useCallback(async (includeInactive = false) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await categoryService.list();
+            const data = await categoryService.list(includeInactive);
             setCategories(data);
             return data;
         } catch (loadError) {

@@ -9,11 +9,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import java.util.List;
+import com.distribuidora.system_oficina.deletion.DeletionReportDTO;
+import com.distribuidora.system_oficina.deletion.DeletionResultDTO;
 import com.distribuidora.system_oficina.supplier.dto.SupplierRequestDTO;
 import com.distribuidora.system_oficina.supplier.dto.SupplierResponseDTO;   
 import com.distribuidora.system_oficina.supplier.service.SupplierService;
@@ -31,8 +35,8 @@ public class SupplierController {
 
     @GetMapping
     @Operation(summary = "List all suppliers", description = "Returns all registered suppliers")
-    public ResponseEntity<List<SupplierResponseDTO>> listSupplier() {
-        return ResponseEntity.ok(supplierService.listSupplier());
+    public ResponseEntity<List<SupplierResponseDTO>> listSupplier(@RequestParam(defaultValue = "false") boolean includeInactive) {
+        return ResponseEntity.ok(supplierService.listSupplier(includeInactive));
     }
 
     @GetMapping("/{id}")
@@ -55,8 +59,20 @@ public class SupplierController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a supplier", description = "Deletes the supplier identified by the provided ID")
-    public ResponseEntity<String> deleteSupplier(@PathVariable Integer id) {
-        supplierService.deleteSupplier(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<DeletionResultDTO> deleteSupplier(@PathVariable Integer id) {
+        return ResponseEntity.ok(supplierService.deleteSupplier(id));
+    }
+
+    @DeleteMapping("/{id}/force")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Force delete a supplier", description = "Deletes the supplier and its dependent records")
+    public ResponseEntity<DeletionResultDTO> forceDeleteSupplier(@PathVariable Integer id) {
+        return ResponseEntity.ok(supplierService.forceDeleteSupplier(id));
+    }
+
+    @GetMapping("/{id}/deletion-report")
+    @Operation(summary = "Get supplier deletion report", description = "Returns the dependencies that affect supplier deletion")
+    public ResponseEntity<DeletionReportDTO> getDeletionReport(@PathVariable Integer id) {
+        return ResponseEntity.ok(supplierService.getDeletionReport(id));
     }
 }

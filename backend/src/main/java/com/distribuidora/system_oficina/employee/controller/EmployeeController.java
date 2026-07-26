@@ -10,13 +10,17 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 import com.distribuidora.system_oficina.employee.dto.EmployeeRequestDTO;
 import com.distribuidora.system_oficina.employee.dto.EmployeeResponseDTO;
 import com.distribuidora.system_oficina.employee.service.EmployeeService;
+import com.distribuidora.system_oficina.deletion.DeletionReportDTO;
+import com.distribuidora.system_oficina.deletion.DeletionResultDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
@@ -29,8 +33,8 @@ public class EmployeeController {
 
     @GetMapping
     @Operation(summary = "List all employees", description = "Returns all registered employees")
-    public ResponseEntity<List<EmployeeResponseDTO>> listEmployees() {
-        return ResponseEntity.ok(employeeService.listEmployees());
+    public ResponseEntity<List<EmployeeResponseDTO>> listEmployees(@RequestParam(defaultValue = "false") boolean includeInactive) {
+        return ResponseEntity.ok(employeeService.listEmployees(includeInactive));
     }
 
     @GetMapping("/{id}")
@@ -53,9 +57,21 @@ public class EmployeeController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete an employee", description = "Deletes the employee identified by the provided ID")
-    public ResponseEntity<String> deleteEmployee(@PathVariable Integer id) {
-        employeeService.deleteEmployee(id);
-        return ResponseEntity.noContent().build();
+    public ResponseEntity<DeletionResultDTO> deleteEmployee(@PathVariable Integer id) {
+        return ResponseEntity.ok(employeeService.deleteEmployee(id));
+    }
+
+    @DeleteMapping("/{id}/force")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Force delete an employee", description = "Deletes the employee and its dependent records")
+    public ResponseEntity<DeletionResultDTO> forceDeleteEmployee(@PathVariable Integer id) {
+        return ResponseEntity.ok(employeeService.forceDeleteEmployee(id));
+    }
+
+    @GetMapping("/{id}/deletion-report")
+    @Operation(summary = "Get employee deletion report", description = "Returns the dependencies that affect employee deletion")
+    public ResponseEntity<DeletionReportDTO> getDeletionReport(@PathVariable Integer id) {
+        return ResponseEntity.ok(employeeService.getDeletionReport(id));
     }
 }
 

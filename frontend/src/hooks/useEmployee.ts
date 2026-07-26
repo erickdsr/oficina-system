@@ -10,11 +10,11 @@ export function useEmployee() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchAll = useCallback(async () => {
+    const fetchAll = useCallback(async (includeInactive = false) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await employeeService.list();
+            const data = await employeeService.list(includeInactive);
             setEmployees(data);
             return data;
         } catch (loadError) {
@@ -38,11 +38,17 @@ export function useEmployee() {
         return employee;
     }, []);
     const remove = useCallback(async (id: ApiId) => {
-        await employeeService.remove(id);
-        toast.success("Funcionario removido com sucesso.");
+        const result = await employeeService.remove(id);
+        toast.success(result.message);
+        return result;
+    }, []);
+    const forceDelete = useCallback(async (id: ApiId) => {
+        const result = await employeeService.forceDelete(id);
+        toast.success(result.message);
+        return result;
     }, []);
 
-    return { employees, loading, error, setError, fetchAll, create, update, remove };
+    return { employees, loading, error, setError, fetchAll, create, update, remove, forceDelete };
 }
 
 export default useEmployee;

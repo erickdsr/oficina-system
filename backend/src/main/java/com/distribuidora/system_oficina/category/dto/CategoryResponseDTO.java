@@ -26,6 +26,9 @@ public class CategoryResponseDTO {
     @Schema(description = "Category description", example = "Products related to electronic items")
     private String description;
 
+    @Schema(description = "Category active status", example = "true")
+    private Boolean status;
+
     @Schema(description = "Creation date", example = "2026-01-15T10:30:00")
     private Timestamp createdAt;
 
@@ -34,6 +37,7 @@ public class CategoryResponseDTO {
                 .id(category.getId())
                 .name(category.getName())
                 .description(category.getDescription())
+                .status(category.getStatus())
                 .createdAt(category.getCreatedAt())
                 .build();
     }

@@ -1,6 +1,7 @@
 package com.distribuidora.system_oficina;
 
 import java.sql.Timestamp;
+import java.util.Optional;
 
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
@@ -32,10 +33,10 @@ public class SystemOficinaApplication {
 			PasswordEncoder passwordEncoder,
 		Environment environment) {
 		return args -> {
-			Role role = ensureRole(roleRepository, "admin", "Administrador do sistema");
-			ensureRole(roleRepository, "gerente", "Gerente");
-			ensureRole(roleRepository, "vendedor", "Vendedor");
-			ensureRole(roleRepository, "estoquista", "Estoquista");
+			Role role = ensureRole(roleRepository, RoleNameNormalizer.ADMIN, "Administrador do sistema");
+			ensureRole(roleRepository, RoleNameNormalizer.MANAGER, "Gerente");
+			ensureRole(roleRepository, RoleNameNormalizer.SALESPERSON, "Vendedor");
+			ensureRole(roleRepository, RoleNameNormalizer.STOCK, "Estoquista");
 
 			String adminEmail = environment.getProperty("ADMIN_EMAIL");
 			String adminPassword = environment.getProperty("ADMIN_PASSWORD");
@@ -62,14 +63,22 @@ public class SystemOficinaApplication {
 
 	private Role ensureRole(RoleRepository roleRepository, String name, String description) {
 		String normalizedName = RoleNameNormalizer.normalize(name);
-		return roleRepository.findByNameIgnoreCase(normalizedName)
-				.orElseGet(() -> {
-					Role newRole = new Role();
-					newRole.setName(normalizedName);
-					newRole.setDescription(description);
-					newRole.setCreatedAt(new Timestamp(System.currentTimeMillis()));
-					return roleRepository.save(newRole);
-				});
+		Optional<Role> existingRole = roleRepository.findAll().stream()
+				.filter(role -> RoleNameNormalizer.normalize(role.getName()).equals(normalizedName))
+				.findFirst();
+
+		if (existingRole.isPresent()) {
+			Role role = existingRole.get();
+			role.setName(normalizedName);
+			role.setDescription(description);
+			return roleRepository.save(role);
+		}
+
+		Role newRole = new Role();
+		newRole.setName(normalizedName);
+		newRole.setDescription(description);
+		newRole.setCreatedAt(new Timestamp(System.currentTimeMillis()));
+		return roleRepository.save(newRole);
 	}
 
 }

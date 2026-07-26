@@ -2,6 +2,11 @@ package com.distribuidora.system_oficina.supplier.service;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import com.distribuidora.system_oficina.deletion.DeletionReportDTO;
+import com.distribuidora.system_oficina.deletion.DeletionResource;
+import com.distribuidora.system_oficina.deletion.DeletionResultDTO;
+import com.distribuidora.system_oficina.deletion.DeletionService;
 import com.distribuidora.system_oficina.supplier.repository.SupplierRepository;
 import com.distribuidora.system_oficina.supplier.dto.SupplierRequestDTO;
 import com.distribuidora.system_oficina.supplier.dto.SupplierResponseDTO;
@@ -16,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class SupplierService {
     
     private final SupplierRepository supplierRepository;
+    private final DeletionService deletionService;
 
     private Supplier toEntity(SupplierRequestDTO dto) {
         Supplier entity = new Supplier();
@@ -32,10 +38,13 @@ public class SupplierService {
     private SupplierResponseDTO toResponseDTO(Supplier entity) {
         return SupplierResponseDTO.fromEntity(entity);
     }
-    public List<SupplierResponseDTO> listSupplier() {
-        return supplierRepository.findAll().stream()
+    public List<SupplierResponseDTO> listSupplier(boolean includeInactive) {
+        return (includeInactive ? supplierRepository.findAll() : supplierRepository.findByStatus(true)).stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+    public List<SupplierResponseDTO> listSupplier() {
+        return listSupplier(false);
     }
     public SupplierResponseDTO getSupplierById(Integer id) {
         return toResponseDTO(supplierRepository.findById(id).orElseThrow(
@@ -58,10 +67,17 @@ public class SupplierService {
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
         return toResponseDTO(supplierRepository.save(entity));
     }
-    public void deleteSupplier(Integer id) {
-        if (!supplierRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found with id: " + id);
-        }
-        supplierRepository.deleteById(id);
+    @Transactional
+    public DeletionResultDTO deleteSupplier(Integer id) {
+        return deletionService.delete(DeletionResource.SUPPLIER, id);
+    }
+
+    @Transactional
+    public DeletionResultDTO forceDeleteSupplier(Integer id) {
+        return deletionService.forceDelete(DeletionResource.SUPPLIER, id);
+    }
+
+    public DeletionReportDTO getDeletionReport(Integer id) {
+        return deletionService.report(DeletionResource.SUPPLIER, id);
     }
 }

@@ -170,10 +170,18 @@ export function DashboardPage() {
         return <LoadingState message="Carregando dashboard..." />;
     }
 
+    if (error) {
+        return (
+            <section className="page-section">
+                <PageHeader eyebrow="Dashboard" title="Resumo operacional" description="Indicadores comerciais, estoque e movimentacoes recentes." />
+                <div className="form-error">{error}</div>
+            </section>
+        );
+    }
+
     return (
         <section className="page-section">
             <PageHeader eyebrow="Dashboard" title="Resumo operacional" description="Indicadores comerciais, estoque e movimentacoes recentes." />
-            {error && <div className="form-error">{error}</div>}
 
             <div className="metric-row">
                 <div className="metric-card"><span>Vendas do dia</span><strong>{formatCurrency(todayTotal)}</strong></div>

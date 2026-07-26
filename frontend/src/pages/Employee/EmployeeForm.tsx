@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { Employee, EmployeeRequest } from "../../types/employee.types";
+import { normalizeRole } from "../../utils/permissions";
 
 interface EmployeeFormProps {
     employee?: Employee | null;
@@ -14,7 +15,7 @@ const initialForm: EmployeeRequest = {
     cpf: "",
     email: "",
     password: "",
-    roleName: "vendedor",
+    roleName: "SALESPERSON",
     phone: "",
     status: true,
 };
@@ -31,7 +32,7 @@ export function EmployeeForm({ employee, loading = false, error, onCancel, onSub
                       cpf: employee.cpf,
                       email: employee.email,
                       password: "",
-                      roleName: employee.roleName,
+                      roleName: normalizeRole(employee.roleName) ?? "SALESPERSON",
                       phone: employee.phone,
                       status: employee.status,
                   }
@@ -77,10 +78,10 @@ export function EmployeeForm({ employee, loading = false, error, onCancel, onSub
                 <label className="form-field">
                     <span>Perfil</span>
                     <select value={form.roleName} onChange={(event) => setForm({ ...form, roleName: event.target.value })}>
-                        <option value="admin">Admin</option>
-                        <option value="gerente">Gerente</option>
-                        <option value="vendedor">Vendedor</option>
-                        <option value="estoquista">Estoquista</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="MANAGER">Gerente</option>
+                        <option value="SALESPERSON">Vendedor</option>
+                        <option value="STOCK">Estoquista</option>
                     </select>
                 </label>
                 <label className="form-field">

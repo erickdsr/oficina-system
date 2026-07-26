@@ -92,7 +92,7 @@ export function SaleDetail() {
                     <tbody>{sale.payments.map((payment, index) => <tr key={`${payment.paymentMethodId}-${index}`}><td>Metodo #{payment.paymentMethodId}</td><td>{formatCurrency(payment.amount)}</td></tr>)}</tbody>
                 </table>
             </div>
-            {canManage(user?.role, ["admin", "gerente", "vendedor"]) && sale.status === "PENDENTE" && (
+            {canManage(user?.role, ["ADMIN", "MANAGER", "SALESPERSON"]) && sale.status === "PENDENTE" && (
                 <div className="form-actions">
                     <button type="button" className="primary-button" disabled={actionLoading} onClick={() => void runAction("finalize")}>Finalizar venda</button>
                     <button type="button" className="danger-button" disabled={actionLoading} onClick={() => void runAction("cancel")}>Cancelar venda</button>

@@ -1,14 +1,15 @@
-import { Bell, ChevronDown, LogOut, Menu, MonitorCog, Moon, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, UserCircle, Zap } from "lucide-react";
+import { ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Zap } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/auth.context";
+import { canManage, getRoleLabel } from "../../utils/permissions";
 
 function formatRole(role?: string) {
     if (!role) {
         return "Sem perfil";
     }
 
-    return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+    return getRoleLabel(role);
 }
 
 interface HeaderProps {
@@ -53,6 +54,8 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar 
     const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
     const currentLabel = getRouteLabel(location.pathname);
+    const canCreateSales = canManage(user?.role, ["ADMIN", "MANAGER", "SALESPERSON"]);
+    const canViewStockMovements = canManage(user?.role, ["ADMIN", "MANAGER", "STOCK"]);
     const initials = (user?.name ?? "Usuario")
         .split(" ")
         .map((namePart) => namePart[0])
@@ -80,29 +83,19 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar 
             </div>
 
             <div className="app-header__tools">
-                <label className="global-search">
-                    <Search size={20} aria-hidden="true" />
-                    <input type="search" placeholder="Pesquisar no ERP..." aria-label="Pesquisa global" />
-                </label>
+                {canCreateSales && (
+                    <Link className="quick-action" to="/sales/new">
+                        <Plus size={18} aria-hidden="true" />
+                        <span>Venda</span>
+                    </Link>
+                )}
 
-                <Link className="quick-action" to="/sales/new">
-                    <Plus size={18} aria-hidden="true" />
-                    <span>Venda</span>
-                </Link>
-
-                <Link className="quick-action quick-action--ghost" to="/stock/movements">
-                    <Zap size={18} aria-hidden="true" />
-                    <span>Movimentos</span>
-                </Link>
-
-                <button type="button" className="header-icon-button" aria-label="Notificacoes">
-                    <Bell size={20} aria-hidden="true" />
-                    <span className="notification-dot" aria-hidden="true" />
-                </button>
-
-                <button type="button" className="header-icon-button" aria-label="Alternar tema">
-                    <Moon size={20} aria-hidden="true" />
-                </button>
+                {canViewStockMovements && (
+                    <Link className="quick-action quick-action--ghost" to="/stock/movements">
+                        <Zap size={18} aria-hidden="true" />
+                        <span>Movimentos</span>
+                    </Link>
+                )}
 
                 <div className="user-menu">
                     <button
@@ -129,18 +122,6 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar 
                                     <span>{formatRole(user?.role)}</span>
                                 </div>
                             </div>
-                            <button type="button" role="menuitem">
-                                <UserCircle size={20} aria-hidden="true" />
-                                Perfil
-                            </button>
-                            <button type="button" role="menuitem">
-                                <Settings size={20} aria-hidden="true" />
-                                Configuracoes
-                            </button>
-                            <button type="button" role="menuitem">
-                                <MonitorCog size={20} aria-hidden="true" />
-                                Tema
-                            </button>
                             <button type="button" role="menuitem" className="user-menu__danger" onClick={logout}>
                                 <LogOut size={20} aria-hidden="true" />
                                 Sair

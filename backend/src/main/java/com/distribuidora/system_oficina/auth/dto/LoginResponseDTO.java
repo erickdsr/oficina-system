@@ -11,9 +11,11 @@ import lombok.NoArgsConstructor;
 public class LoginResponseDTO {
     
     @Schema(description = "Jwt gerado", example = "asg12c970b42734520ccf34r341xe1872xe1")
-    private String token;
+    private String accessToken;
     @Schema(description = "Tipo", example = "Bearer")
-    private String type;
+    private String tokenType;
+    @Schema(description = "Tempo de expiracao em milissegundos", example = "86400000")
+    private Long expiresIn;
     @Schema(description = "Employee id", example = "1")
     private Integer employeeId;
     @Schema(description = "User role", example = "Employee")

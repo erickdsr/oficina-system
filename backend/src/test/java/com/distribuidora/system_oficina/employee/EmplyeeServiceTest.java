@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -59,7 +60,7 @@ class EmplyeeServiceTest {
                 .status(true)
                 .build();
 
-        when(roleRepository.findByNameIgnoreCase("admin")).thenReturn(Optional.of(role));
+        when(roleRepository.findAll()).thenReturn(List.of(role));
         when(passwordEncoder.encode("123456")).thenReturn("encoded-password");
         when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -82,7 +83,7 @@ class EmplyeeServiceTest {
                 .name("João")
                 .build();
 
-        when(roleRepository.findByNameIgnoreCase("admin")).thenReturn(Optional.empty());
+        when(roleRepository.findAll()).thenReturn(List.of());
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> employeeService.createEmployee(request));
@@ -126,7 +127,7 @@ class EmplyeeServiceTest {
                 .build();
 
         when(employeeRepository.findById(1)).thenReturn(Optional.of(existing));
-        when(roleRepository.findByNameIgnoreCase("admin")).thenReturn(Optional.of(role));
+        when(roleRepository.findAll()).thenReturn(List.of(role));
         when(passwordEncoder.encode("123456")).thenReturn("encoded-password");
         when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

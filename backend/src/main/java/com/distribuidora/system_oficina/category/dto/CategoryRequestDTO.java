@@ -23,5 +23,8 @@ public class CategoryRequestDTO {
     @Size(max = 255)
     @Schema(description = "Category description", example = "Products related to electronic items")
     private String description;
+
+    @Schema(description = "Category active status", example = "true")
+    private Boolean status;
     
 }

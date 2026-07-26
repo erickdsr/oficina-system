@@ -84,7 +84,7 @@ export function PurchaseDetail() {
                     </tbody>
                 </table>
             </div>
-            {canManage(user?.role, ["admin", "gerente", "estoquista"]) && purchase.status === "PENDENTE" && (
+            {canManage(user?.role, ["ADMIN", "MANAGER", "STOCK"]) && purchase.status === "PENDENTE" && (
                 <div className="form-actions">
                     <button type="button" className="primary-button" disabled={actionLoading} onClick={() => void runAction("confirm")}>Confirmar recebimento</button>
                     <button type="button" className="danger-button" disabled={actionLoading} onClick={() => void runAction("cancel")}>Cancelar compra</button>

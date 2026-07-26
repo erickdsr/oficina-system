@@ -5,10 +5,15 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.distribuidora.system_oficina.category.entity.Category;
 import com.distribuidora.system_oficina.category.repository.CategoryRepository;
+import com.distribuidora.system_oficina.deletion.DeletionReportDTO;
+import com.distribuidora.system_oficina.deletion.DeletionResource;
+import com.distribuidora.system_oficina.deletion.DeletionResultDTO;
+import com.distribuidora.system_oficina.deletion.DeletionService;
 import com.distribuidora.system_oficina.product.dto.ProductRequestDTO;
 import com.distribuidora.system_oficina.product.dto.ProductResponseDTO;
 import com.distribuidora.system_oficina.product.entity.Product;
@@ -25,6 +30,7 @@ public class ProductService {
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
+    private final DeletionService deletionService;
 
     private Product toEntity(ProductRequestDTO dto) {
         Product entity = new Product();
@@ -58,10 +64,13 @@ public class ProductService {
         return ProductResponseDTO.fromEntity(entity);
     }
 
-    public List<ProductResponseDTO> listProducts() {
-        return productRepository.findAll().stream()
+    public List<ProductResponseDTO> listProducts(boolean includeInactive) {
+        return (includeInactive ? productRepository.findAll() : productRepository.findAllByStatus(true)).stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+    public List<ProductResponseDTO> listProducts() {
+        return listProducts(false);
     }
 
     public ProductResponseDTO getProductById(Integer id) {
@@ -80,10 +89,17 @@ public class ProductService {
         return toResponseDTO(productRepository.save(entity));
     }
 
-    public void deleteProduct(Integer id) {
-        if (!productRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found with id: " + id);
-        }
-        productRepository.deleteById(id);
+    @Transactional
+    public DeletionResultDTO deleteProduct(Integer id) {
+        return deletionService.delete(DeletionResource.PRODUCT, id);
+    }
+
+    @Transactional
+    public DeletionResultDTO forceDeleteProduct(Integer id) {
+        return deletionService.forceDelete(DeletionResource.PRODUCT, id);
+    }
+
+    public DeletionReportDTO getDeletionReport(Integer id) {
+        return deletionService.report(DeletionResource.PRODUCT, id);
     }
 }

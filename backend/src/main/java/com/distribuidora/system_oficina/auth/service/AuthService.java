@@ -35,8 +35,9 @@ public class AuthService {
         return new LoginResponseDTO(
                 token,
                 "Bearer",
+                jwtService.getExpiration(),
                 employee.getId(),
-                RoleNameNormalizer.normalize(employee.getRole().getName()),
+                RoleNameNormalizer.authority(employee.getRole().getName()),
                 employee.getName()
         );
     }

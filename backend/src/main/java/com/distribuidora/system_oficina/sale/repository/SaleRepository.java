@@ -12,5 +12,7 @@ public interface SaleRepository extends JpaRepository <Sale, Integer> {
     List <Sale> findByClientId(Integer clientId);
     List <Sale> findByEmployeeId(Integer employeeId);
     List <Sale> findByStatus(SaleStatus status);
+    long countByClientId(Integer clientId);
+    long countByEmployeeId(Integer employeeId);
     
 }

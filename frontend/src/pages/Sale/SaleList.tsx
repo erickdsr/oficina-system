@@ -30,7 +30,7 @@ export function SaleList() {
                 eyebrow="Vendas"
                 title="Vendas"
                 description="Historico de vendas e status."
-                action={canManage(user?.role, ["admin", "gerente", "vendedor"]) && <Link className="primary-button link-button" to="/sales/new">Nova venda</Link>}
+                action={canManage(user?.role, ["ADMIN", "MANAGER", "SALESPERSON"]) && <Link className="primary-button link-button" to="/sales/new">Nova venda</Link>}
             />
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar venda..." />
             {error && <div className="form-error">{error}</div>}

@@ -5,8 +5,9 @@ export interface LoginRequest{
 }
 export interface LoginResponse{
 
-    token: string;
-    type: string;
+    accessToken: string;
+    tokenType?: string;
+    expiresIn?: number;
     employeeId: number;
     role: string;
     name: string;

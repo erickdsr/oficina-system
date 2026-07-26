@@ -5,6 +5,11 @@ import java.util.Locale;
 
 public final class RoleNameNormalizer {
 
+    public static final String ADMIN = "ADMIN";
+    public static final String MANAGER = "MANAGER";
+    public static final String SALESPERSON = "SALESPERSON";
+    public static final String STOCK = "STOCK";
+
     private RoleNameNormalizer() {
     }
 
@@ -17,18 +22,20 @@ public final class RoleNameNormalizer {
                 .replaceAll("\\p{M}", "")
                 .trim()
                 .toLowerCase(Locale.ROOT)
-                .replaceFirst("^role[_\\s-]*", "");
+                .replaceFirst("^role[_\\s-]*", "")
+                .replaceAll("[_\\s-]+", " ")
+                .trim();
 
         return switch (normalized) {
-            case "admin", "administrador" -> "admin";
-            case "gerente", "manager" -> "gerente";
-            case "vendedor" -> "vendedor";
-            case "estoquista" -> "estoquista";
-            default -> normalized;
+            case "admin", "administrador", "administrador do sistema" -> ADMIN;
+            case "manager", "gerente" -> MANAGER;
+            case "salesperson", "sales person", "seller", "vendedor" -> SALESPERSON;
+            case "stock", "stockkeeper", "estoque", "estoquista" -> STOCK;
+            default -> normalized.toUpperCase(Locale.ROOT).replace(' ', '_');
         };
     }
 
     public static String authority(String roleName) {
-        return "ROLE_" + normalize(roleName).toUpperCase(Locale.ROOT);
+        return "ROLE_" + normalize(roleName);
     }
 }

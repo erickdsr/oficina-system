@@ -29,6 +29,9 @@ public class Category {
     @Column(name = "description", length = 255)
     private String description;
 
+    @Column(name = "status", nullable = false)
+    private Boolean status = true;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private Timestamp createdAt;

@@ -5,6 +5,7 @@ export interface Category {
     id: ApiId;
     name: string;
     description: string;
+    status: boolean;
     createdAt: ApiDateTime;
 }
 
@@ -12,4 +13,5 @@ export interface CategoryRequest {
 
     name: string;
     description: string;
+    status?: boolean;
 }

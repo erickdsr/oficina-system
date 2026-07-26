@@ -27,6 +27,8 @@ import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
 import com.distribuidora.system_oficina.product.entity.Product;
 import com.distribuidora.system_oficina.product.repository.ProductRepository;
 import com.distribuidora.system_oficina.purchase.dto.PurchaseItemDTO;
+import com.distribuidora.system_oficina.purchase.dto.PurchaseDeletionAction;
+import com.distribuidora.system_oficina.purchase.dto.PurchaseDeletionResponse;
 import com.distribuidora.system_oficina.purchase.dto.PurchaseRequestDTO;
 import com.distribuidora.system_oficina.purchase.dto.PurchaseResponseDTO;
 import com.distribuidora.system_oficina.purchase.entity.Purchase;
@@ -36,6 +38,7 @@ import com.distribuidora.system_oficina.purchase.repository.PurchaseItemReposito
 import com.distribuidora.system_oficina.purchase.repository.PurchaseRepository;
 import com.distribuidora.system_oficina.purchase.service.PurchaseService;
 import com.distribuidora.system_oficina.stock.service.StockService;
+import com.distribuidora.system_oficina.stock.repository.StockMovementRepository;
 import com.distribuidora.system_oficina.supplier.entity.Supplier;
 import com.distribuidora.system_oficina.supplier.repository.SupplierRepository;
 
@@ -59,6 +62,9 @@ class PurchaseServiceTest {
 
     @Mock
     private StockService stockService;
+
+    @Mock
+    private StockMovementRepository stockMovementRepository;
 
     @InjectMocks
     private PurchaseService purchaseService;
@@ -219,5 +225,77 @@ class PurchaseServiceTest {
 
         // Assert
         assertThat(result.getStatus()).isEqualTo(Status.CANCELADA);
+    }
+
+    @Test
+    @DisplayName("deletePurchase pendente sem movimentacoes deve excluir fisicamente sem apagar fornecedor ou produto")
+    void deletePurchase_pendenteSemMovimentacoes_deveExcluirFisicamente() {
+        Supplier supplier = new Supplier();
+        supplier.setId(1);
+        Product product = new Product();
+        product.setId(10);
+
+        Purchase purchase = new Purchase();
+        purchase.setId(1);
+        purchase.setSupplier(supplier);
+        purchase.setStatus(Status.PENDENTE);
+
+        PurchaseItem item = new PurchaseItem();
+        item.setProduct(product);
+        item.setPurchase(purchase);
+        purchase.setItems(List.of(item));
+
+        when(purchaseRepository.findById(1)).thenReturn(Optional.of(purchase));
+        when(stockMovementRepository.countByReasonContaining("Compra #1 recebida")).thenReturn(0L);
+
+        PurchaseDeletionResponse result = purchaseService.deletePurchase(1);
+
+        assertThat(result.action()).isEqualTo(PurchaseDeletionAction.DELETED);
+        verify(purchaseItemRepository).deleteAllByPurchaseIdIn(List.of(1));
+        verify(purchaseRepository).delete(purchase);
+        verify(supplierRepository, never()).delete(any());
+        verify(productRepository, never()).delete(any());
+    }
+
+    @Test
+    @DisplayName("deletePurchase recebida deve desativar e preservar historico")
+    void deletePurchase_recebida_deveDesativar() {
+        Purchase purchase = new Purchase();
+        purchase.setId(2);
+        purchase.setStatus(Status.RECEBIDA);
+        purchase.setActive(true);
+        purchase.setItems(List.of(new PurchaseItem(), new PurchaseItem()));
+
+        when(purchaseRepository.findById(2)).thenReturn(Optional.of(purchase));
+        when(stockMovementRepository.countByReasonContaining("Compra #2 recebida")).thenReturn(2L);
+        when(purchaseRepository.save(any(Purchase.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PurchaseDeletionResponse result = purchaseService.deletePurchase(2);
+
+        assertThat(result.action()).isEqualTo(PurchaseDeletionAction.DEACTIVATED);
+        assertThat(purchase.getActive()).isFalse();
+        assertThat(result.dependencies()).containsEntry("purchaseItems", 2L).containsEntry("stockMovements", 2L);
+        verify(purchaseRepository, never()).delete(any(Purchase.class));
+        verify(purchaseItemRepository, never()).deleteAllByPurchaseIdIn(any());
+    }
+
+    @Test
+    @DisplayName("deletePurchase cancelada com historico deve desativar")
+    void deletePurchase_canceladaComHistorico_deveDesativar() {
+        Purchase purchase = new Purchase();
+        purchase.setId(3);
+        purchase.setStatus(Status.CANCELADA);
+        purchase.setActive(true);
+        purchase.setItems(List.of());
+
+        when(purchaseRepository.findById(3)).thenReturn(Optional.of(purchase));
+        when(stockMovementRepository.countByReasonContaining("Compra #3 recebida")).thenReturn(1L);
+        when(purchaseRepository.save(any(Purchase.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PurchaseDeletionResponse result = purchaseService.deletePurchase(3);
+
+        assertThat(result.action()).isEqualTo(PurchaseDeletionAction.DEACTIVATED);
+        assertThat(purchase.getActive()).isFalse();
+        verify(purchaseRepository, never()).delete(any(Purchase.class));
     }
 }

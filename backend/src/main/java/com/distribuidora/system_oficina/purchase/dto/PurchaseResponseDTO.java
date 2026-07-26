@@ -41,6 +41,9 @@ public class PurchaseResponseDTO {
     @Schema(description = "status da compra")
     private Status status;
 
+    @Schema(description = "Compra ativa", example = "true")
+    private Boolean active;
+
     @Schema(description = "Observacao")
     private String notes;
 
@@ -62,6 +65,7 @@ public class PurchaseResponseDTO {
             .employeeName(purchase.getEmployee() != null ? purchase.getEmployee().getName() : null)
             .total(purchase.getTotal())
             .status(purchase.getStatus())
+            .active(purchase.getActive() == null || purchase.getActive())
             .notes(purchase.getNotes())
             .createdAt(purchase.getCreatedAt())
             .updatedAt(purchase.getUpdatedAt())

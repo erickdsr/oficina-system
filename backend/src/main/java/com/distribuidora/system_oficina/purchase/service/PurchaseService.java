@@ -15,13 +15,17 @@ import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
 import com.distribuidora.system_oficina.product.entity.Product;
 import com.distribuidora.system_oficina.product.repository.ProductRepository;
 import com.distribuidora.system_oficina.purchase.dto.PurchaseItemDTO;
+import com.distribuidora.system_oficina.purchase.dto.PurchaseDeletionAction;
+import com.distribuidora.system_oficina.purchase.dto.PurchaseDeletionResponse;
 import com.distribuidora.system_oficina.purchase.dto.PurchaseRequestDTO;
 import com.distribuidora.system_oficina.purchase.dto.PurchaseResponseDTO;
 import com.distribuidora.system_oficina.purchase.entity.Purchase;
 import com.distribuidora.system_oficina.purchase.entity.PurchaseItem;
 import com.distribuidora.system_oficina.purchase.entity.Status;
+import com.distribuidora.system_oficina.purchase.repository.PurchaseItemRepository;
 import com.distribuidora.system_oficina.purchase.repository.PurchaseRepository;
 import com.distribuidora.system_oficina.stock.entity.StockMovementType;
+import com.distribuidora.system_oficina.stock.repository.StockMovementRepository;
 import com.distribuidora.system_oficina.stock.service.StockService;
 import com.distribuidora.system_oficina.supplier.entity.Supplier;
 import com.distribuidora.system_oficina.supplier.repository.SupplierRepository;
@@ -36,6 +40,8 @@ public class PurchaseService {
     private final SupplierRepository supplierRepository;
     private final EmployeeRepository employeeRepository;
     private final ProductRepository productRepository;
+    private final PurchaseItemRepository purchaseItemRepository;
+    private final StockMovementRepository stockMovementRepository;
     private final StockService stockService;
 
     private Purchase toEntity(Integer supplierId, Integer employeeId, PurchaseRequestDTO dto) {
@@ -90,10 +96,15 @@ public class PurchaseService {
     }
 
     @Transactional(readOnly = true)
-    public List<PurchaseResponseDTO> listPurchases() {
-        return purchaseRepository.findAll().stream()
+    public List<PurchaseResponseDTO> listPurchases(boolean includeInactive) {
+        return (includeInactive ? purchaseRepository.findAll() : purchaseRepository.findActivePurchases()).stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<PurchaseResponseDTO> listPurchases() {
+        return listPurchases(false);
     }
 
     @Transactional(readOnly = true)
@@ -137,5 +148,51 @@ public class PurchaseService {
 
         purchase.setStatus(Status.CANCELADA);
         return toResponseDTO(purchaseRepository.save(purchase));
+    }
+
+    @Transactional
+    public PurchaseDeletionResponse deletePurchase(Integer id) {
+        Purchase purchase = purchaseRepository.findById(id).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Purchase not found with id: " + id));
+
+        long purchaseItems = purchase.getItems() == null ? purchaseItemRepository.countByPurchaseId(id) : purchase.getItems().size();
+        long stockMovements = stockMovementRepository.countByReasonContaining(receivedMovementReason(id));
+        var dependencies = java.util.Map.of(
+                "purchaseItems", purchaseItems,
+                "stockMovements", stockMovements);
+
+        if (purchase.getStatus() == Status.PENDENTE && stockMovements == 0) {
+            purchaseItemRepository.deleteAllByPurchaseIdIn(List.of(id));
+            purchaseRepository.delete(purchase);
+            purchaseRepository.flush();
+            return new PurchaseDeletionResponse(
+                    true,
+                    PurchaseDeletionAction.DELETED,
+                    "Compra excluida com sucesso.",
+                    dependencies);
+        }
+
+        if (purchase.getStatus() == Status.CANCELADA && stockMovements == 0) {
+            purchaseItemRepository.deleteAllByPurchaseIdIn(List.of(id));
+            purchaseRepository.delete(purchase);
+            purchaseRepository.flush();
+            return new PurchaseDeletionResponse(
+                    true,
+                    PurchaseDeletionAction.DELETED,
+                    "Compra cancelada excluida com sucesso.",
+                    dependencies);
+        }
+
+        purchase.setActive(false);
+        purchaseRepository.save(purchase);
+        return new PurchaseDeletionResponse(
+                true,
+                PurchaseDeletionAction.DEACTIVATED,
+                "A compra possui historico e foi desativada.",
+                dependencies);
+    }
+
+    private String receivedMovementReason(Integer id) {
+        return "Compra #" + id + " recebida";
     }
 }

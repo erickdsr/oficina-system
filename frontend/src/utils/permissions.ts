@@ -1,4 +1,4 @@
-export type AppRole = "admin" | "gerente" | "vendedor" | "estoquista";
+export type AppRole = "ADMIN" | "MANAGER" | "SALESPERSON" | "STOCK";
 
 export function normalizeRole(role?: string): AppRole | null {
     const normalizedRole = role
@@ -6,25 +6,46 @@ export function normalizeRole(role?: string): AppRole | null {
         .replace(/[\u0300-\u036f]/g, "")
         .trim()
         .toLowerCase()
-        .replace(/^role[_\s-]*/, "");
+        .replace(/^role[_\s-]*/, "")
+        .replace(/[_\s-]+/g, " ")
+        .trim();
 
     const roleAliases: Record<string, AppRole> = {
-        admin: "admin",
-        administrador: "admin",
-        gerente: "gerente",
-        manager: "gerente",
-        vendedor: "vendedor",
-        estoquista: "estoquista",
+        admin: "ADMIN",
+        administrador: "ADMIN",
+        "administrador do sistema": "ADMIN",
+        manager: "MANAGER",
+        gerente: "MANAGER",
+        salesperson: "SALESPERSON",
+        "sales person": "SALESPERSON",
+        seller: "SALESPERSON",
+        vendedor: "SALESPERSON",
+        stock: "STOCK",
+        stockkeeper: "STOCK",
+        estoque: "STOCK",
+        estoquista: "STOCK",
     };
 
     return normalizedRole ? roleAliases[normalizedRole] ?? null : null;
 }
 
-export function canManage(role?: string, allowedRoles: AppRole[] = ["admin", "gerente"]) {
+export function canManage(role?: string, allowedRoles: AppRole[] = ["ADMIN", "MANAGER"]) {
     const normalizedRole = normalizeRole(role);
-    return normalizedRole ? allowedRoles.includes(normalizedRole) : false;
+    return normalizedRole ? normalizedRole === "ADMIN" || allowedRoles.includes(normalizedRole) : false;
 }
 
-export function canDelete(role?: string) {
-    return canManage(role, ["admin", "gerente"]);
+export function canDelete(role?: string, allowedRoles: AppRole[] = ["ADMIN", "MANAGER"]) {
+    return canManage(role, allowedRoles);
+}
+
+export function getRoleLabel(role?: string) {
+    const normalizedRole = normalizeRole(role);
+    const roleLabels: Record<AppRole, string> = {
+        ADMIN: "Admin",
+        MANAGER: "Gerente",
+        SALESPERSON: "Vendedor",
+        STOCK: "Estoquista",
+    };
+
+    return normalizedRole ? roleLabels[normalizedRole] : role ?? "Sem perfil";
 }

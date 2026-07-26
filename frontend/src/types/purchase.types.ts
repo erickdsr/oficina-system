@@ -9,6 +9,7 @@ export interface PurchaseResponse{
     employeeName: Nullable<string>;
     total: Decimal;
     status: PurchaseStatus;
+    active: boolean;
     notes: Nullable<string>;
     createdAt: ApiDateTime;
     updatedAt: ApiDateTime;
@@ -35,3 +36,15 @@ export type PurchaseStatus =
     | "PENDENTE"
     | "RECEBIDA"
     | "CANCELADA";
+
+export type PurchaseDeletionAction =
+    | "DELETED"
+    | "DEACTIVATED"
+    | "BLOCKED";
+
+export interface PurchaseDeletionResponse {
+    success: boolean;
+    action: PurchaseDeletionAction;
+    message: string;
+    dependencies: Record<string, number>;
+}

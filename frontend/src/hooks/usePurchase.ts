@@ -11,11 +11,11 @@ export function usePurchase() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const loadPurchases = useCallback(async () => {
+    const loadPurchases = useCallback(async (includeInactive = false) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await purchaseService.list();
+            const data = await purchaseService.list(includeInactive);
             setPurchases(data);
             return data;
         } catch (loadError) {
@@ -60,6 +60,11 @@ export function usePurchase() {
         toast.success("Compra cancelada com sucesso.");
         return purchase;
     }, []);
+    const removePurchase = useCallback(async (id: ApiId) => {
+        const result = await purchaseService.remove(id);
+        toast.success(result.message);
+        return result;
+    }, []);
 
     return {
         purchases,
@@ -73,11 +78,13 @@ export function usePurchase() {
         create: createPurchase,
         confirm: confirmPurchase,
         cancel: cancelPurchase,
+        remove: removePurchase,
         loadPurchases,
         loadPurchase,
         createPurchase,
         confirmPurchase,
         cancelPurchase,
+        removePurchase,
     };
 }
 

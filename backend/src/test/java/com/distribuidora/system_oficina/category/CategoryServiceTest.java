@@ -6,8 +6,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.distribuidora.system_oficina.category.dto.CategoryRequestDTO;
+import com.distribuidora.system_oficina.category.dto.CategoryResponseDTO;
+import com.distribuidora.system_oficina.category.entity.Category;
+import com.distribuidora.system_oficina.category.repository.CategoryRepository;
+import com.distribuidora.system_oficina.category.service.CategoryService;
+import com.distribuidora.system_oficina.deletion.DeletionResource;
+import com.distribuidora.system_oficina.deletion.DeletionService;
 import java.util.Optional;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,93 +22,89 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.distribuidora.system_oficina.category.dto.CategoryRequestDTO;
-import com.distribuidora.system_oficina.category.dto.CategoryResponseDTO;
-import com.distribuidora.system_oficina.category.entity.Category;
-import com.distribuidora.system_oficina.category.repository.CategoryRepository;
-import com.distribuidora.system_oficina.category.service.CategoryService;
-
 @ExtendWith(MockitoExtension.class)
 class CategoryServiceTest {
 
     @Mock
     private CategoryRepository categoryRepository;
 
+    @Mock
+    private DeletionService deletionService;
+
     @InjectMocks
     private CategoryService categoryService;
 
     @Test
-    @DisplayName("createCategory com dados válidos deve criar a categoria corretamente")
+    @DisplayName("createCategory com dados validos deve criar a categoria corretamente")
     void createCategory_dadosValidos_deveCriarCategoriaCorretamente() {
-        // Arrange
         CategoryRequestDTO request = CategoryRequestDTO.builder()
-                .name("Peças")
-                .description("Peças automotivas")
+                .name("Pecas")
+                .description("Pecas automotivas")
                 .build();
 
         Category savedCategory = new Category();
         savedCategory.setId(1);
-        savedCategory.setName("Peças");
-        savedCategory.setDescription("Peças automotivas");
+        savedCategory.setName("Pecas");
+        savedCategory.setDescription("Pecas automotivas");
+        savedCategory.setStatus(true);
 
         when(categoryRepository.save(any(Category.class))).thenReturn(savedCategory);
 
-        // Act
         CategoryResponseDTO result = categoryService.createCategory(request);
 
-        // Assert
-        assertThat(result.getName()).isEqualTo("Peças");
-        assertThat(result.getDescription()).isEqualTo("Peças automotivas");
+        assertThat(result.getName()).isEqualTo("Pecas");
+        assertThat(result.getDescription()).isEqualTo("Pecas automotivas");
+        assertThat(result.getStatus()).isTrue();
         verify(categoryRepository).save(any(Category.class));
     }
 
     @Test
-    @DisplayName("getCategoryById com id inexistente deve lançar exceção")
+    @DisplayName("getCategoryById com id inexistente deve lancar excecao")
     void getCategoryById_idNaoExistente_deveLancarExcecao() {
-        // Arrange
         when(categoryRepository.findById(99)).thenReturn(Optional.empty());
 
-        // Act & Assert
         assertThrows(ResponseStatusException.class, () -> categoryService.getCategoryById(99));
     }
 
     @Test
-    @DisplayName("updateCategory com dados válidos deve atualizar name e description")
-    void updateCategory_dadosValidos_deveAtualizarNameEDescription() {
-        // Arrange
+    @DisplayName("updateCategory com dados validos deve atualizar os campos")
+    void updateCategory_dadosValidos_deveAtualizarCampos() {
         Category existing = new Category();
         existing.setId(1);
         existing.setName("Antiga");
-        existing.setDescription("Descrição antiga");
+        existing.setDescription("Descricao antiga");
+        existing.setStatus(true);
 
         CategoryRequestDTO request = CategoryRequestDTO.builder()
                 .name("Nova")
-                .description("Descrição nova")
+                .description("Descricao nova")
+                .status(false)
                 .build();
 
         when(categoryRepository.findById(1)).thenReturn(Optional.of(existing));
         when(categoryRepository.save(any(Category.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        // Act
         CategoryResponseDTO result = categoryService.updateCategory(1, request);
 
-        // Assert
         assertThat(result.getName()).isEqualTo("Nova");
-        assertThat(result.getDescription()).isEqualTo("Descrição nova");
+        assertThat(result.getDescription()).isEqualTo("Descricao nova");
+        assertThat(result.getStatus()).isFalse();
         verify(categoryRepository).save(any(Category.class));
     }
 
     @Test
-    @DisplayName("deleteCategory com id válido deve deletar corretamente")
-    void deleteCategory_idValido_deveDeletarCorretamente() {
-        // Arrange
-        when(categoryRepository.existsById(1)).thenReturn(true);
-
-        // Act
+    @DisplayName("deleteCategory deve delegar para o gerenciador de exclusao")
+    void deleteCategory_deveDelegarParaDeletionService() {
         categoryService.deleteCategory(1);
 
-        // Assert
-        verify(categoryRepository).existsById(1);
-        verify(categoryRepository).deleteById(1);
+        verify(deletionService).delete(DeletionResource.CATEGORY, 1);
+    }
+
+    @Test
+    @DisplayName("forceDeleteCategory deve delegar para exclusao forcada centralizada")
+    void forceDeleteCategory_deveDelegarParaDeletionService() {
+        categoryService.forceDeleteCategory(1);
+
+        verify(deletionService).forceDelete(DeletionResource.CATEGORY, 1);
     }
 }

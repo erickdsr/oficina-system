@@ -10,11 +10,11 @@ export function useClient() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchAll = useCallback(async () => {
+    const fetchAll = useCallback(async (includeInactive = false) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await clientService.list();
+            const data = await clientService.list(includeInactive);
             setClients(data);
             return data;
         } catch (loadError) {
@@ -38,11 +38,17 @@ export function useClient() {
         return client;
     }, []);
     const remove = useCallback(async (id: ApiId) => {
-        await clientService.remove(id);
-        toast.success("Cliente removido com sucesso.");
+        const result = await clientService.remove(id);
+        toast.success(result.message);
+        return result;
+    }, []);
+    const forceDelete = useCallback(async (id: ApiId) => {
+        const result = await clientService.forceDelete(id);
+        toast.success(result.message);
+        return result;
     }, []);
 
-    return { clients, loading, error, setError, fetchAll, create, update, remove };
+    return { clients, loading, error, setError, fetchAll, create, update, remove, forceDelete };
 }
 
 export default useClient;

@@ -11,4 +11,9 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     Optional<Product> findByBarCode(String barCode);
     Optional<Product> findByPartNumber(String partNumber);
     Optional<Product> findByStatus(Boolean status);
+    List<Product> findAllByStatus(Boolean status);
+    long countByCategoryId(Integer categoryId);
+    long countBySupplierId(Integer supplierId);
+    List<Product> findAllByCategoryId(Integer categoryId);
+    List<Product> findAllBySupplierId(Integer supplierId);
 }

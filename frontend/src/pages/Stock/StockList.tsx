@@ -71,7 +71,7 @@ export function StockList() {
                 eyebrow="Estoque"
                 title="Estoque atual"
                 description="Quantidade disponivel e alerta de baixo estoque."
-                action={canManage(user?.role, ["admin", "gerente", "estoquista"]) && <button type="button" className="primary-button" onClick={() => setShowForm(true)}>Novo estoque</button>}
+                action={canManage(user?.role, ["ADMIN", "MANAGER", "STOCK"]) && <button type="button" className="primary-button" onClick={() => setShowForm(true)}>Novo estoque</button>}
             />
             <div className="metric-row">
                 <div className="metric-card"><span>Itens em estoque</span><strong>{stocks.length}</strong></div>
@@ -102,7 +102,7 @@ export function StockList() {
                                     <td>{stock.location}</td>
                                     <td>{formatDateTime(stock.updatedAt)}</td>
                                     <td className="table-actions">
-                                        {canManage(user?.role, ["admin", "gerente", "estoquista"]) && <button type="button" className="secondary-button" onClick={() => { setEditingStock(stock); setShowForm(true); }}>Ajustar</button>}
+                                        {canManage(user?.role, ["ADMIN", "MANAGER", "STOCK"]) && <button type="button" className="secondary-button" onClick={() => { setEditingStock(stock); setShowForm(true); }}>Ajustar</button>}
                                     </td>
                                 </tr>
                             ))}

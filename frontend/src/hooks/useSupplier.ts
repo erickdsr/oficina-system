@@ -10,11 +10,11 @@ export function useSupplier() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchAll = useCallback(async () => {
+    const fetchAll = useCallback(async (includeInactive = false) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await supplierService.list();
+            const data = await supplierService.list(includeInactive);
             setSuppliers(data);
             return data;
         } catch (loadError) {
@@ -38,11 +38,17 @@ export function useSupplier() {
         return supplier;
     }, []);
     const remove = useCallback(async (id: ApiId) => {
-        await supplierService.remove(id);
-        toast.success("Fornecedor removido com sucesso.");
+        const result = await supplierService.remove(id);
+        toast.success(result.message);
+        return result;
+    }, []);
+    const forceDelete = useCallback(async (id: ApiId) => {
+        const result = await supplierService.forceDelete(id);
+        toast.success(result.message);
+        return result;
     }, []);
 
-    return { suppliers, loading, error, setError, fetchAll, create, update, remove };
+    return { suppliers, loading, error, setError, fetchAll, create, update, remove, forceDelete };
 }
 
 export default useSupplier;

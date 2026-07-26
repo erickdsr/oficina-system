@@ -1,29 +1,37 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
+import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
 import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
+import clientService from "../../services/client.service";
 import useClient from "../../hooks/useClient";
+import type { DeletionReport } from "../../types/api.types";
 import type { Client, ClientRequest } from "../../types/client.types";
 import { canDelete, canManage } from "../../utils/permissions";
 import ClientForm from "./ClientForm";
 
 export function ClientList() {
     const { user } = useAuth();
-    const { clients, loading, error, setError, fetchAll, create, update, remove } = useClient();
+    const { clients, loading, error, setError, fetchAll, create, update, remove, forceDelete } = useClient();
     const [search, setSearch] = useState("");
+    const [showInactive, setShowInactive] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [deletionReport, setDeletionReport] = useState<DeletionReport | null>(null);
     const [showForm, setShowForm] = useState(false);
 
     useEffect(() => {
-        void fetchAll().catch(() => undefined);
-    }, [fetchAll]);
+        void fetchAll(showInactive).catch(() => undefined);
+    }, [fetchAll, showInactive]);
 
     const filteredClients = useMemo(() => {
         const term = search.toLowerCase();
@@ -43,7 +51,7 @@ export function ClientList() {
             }
             setShowForm(false);
             setEditingClient(null);
-            await fetchAll();
+            await fetchAll(showInactive);
         } catch (submitError) {
             setFormError(getApiErrorMessage(submitError, "Nao foi possivel salvar o cliente."));
         } finally {
@@ -51,16 +59,64 @@ export function ClientList() {
         }
     }
 
-    async function handleRemove(client: Client) {
-        if (!window.confirm(`Excluir cliente ${client.name}?`)) {
+    async function handleDeleteClick(client: Client) {
+        setDeleteError(null);
+        setError(null);
+        setClientToDelete(client);
+        setDeletionReport(null);
+        try {
+            setDeletionReport(await clientService.getDeletionReport(client.id));
+        } catch (reportError) {
+            setDeleteError(getApiErrorMessage(reportError, "Nao foi possivel carregar os vinculos do cliente."));
+        }
+    }
+
+    async function handleConfirmDelete() {
+        if (!clientToDelete || isDeleting) {
             return;
         }
+
+        setIsDeleting(true);
+        setDeleteError(null);
         try {
-            await remove(client.id);
-            await fetchAll();
+            await remove(clientToDelete.id);
+            await fetchAll(showInactive);
+            setClientToDelete(null);
+            setDeletionReport(null);
         } catch (removeError) {
-            setError(getApiErrorMessage(removeError, "Nao foi possivel excluir o cliente."));
+            setDeleteError(getApiErrorMessage(removeError, "Nao foi possivel excluir o cliente. Tente novamente."));
+        } finally {
+            setIsDeleting(false);
         }
+    }
+
+    async function handleForceDelete() {
+        if (!clientToDelete || isDeleting) {
+            return;
+        }
+
+        setIsDeleting(true);
+        setDeleteError(null);
+        try {
+            await forceDelete(clientToDelete.id);
+            await fetchAll(showInactive);
+            setClientToDelete(null);
+            setDeletionReport(null);
+        } catch (removeError) {
+            setDeleteError(getApiErrorMessage(removeError, "Nao foi possivel excluir definitivamente o cliente."));
+        } finally {
+            setIsDeleting(false);
+        }
+    }
+
+    function handleCancelDelete() {
+        if (isDeleting) {
+            return;
+        }
+
+        setClientToDelete(null);
+        setDeleteError(null);
+        setDeletionReport(null);
     }
 
     return (
@@ -69,9 +125,13 @@ export function ClientList() {
                 eyebrow="Comercial"
                 title="Clientes"
                 description="Base de clientes para vendas."
-                action={canManage(user?.role, ["admin", "gerente", "vendedor"]) && <button type="button" className="primary-button" onClick={() => setShowForm(true)}>Novo cliente</button>}
+                action={canManage(user?.role, ["ADMIN", "MANAGER", "SALESPERSON"]) && <button type="button" className="primary-button" onClick={() => setShowForm(true)}>Novo cliente</button>}
             />
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar cliente..." />
+            <label className="checkbox-field">
+                <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
+                Mostrar registros desativados
+            </label>
             {showForm && <ClientForm client={editingClient} loading={submitting} error={formError} onCancel={() => { setShowForm(false); setEditingClient(null); }} onSubmit={handleSubmit} />}
             {error && <div className="form-error">{error}</div>}
             {loading ? <LoadingState /> : filteredClients.length === 0 ? <EmptyState /> : (
@@ -96,7 +156,7 @@ export function ClientList() {
                                     <td>{client.city} / {client.state}</td>
                                     <td><StatusBadge active={client.status} /></td>
                                     <td className="table-actions">
-                                        {canManage(user?.role, ["admin", "gerente", "vendedor"]) && (
+                                        {canManage(user?.role, ["ADMIN", "MANAGER", "SALESPERSON"]) && (
                                             <button
                                                 type="button"
                                                 className="table-action-button table-action-button--edit"
@@ -107,13 +167,13 @@ export function ClientList() {
                                                 <Pencil size={20} aria-hidden="true" />
                                             </button>
                                         )}
-                                        {canDelete(user?.role) && (
+                                        {canDelete(user?.role, ["ADMIN", "MANAGER", "SALESPERSON"]) && (
                                             <button
                                                 type="button"
                                                 className="table-action-button table-action-button--delete"
                                                 aria-label={`Excluir cliente ${client.name}`}
                                                 title="Excluir"
-                                                onClick={() => void handleRemove(client)}
+                                                onClick={() => handleDeleteClick(client)}
                                             >
                                                 <Trash2 size={20} aria-hidden="true" />
                                             </button>
@@ -125,6 +185,20 @@ export function ClientList() {
                     </table>
                 </div>
             )}
+            <ConfirmDeleteModal
+                isOpen={clientToDelete !== null}
+                title="Excluir cliente"
+                itemName={clientToDelete?.name}
+                description="Esta acao nao podera ser desfeita."
+                confirmLabel="Excluir cliente"
+                isLoading={isDeleting}
+                error={deleteError}
+                report={deletionReport}
+                userRole={user?.role}
+                onConfirm={handleConfirmDelete}
+                onForceConfirm={handleForceDelete}
+                onCancel={handleCancelDelete}
+            />
         </section>
     );
 }

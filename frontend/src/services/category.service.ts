@@ -1,12 +1,12 @@
 import api from "./api";
-import type { ApiId } from "../types/api.types";
+import type { ApiId, DeletionReport, DeletionResult } from "../types/api.types";
 import type { Category, CategoryRequest } from "../types/category.types";
 
 const RESOURCE = "/categories";
 
 export const categoryService = {
-    async list() {
-        const { data } = await api.get<Category[]>(RESOURCE);
+    async list(includeInactive = false) {
+        const { data } = await api.get<Category[]>(RESOURCE, { params: { includeInactive } });
         return data;
     },
 
@@ -25,8 +25,23 @@ export const categoryService = {
         return data;
     },
 
+    async delete(id: ApiId) {
+        const { data } = await api.delete<DeletionResult>(`${RESOURCE}/${id}`);
+        return data;
+    },
+
+    async forceDelete(id: ApiId) {
+        const { data } = await api.delete<DeletionResult>(`${RESOURCE}/${id}/force`);
+        return data;
+    },
+
+    async getDeletionReport(id: ApiId) {
+        const { data } = await api.get<DeletionReport>(`${RESOURCE}/${id}/deletion-report`);
+        return data;
+    },
+
     async remove(id: ApiId) {
-        await api.delete<void>(`${RESOURCE}/${id}`);
+        await this.delete(id);
     },
 };
 

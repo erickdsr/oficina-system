@@ -10,11 +10,11 @@ export function useProduct() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const loadProducts = useCallback(async () => {
+    const loadProducts = useCallback(async (includeInactive = false) => {
         setLoading(true);
         setError(null);
         try {
-            const data = await productService.list();
+            const data = await productService.list(includeInactive);
             setProducts(data);
             return data;
         } catch (loadError) {
@@ -38,8 +38,14 @@ export function useProduct() {
         return data;
     }, []);
     const removeProduct = useCallback(async (id: ApiId) => {
-        await productService.remove(id);
-        toast.success("Produto removido com sucesso.");
+        const result = await productService.remove(id);
+        toast.success(result.message);
+        return result;
+    }, []);
+    const forceDeleteProduct = useCallback(async (id: ApiId) => {
+        const result = await productService.forceDelete(id);
+        toast.success(result.message);
+        return result;
     }, []);
 
     return {
@@ -55,6 +61,7 @@ export function useProduct() {
         createProduct,
         updateProduct,
         removeProduct,
+        forceDeleteProduct,
     };
 }
 

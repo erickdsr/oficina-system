@@ -2,9 +2,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Eye, EyeOff, LoaderCircle, Lock, Mail } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { z } from "zod";
 import logoWithText from "../../assets/logo-transaparente -2.0.png";
+import LoadingState from "../../components/common/LoadingState";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
 
@@ -16,8 +17,7 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export function LoginPage() {
-    const navigate = useNavigate();
-    const { isAuthenticated, login } = useAuth();
+    const { isAuthenticated, isInitializing, login } = useAuth();
     const [serverError, setServerError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -41,10 +41,13 @@ export function LoginPage() {
 
         try {
             await login(data);
-            navigate("/", { replace: true });
         } catch (error) {
             setServerError(getApiErrorMessage(error, "Nao foi possivel entrar. Verifique seus dados."));
         }
+    }
+
+    if (isInitializing) {
+        return <LoadingState />;
     }
 
     if (isAuthenticated) {

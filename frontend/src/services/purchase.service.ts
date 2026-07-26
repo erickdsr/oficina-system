@@ -1,12 +1,12 @@
 import api from "./api";
 import type { ApiId } from "../types/api.types";
-import type { PurchaseRequest, PurchaseResponse } from "../types/purchase.types";
+import type { PurchaseDeletionResponse, PurchaseRequest, PurchaseResponse } from "../types/purchase.types";
 
 const RESOURCE = "/purchases";
 
 export const purchaseService = {
-    async list() {
-        const { data } = await api.get<PurchaseResponse[]>(RESOURCE);
+    async list(includeInactive = false) {
+        const { data } = await api.get<PurchaseResponse[]>(RESOURCE, { params: { includeInactive } });
         return data;
     },
 
@@ -27,6 +27,11 @@ export const purchaseService = {
 
     async cancel(id: ApiId) {
         const { data } = await api.patch<PurchaseResponse>(`${RESOURCE}/cancel/${id}`);
+        return data;
+    },
+
+    async remove(id: ApiId) {
+        const { data } = await api.delete<PurchaseDeletionResponse>(`${RESOURCE}/${id}`);
         return data;
     },
 };

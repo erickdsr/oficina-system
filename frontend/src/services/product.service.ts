@@ -1,12 +1,12 @@
 import api from "./api";
-import type { ApiId } from "../types/api.types";
+import type { ApiId, DeletionReport, DeletionResult } from "../types/api.types";
 import type { ProductRequest, ProductResponse } from "../types/product.types";
 
 const RESOURCE = "/products";
 
 export const productService = {
-    async list() {
-        const { data } = await api.get<ProductResponse[]>(RESOURCE);
+    async list(includeInactive = false) {
+        const { data } = await api.get<ProductResponse[]>(RESOURCE, { params: { includeInactive } });
         return data;
     },
 
@@ -26,7 +26,18 @@ export const productService = {
     },
 
     async remove(id: ApiId) {
-        await api.delete<void>(`${RESOURCE}/${id}`);
+        const { data } = await api.delete<DeletionResult>(`${RESOURCE}/${id}`);
+        return data;
+    },
+
+    async forceDelete(id: ApiId) {
+        const { data } = await api.delete<DeletionResult>(`${RESOURCE}/${id}/force`);
+        return data;
+    },
+
+    async getDeletionReport(id: ApiId) {
+        const { data } = await api.get<DeletionReport>(`${RESOURCE}/${id}/deletion-report`);
+        return data;
     },
 };
 

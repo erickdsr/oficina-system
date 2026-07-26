@@ -2,20 +2,22 @@ import {
     createContext,
     useCallback,
     useContext,
+    useEffect,
     useMemo,
     useState,
     type ReactNode,
 } from "react";
 import authService from "../services/auth.service";
-import { clearAuthToken, getAuthToken } from "../services/api";
+import { authStorage } from "../services/auth-storage";
 import type { LoginRequest, LoginResponse } from "../types/auth.types";
 
-type AuthUser = Omit<LoginResponse, "token" | "type">;
+type AuthUser = Omit<LoginResponse, "accessToken" | "tokenType" | "expiresIn">;
 
 interface AuthContextValue {
     user: AuthUser | null;
     token: string | null;
     isAuthenticated: boolean;
+    isInitializing: boolean;
     login: (credentials: LoginRequest) => Promise<LoginResponse>;
     logout: () => void;
 }
@@ -24,36 +26,7 @@ interface AuthProviderProps {
     children: ReactNode;
 }
 
-const AUTH_USER_STORAGE_KEY = "authUser";
-
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-function getStoredSession() {
-    const storedUser = getStoredUser();
-    const storedToken = getAuthToken();
-
-    if (storedToken && !storedUser) {
-        clearAuthToken();
-        return { user: null, token: null };
-    }
-
-    return { user: storedUser, token: storedToken };
-}
-
-function getStoredUser() {
-    const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
-
-    if (!storedUser) {
-        return null;
-    }
-
-    try {
-        return JSON.parse(storedUser) as AuthUser;
-    } catch {
-        localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-        return null;
-    }
-}
 
 function createAuthUser(response: LoginResponse): AuthUser {
     return {
@@ -64,23 +37,41 @@ function createAuthUser(response: LoginResponse): AuthUser {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-    const [session, setSession] = useState(getStoredSession);
-    const { user, token } = session;
+    const [token, setToken] = useState<string | null>(() => authStorage.getToken());
+    const [user, setUser] = useState<AuthUser | null>(() => authStorage.getUser<AuthUser>());
+    const [isInitializing, setIsInitializing] = useState(true);
+
+    useEffect(() => {
+        const storedToken = authStorage.getToken();
+        const storedUser = authStorage.getUser<AuthUser>();
+
+        if (storedToken && storedUser) {
+            setToken(storedToken);
+            setUser(storedUser);
+        } else {
+            authStorage.clear();
+            setToken(null);
+            setUser(null);
+        }
+
+        setIsInitializing(false);
+    }, []);
 
     const login = useCallback(async (credentials: LoginRequest) => {
         const response = await authService.login(credentials);
         const authUser = createAuthUser(response);
 
-        localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(authUser));
-        setSession({ user: authUser, token: response.token });
+        authStorage.setUser(authUser);
+        setToken(response.accessToken);
+        setUser(authUser);
 
         return response;
     }, []);
 
     const logout = useCallback(() => {
         authService.logout();
-        localStorage.removeItem(AUTH_USER_STORAGE_KEY);
-        setSession({ user: null, token: null });
+        setToken(null);
+        setUser(null);
     }, []);
 
     const value = useMemo<AuthContextValue>(
@@ -88,10 +79,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
             user,
             token,
             isAuthenticated: Boolean(token && user),
+            isInitializing,
             login,
             logout,
         }),
-        [login, logout, token, user],
+        [isInitializing, login, logout, token, user],
     );
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -9,6 +9,10 @@ import com.distribuidora.system_oficina.employee.dto.EmployeeRequestDTO;
 import com.distribuidora.system_oficina.employee.dto.EmployeeResponseDTO;
 import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
 import com.distribuidora.system_oficina.employee.entity.Employee;
+import com.distribuidora.system_oficina.deletion.DeletionReportDTO;
+import com.distribuidora.system_oficina.deletion.DeletionResource;
+import com.distribuidora.system_oficina.deletion.DeletionResultDTO;
+import com.distribuidora.system_oficina.deletion.DeletionService;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
 import com.distribuidora.system_oficina.role.RoleNameNormalizer;
@@ -22,12 +26,11 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final DeletionService deletionService;
 
     private Employee toEntity(EmployeeRequestDTO dto) {
         Employee entity = new Employee();
-        String roleName = RoleNameNormalizer.normalize(dto.getRoleName());
-        Role role = roleRepository.findByNameIgnoreCase(roleName).orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Role not found with name: " + dto.getRoleName()));
+        Role role = findRoleByName(dto.getRoleName());
         entity.setName(dto.getName());
         entity.setCpf(dto.getCpf());
         entity.setEmail(dto.getEmail());
@@ -40,10 +43,13 @@ public class EmployeeService {
     private EmployeeResponseDTO toResponseDTO(Employee entity) {
         return EmployeeResponseDTO.fromEntity(entity);
     }
-    public List<EmployeeResponseDTO> listEmployees() {
-        return employeeRepository.findAll().stream()
+    public List<EmployeeResponseDTO> listEmployees(boolean includeInactive) {
+        return (includeInactive ? employeeRepository.findAll() : employeeRepository.findByStatus(true)).stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+    public List<EmployeeResponseDTO> listEmployees() {
+        return listEmployees(false);
     }
     public EmployeeResponseDTO getEmployeeById(Integer id) {
         return toResponseDTO(employeeRepository.findById(id).orElseThrow(
@@ -56,9 +62,7 @@ public class EmployeeService {
     public EmployeeResponseDTO updateEmployee(Integer id, EmployeeRequestDTO dto) {
         Employee entity = employeeRepository.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found with id: " + id));
-        String roleName = RoleNameNormalizer.normalize(dto.getRoleName());
-        Role role = roleRepository.findByNameIgnoreCase(roleName).orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Role not found with name: " + dto.getRoleName()));
+        Role role = findRoleByName(dto.getRoleName());
         entity.setName(dto.getName());
         entity.setCpf(dto.getCpf());
         entity.setRole(role);
@@ -69,10 +73,24 @@ public class EmployeeService {
 
         return toResponseDTO(employeeRepository.save(entity));
     }
-    public void deleteEmployee(Integer id) {
-        if (!employeeRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Employee not found with id: " + id);
-        }
-        employeeRepository.deleteById(id);
+    public DeletionResultDTO deleteEmployee(Integer id) {
+        return deletionService.delete(DeletionResource.EMPLOYEE, id);
+    }
+
+    public DeletionResultDTO forceDeleteEmployee(Integer id) {
+        return deletionService.forceDelete(DeletionResource.EMPLOYEE, id);
+    }
+
+    public DeletionReportDTO getDeletionReport(Integer id) {
+        return deletionService.report(DeletionResource.EMPLOYEE, id);
+    }
+
+    private Role findRoleByName(String roleName) {
+        String normalizedRoleName = RoleNameNormalizer.normalize(roleName);
+        return roleRepository.findAll().stream()
+                .filter(role -> RoleNameNormalizer.normalize(role.getName()).equals(normalizedRoleName))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Role not found with name: " + roleName));
     }
 }

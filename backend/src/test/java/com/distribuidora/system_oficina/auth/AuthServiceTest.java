@@ -72,8 +72,9 @@ class AuthServiceTest {
         LoginResponseDTO response = authService.authenticate(request);
 
         // Assert
-        assertThat(response.getToken()).isEqualTo("jwt-token");
-        assertThat(response.getType()).isEqualTo("Bearer");
+        assertThat(response.getAccessToken()).isEqualTo("jwt-token");
+        assertThat(response.getTokenType()).isEqualTo("Bearer");
+        assertThat(response.getRole()).isEqualTo("ROLE_ADMIN");
         assertThat(response.getName()).isEqualTo("Funcionário");
         verify(authenticationManager).authenticate(any(UsernamePasswordAuthenticationToken.class));
     }
