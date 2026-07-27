@@ -17,15 +17,15 @@ function resolveTone(label: string, active?: boolean, tone?: BadgeTone) {
 
     const normalizedLabel = label.toUpperCase();
 
-    if (["FINALIZADA", "RECEBIDA", "ENTRADA"].includes(normalizedLabel)) {
+    if (["ATIVO", "ATIVA", "FINALIZADA", "RECEBIDA", "ENTRADA"].includes(normalizedLabel)) {
         return "success";
     }
 
-    if (["PENDENTE", "AJUSTE"].includes(normalizedLabel)) {
+    if (["PENDENTE", "AJUSTE", "SUSPENSO"].includes(normalizedLabel)) {
         return "warning";
     }
 
-    if (["CANCELADA", "SAIDA"].includes(normalizedLabel)) {
+    if (["INATIVO", "INATIVA", "DESATIVADA", "CANCELADA", "SAIDA"].includes(normalizedLabel)) {
         return "danger";
     }
 

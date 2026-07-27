@@ -8,12 +8,16 @@ interface ConfirmDeleteModalProps {
     isOpen: boolean;
     title?: string;
     itemName?: string;
+    prompt?: string;
     description?: string;
+    dependencyDescription?: string;
     confirmLabel?: string;
     loadingLabel?: string;
     isLoading?: boolean;
     error?: string | null;
     details?: Array<{ label: string; value: string }>;
+    dependencyItemsTitle?: string;
+    dependencyItems?: string[];
     report?: DeletionReport | null;
     userRole?: string;
     onConfirm: () => void | Promise<void>;
@@ -36,12 +40,16 @@ export function ConfirmDeleteModal({
     isOpen,
     title = "Excluir registro",
     itemName,
+    prompt,
     description = "Esta acao nao podera ser desfeita.",
+    dependencyDescription,
     confirmLabel = "Excluir",
     loadingLabel = "Processando...",
     isLoading = false,
     error,
     details = [],
+    dependencyItemsTitle,
+    dependencyItems = [],
     report,
     userRole,
     onConfirm,
@@ -125,7 +133,7 @@ export function ConfirmDeleteModal({
                 <div className="confirm-modal__content">
                     <h2 id={titleId}>{title}</h2>
                     <p id={descriptionId}>
-                        Tem certeza de que deseja excluir{itemName ? ` "${itemName}"` : " este registro"}?
+                        {prompt ?? `Tem certeza de que deseja excluir${itemName ? ` "${itemName}"` : " este registro"}?`}
                     </p>
                     {details.length > 0 && (
                         <dl className="delete-details">
@@ -136,6 +144,16 @@ export function ConfirmDeleteModal({
                                 </div>
                             ))}
                         </dl>
+                    )}
+                    {dependencyItems.length > 0 && (
+                        <div className="delete-linked-items">
+                            <strong>{dependencyItemsTitle ?? "Registros encontrados:"}</strong>
+                            <ul>
+                                {dependencyItems.map((item) => (
+                                    <li key={item}>{item}</li>
+                                ))}
+                            </ul>
+                        </div>
                     )}
                     {hasDependencies && (
                         <div className="dependency-report">
@@ -154,7 +172,7 @@ export function ConfirmDeleteModal({
                         <TriangleAlert size={16} aria-hidden="true" />
                         <span>
                             {hasDependencies
-                                ? "Para preservar a integridade do historico, o registro sera apenas desativado."
+                                ? (dependencyDescription ?? "Para preservar a integridade do historico, o registro sera apenas desativado.")
                                 : description}
                         </span>
                     </div>

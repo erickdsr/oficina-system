@@ -27,8 +27,20 @@ public class Supplier {
     @Column(name = "name", nullable = false, length = 150)
     private String name;
 
+    @Column(name = "legal_name", length = 180)
+    private String legalName;
+
+    @Column(name = "trade_name", length = 150)
+    private String tradeName;
+
     @Column(name = "cnpj", nullable = false, length = 14)
     private String cnpj;
+
+    @Column(name = "state_registration", length = 30)
+    private String stateRegistration;
+
+    @Column(name = "contact_name", length = 120)
+    private String contactName;
 
     @Column(name = "email", length = 254)
     private String email;   
@@ -38,6 +50,21 @@ public class Supplier {
 
     @Column(name = "address", length = 255)
     private String address;
+
+    @Column(name = "zip_code", length = 8)
+    private String zipCode;
+
+    @Column(name = "street", length = 150)
+    private String street;
+
+    @Column(name = "number", length = 20)
+    private String number;
+
+    @Column(name = "district", length = 100)
+    private String district;
+
+    @Column(name = "complement", length = 120)
+    private String complement;
 
     @Column(name = "city", length = 100)
     private String city;

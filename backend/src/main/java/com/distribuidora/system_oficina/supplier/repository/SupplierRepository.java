@@ -10,4 +10,6 @@ public interface SupplierRepository extends JpaRepository<Supplier, Integer> {
     Optional<Supplier> findByCnpj(String cnpj);
     List<Supplier> findByName(String name);
     List<Supplier> findByStatus(Boolean status);
+    List<Supplier> findAllByOrderByNameAsc();
+    List<Supplier> findByStatusOrderByNameAsc(Boolean status);
 }

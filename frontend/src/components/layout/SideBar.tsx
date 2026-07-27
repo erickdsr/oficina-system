@@ -50,6 +50,12 @@ export function Sidebar({ collapsed = false, onNavigate }: SidebarProps) {
     const { user } = useAuth();
 
     const visibleItems = menuItems.filter((item) => canManage(user?.role, item.roles));
+    const userInitials = (user?.name ?? "Usuario")
+        .split(" ")
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join("") || "U";
 
     return (
         <aside className={`app-sidebar${collapsed ? " app-sidebar--collapsed" : ""}`}>
@@ -74,8 +80,11 @@ export function Sidebar({ collapsed = false, onNavigate }: SidebarProps) {
                             <span className="app-sidebar__group-title">{section}</span>
                             {section === "SISTEMA" ? (
                                 <div className="app-sidebar__system-card">
-                                    <strong>{user?.name ?? "Usuario"}</strong>
-                                    <span>{getRoleLabel(user?.role)}</span>
+                                    <div className="app-sidebar__user-avatar" aria-hidden="true">{userInitials}</div>
+                                    <div className="app-sidebar__user-copy">
+                                        <strong>{user?.name ?? "Usuario"}</strong>
+                                        <span>{getRoleLabel(user?.role)}</span>
+                                    </div>
                                 </div>
                             ) : sectionItems.map((item) => (
                                 <NavLink

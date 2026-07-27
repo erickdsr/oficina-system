@@ -25,21 +25,14 @@ public class SupplierService {
 
     private Supplier toEntity(SupplierRequestDTO dto) {
         Supplier entity = new Supplier();
-        entity.setName(dto.getName());
-        entity.setCnpj(dto.getCnpj());
-        entity.setEmail(dto.getEmail());
-        entity.setPhone(dto.getPhone());
-        entity.setAddress(dto.getAddress());
-        entity.setCity(dto.getCity());
-        entity.setState(dto.getState());
-        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
+        updateEntity(entity, dto);
         return entity;
     }
     private SupplierResponseDTO toResponseDTO(Supplier entity) {
         return SupplierResponseDTO.fromEntity(entity);
     }
     public List<SupplierResponseDTO> listSupplier(boolean includeInactive) {
-        return (includeInactive ? supplierRepository.findAll() : supplierRepository.findByStatus(true)).stream()
+        return (includeInactive ? supplierRepository.findAllByOrderByNameAsc() : supplierRepository.findByStatusOrderByNameAsc(true)).stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
@@ -57,14 +50,7 @@ public class SupplierService {
     public SupplierResponseDTO updateSupplier(Integer id, SupplierRequestDTO dto) {
         Supplier entity = supplierRepository.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Supplier not found with id: " + id));
-        entity.setName(dto.getName());
-        entity.setCnpj(dto.getCnpj());
-        entity.setEmail(dto.getEmail());
-        entity.setPhone(dto.getPhone());
-        entity.setAddress(dto.getAddress());
-        entity.setCity(dto.getCity());
-        entity.setState(dto.getState());
-        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
+        updateEntity(entity, dto);
         return toResponseDTO(supplierRepository.save(entity));
     }
     @Transactional
@@ -79,5 +65,47 @@ public class SupplierService {
 
     public DeletionReportDTO getDeletionReport(Integer id) {
         return deletionService.report(DeletionResource.SUPPLIER, id);
+    }
+
+    private void updateEntity(Supplier entity, SupplierRequestDTO dto) {
+        String tradeName = clean(dto.getTradeName());
+        String displayName = clean(dto.getName());
+        String state = clean(dto.getState());
+        entity.setName(displayName != null ? displayName : tradeName);
+        entity.setLegalName(clean(dto.getLegalName()));
+        entity.setTradeName(tradeName);
+        entity.setCnpj(onlyDigits(dto.getCnpj()));
+        entity.setStateRegistration(clean(dto.getStateRegistration()));
+        entity.setContactName(clean(dto.getContactName()));
+        entity.setEmail(clean(dto.getEmail()));
+        entity.setPhone(onlyDigits(dto.getPhone()));
+        entity.setZipCode(onlyDigits(dto.getZipCode()));
+        entity.setStreet(clean(dto.getStreet()));
+        entity.setNumber(clean(dto.getNumber()));
+        entity.setDistrict(clean(dto.getDistrict()));
+        entity.setComplement(clean(dto.getComplement()));
+        entity.setCity(clean(dto.getCity()));
+        entity.setState(state != null ? state.toUpperCase() : null);
+        entity.setAddress(resolveAddress(dto));
+        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
+    }
+
+    private String resolveAddress(SupplierRequestDTO dto) {
+        if (clean(dto.getAddress()) != null) {
+            return clean(dto.getAddress());
+        }
+
+        return "%s, %s - %s".formatted(clean(dto.getStreet()), clean(dto.getNumber()), clean(dto.getDistrict()));
+    }
+
+    private String onlyDigits(String value) {
+        return value == null ? null : value.replaceAll("\\D", "");
+    }
+
+    private String clean(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return value.trim();
     }
 }

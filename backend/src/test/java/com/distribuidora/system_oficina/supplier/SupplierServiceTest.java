@@ -37,26 +37,32 @@ class SupplierServiceTest {
     @Test
     @DisplayName("createSupplier com dados validos deve criar o fornecedor corretamente")
     void createSupplier_dadosValidos_deveCriarFornecedorCorretamente() {
-        SupplierRequestDTO request = SupplierRequestDTO.builder()
-                .name("Fornecedor A")
-                .cnpj("12345678000199")
-                .email("fornecedor@email.com")
-                .phone("11333333333")
-                .status(true)
-                .build();
+        SupplierRequestDTO request = validRequest().build();
 
         Supplier savedSupplier = new Supplier();
         savedSupplier.setId(1);
-        savedSupplier.setName("Fornecedor A");
+        savedSupplier.setName("Bosch Brasil");
+        savedSupplier.setLegalName("Robert Bosch Ltda.");
+        savedSupplier.setTradeName("Bosch Brasil");
         savedSupplier.setCnpj("12345678000199");
-        savedSupplier.setEmail("fornecedor@email.com");
+        savedSupplier.setContactName("Carlos Mendes");
+        savedSupplier.setEmail("compras@bosch-autopecas.com.br");
+        savedSupplier.setPhone("1140001000");
+        savedSupplier.setZipCode("13010000");
+        savedSupplier.setStreet("Avenida Brasil");
+        savedSupplier.setNumber("1000");
+        savedSupplier.setDistrict("Centro");
+        savedSupplier.setCity("Campinas");
+        savedSupplier.setState("SP");
+        savedSupplier.setStatus(true);
 
         when(supplierRepository.save(any(Supplier.class))).thenReturn(savedSupplier);
 
         SupplierResponseDTO result = supplierService.createSupplier(request);
 
-        assertThat(result.getName()).isEqualTo("Fornecedor A");
+        assertThat(result.getName()).isEqualTo("Bosch Brasil");
         assertThat(result.getCnpj()).isEqualTo("12345678000199");
+        assertThat(result.getContactName()).isEqualTo("Carlos Mendes");
         verify(supplierRepository).save(any(Supplier.class));
     }
 
@@ -79,11 +85,15 @@ class SupplierServiceTest {
         existing.setPhone("11111111111");
         existing.setStatus(true);
 
-        SupplierRequestDTO request = SupplierRequestDTO.builder()
+        SupplierRequestDTO request = validRequest()
                 .name("Novo")
-                .cnpj("22222222222222")
+                .legalName("Novo Autopecas Ltda.")
+                .tradeName("Novo")
+                .cnpj("22.222.222/2222-22")
                 .email("novo@email.com")
-                .phone("11999999999")
+                .phone("(11) 99999-9999")
+                .zipCode("09090-000")
+                .state("sp")
                 .status(false)
                 .build();
 
@@ -93,6 +103,10 @@ class SupplierServiceTest {
         SupplierResponseDTO result = supplierService.updateSupplier(1, request);
 
         assertThat(result.getName()).isEqualTo("Novo");
+        assertThat(result.getCnpj()).isEqualTo("22222222222222");
+        assertThat(result.getPhone()).isEqualTo("11999999999");
+        assertThat(result.getZipCode()).isEqualTo("09090000");
+        assertThat(result.getState()).isEqualTo("SP");
         assertThat(result.getStatus()).isFalse();
         verify(supplierRepository).save(any(Supplier.class));
     }
@@ -103,5 +117,26 @@ class SupplierServiceTest {
         supplierService.deleteSupplier(1);
 
         verify(deletionService).delete(DeletionResource.SUPPLIER, 1);
+    }
+
+    private SupplierRequestDTO.SupplierRequestDTOBuilder validRequest() {
+        return SupplierRequestDTO.builder()
+                .name("Bosch Brasil")
+                .legalName("Robert Bosch Ltda.")
+                .tradeName("Bosch Brasil")
+                .cnpj("12.345.678/0001-99")
+                .stateRegistration("244987321118")
+                .contactName("Carlos Mendes")
+                .email("compras@bosch-autopecas.com.br")
+                .phone("(11) 4000-1000")
+                .address("")
+                .zipCode("13010-000")
+                .street("Avenida Brasil")
+                .number("1000")
+                .district("Centro")
+                .complement("")
+                .city("Campinas")
+                .state("SP")
+                .status(true);
     }
 }

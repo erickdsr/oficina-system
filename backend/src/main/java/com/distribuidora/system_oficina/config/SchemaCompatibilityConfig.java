@@ -17,6 +17,15 @@ public class SchemaCompatibilityConfig {
         return args -> {
             jdbcTemplate.execute("ALTER TABLE categories ADD COLUMN IF NOT EXISTS status boolean NOT NULL DEFAULT true");
             jdbcTemplate.execute("ALTER TABLE purchases ADD COLUMN IF NOT EXISTS active boolean DEFAULT true");
+            jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS legal_name varchar(180)");
+            jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS trade_name varchar(150)");
+            jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS state_registration varchar(30)");
+            jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS contact_name varchar(120)");
+            jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS zip_code varchar(8)");
+            jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS street varchar(150)");
+            jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS number varchar(20)");
+            jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS district varchar(100)");
+            jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS complement varchar(120)");
         };
     }
 }
