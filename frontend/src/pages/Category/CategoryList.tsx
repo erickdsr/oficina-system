@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Layers3, PackageCheck, PackageX, Pencil, Plus, Trash2, X } from "lucide-react";
+import { CircleCheck, Eye, Layers3, PackageCheck, PackageX, Pencil, Plus, Trash2, X } from "lucide-react";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
@@ -44,7 +44,23 @@ function productCountLabel(count: number) {
 }
 
 function productSummaryText(count: number) {
-    return count > 0 ? productCountLabel(count) : "Nenhum produto cadastrado";
+    return count > 0 ? `${productCountLabel(count)} cadastrados` : "Nenhum produto cadastrado";
+}
+
+function categoryCountLabel(count: number) {
+    return `${count} ${count === 1 ? "categoria" : "categorias"}`;
+}
+
+function productBadgeTone(count: number) {
+    if (count === 0) {
+        return "empty";
+    }
+
+    if (count === 1) {
+        return "single";
+    }
+
+    return "busy";
 }
 
 const CategoryTableRow = memo(function CategoryTableRow({
@@ -69,7 +85,9 @@ const CategoryTableRow = memo(function CategoryTableRow({
             </td>
             <td>{description}</td>
             <td className="category-products-count">
-                {productCount > 0 ? productCountLabel(productCount) : <span className="category-empty-badge">Sem produtos</span>}
+                <span className={`category-products-badge ${productBadgeTone(productCount)}`}>
+                    {productCount} {productCount === 1 ? "Produto" : "Produtos"}
+                </span>
             </td>
             <td><StatusBadge label={status.label} tone={status.tone} /></td>
             <td className="category-actions-cell">
@@ -142,7 +160,7 @@ export function CategoryList() {
     const [sortKey, setSortKey] = useState<CategorySortKey>("name");
     const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(20);
     const [showAllDrawerProducts, setShowAllDrawerProducts] = useState(false);
 
     const canEditCategory = canManage(user?.role, ["ADMIN", "MANAGER"]);
@@ -169,6 +187,14 @@ export function CategoryList() {
             active = false;
         };
     }, []);
+
+    const refreshCategoryData = useCallback(async () => {
+        const [productData] = await Promise.all([
+            productService.list(true),
+            loadCategories(showInactive),
+        ]);
+        setProducts(productData);
+    }, [loadCategories, showInactive]);
 
     const productsByCategory = useMemo(() => {
         return products.reduce<Record<number, ProductResponse[]>>((accumulator, product) => {
@@ -277,7 +303,7 @@ export function CategoryList() {
             }
             setShowForm(false);
             setEditingCategory(null);
-            await loadCategories(showInactive);
+            await refreshCategoryData();
         } catch (submitError) {
             setFormError(getApiErrorMessage(submitError, "Nao foi possivel salvar a categoria."));
         } finally {
@@ -294,7 +320,7 @@ export function CategoryList() {
         setDeleteError(null);
         try {
             await categoryService.delete(categoryToDelete.id);
-            await loadCategories(showInactive);
+            await refreshCategoryData();
             closeDeleteModal();
         } catch (removeError) {
             console.error("[DELETE CATEGORY]", removeError);
@@ -313,7 +339,7 @@ export function CategoryList() {
         setDeleteError(null);
         try {
             await categoryService.forceDelete(categoryToDelete.id);
-            await loadCategories(showInactive);
+            await refreshCategoryData();
             closeDeleteModal();
         } catch (removeError) {
             console.error("[FORCE DELETE CATEGORY]", removeError);
@@ -367,8 +393,9 @@ export function CategoryList() {
                     <Layers3 size={18} aria-hidden="true" />
                     <span>Categorias Ativas</span>
                     <strong className={categoryStats.activeCount === 0 ? "is-muted" : undefined}>
-                        {categoryStats.activeCount === 0 ? "Nenhuma categoria ativa" : categoryStats.activeCount}
+                        {categoryStats.activeCount === 0 ? "Nenhuma categoria ativa" : categoryCountLabel(categoryStats.activeCount)}
                     </strong>
+                    <small>Disponiveis para utilizacao.</small>
                 </div>
                 <div className="metric-card supplier-metric-card category-metric-card">
                     <PackageCheck size={18} aria-hidden="true" />
@@ -376,26 +403,29 @@ export function CategoryList() {
                     <strong className={categoryStats.productCount === 0 ? "is-muted" : undefined}>
                         {productSummaryText(categoryStats.productCount)}
                     </strong>
+                    <small>Distribuidos entre categorias.</small>
                 </div>
-                <div className="metric-card supplier-metric-card category-metric-card warning">
+                <div className={`metric-card supplier-metric-card category-metric-card${categoryStats.emptyCount > 0 ? " warning" : ""}`}>
                     <PackageX size={18} aria-hidden="true" />
                     <span>Categorias sem Produtos</span>
                     <strong className={categoryStats.emptyCount === 0 ? "is-muted" : undefined}>
-                        {categoryStats.emptyCount === 0 ? "Nenhuma categoria vazia" : categoryStats.emptyCount}
+                        {categoryStats.emptyCount === 0 ? "Nenhuma categoria vazia" : categoryCountLabel(categoryStats.emptyCount)}
                     </strong>
+                    <small>{categoryStats.emptyCount > 0 ? "Requer atencao no catalogo." : "Catalogo bem distribuido."}</small>
                 </div>
                 <div className="metric-card supplier-metric-card category-metric-card">
-                    <X size={18} aria-hidden="true" />
+                    {categoryStats.disabledCount === 0 ? <CircleCheck size={18} aria-hidden="true" /> : <X size={18} aria-hidden="true" />}
                     <span>Categorias Desativadas</span>
                     <strong className={categoryStats.disabledCount === 0 ? "is-muted" : undefined}>
-                        {categoryStats.disabledCount === 0 ? "Nenhuma categoria desativada" : categoryStats.disabledCount}
+                        {categoryStats.disabledCount === 0 ? "Nenhuma categoria desativada" : categoryCountLabel(categoryStats.disabledCount)}
                     </strong>
+                    <small>{categoryStats.disabledCount === 0 ? "Todos os grupos estao disponiveis." : "Fora de uso no catalogo."}</small>
                 </div>
             </div>
             <div className="supplier-filter-panel category-filter-panel">
-                <div className="supplier-filter-panel__search">
+                <div className="supplier-filter-panel__search category-filter-panel__search">
                     <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar categoria..." />
-                    <span>{filteredCategories.length} categorias encontradas</span>
+                    <span>Mostrando {filteredCategories.length} categorias</span>
                 </div>
                 <div className="supplier-filter-panel__actions">
                     <label className="checkbox-field supplier-filter-panel__toggle">
@@ -431,7 +461,7 @@ export function CategoryList() {
                     description={
                         search
                             ? "Ajuste a pesquisa ou os filtros para localizar uma categoria."
-                            : "Crie a primeira categoria para organizar os grupos de autopecas do catalogo."
+                            : 'Clique em "Nova Categoria" para comecar.'
                     }
                     actionLabel={canEditCategory ? "Nova Categoria" : undefined}
                     onAction={canEditCategory ? () => setShowForm(true) : undefined}
@@ -469,7 +499,7 @@ export function CategoryList() {
                         <label>
                             Registros por pagina
                             <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
-                                {[10, 25, 50].map((size) => (
+                                {[20, 50, 100].map((size) => (
                                     <option key={size} value={size}>{size}</option>
                                 ))}
                             </select>
@@ -499,8 +529,12 @@ export function CategoryList() {
                 isOpen={categoryToDelete !== null}
                 title="Excluir categoria"
                 itemName={categoryToDelete?.name}
-                prompt={hasCategoryProductsToDelete ? "Esta categoria possui produtos vinculados." : undefined}
-                description="Esta acao nao podera ser desfeita."
+                prompt={hasCategoryProductsToDelete ? `Esta categoria possui ${productCountLabel(categoryProductsToDelete.length)} vinculados.` : undefined}
+                description={
+                    hasCategoryProductsToDelete
+                        ? "Para exclui-la e necessario mover os produtos para outra categoria ou remove-los."
+                        : "Esta acao nao podera ser desfeita."
+                }
                 dependencyDescription={
                     hasCategoryProductsToDelete
                         ? "Deseja desativar esta categoria ao inves de exclui-la?"
@@ -547,7 +581,8 @@ export function CategoryList() {
                                 <div><dt>Quantidade de produtos</dt><dd>{productCountLabel(viewedCategoryProducts.length)}</dd></div>
                                 <div className="span-2"><dt>Descricao</dt><dd>{categoryToView.description || "-"}</dd></div>
                                 <div><dt>Data de criacao</dt><dd>{formatDateTime(categoryToView.createdAt)}</dd></div>
-                                <div><dt>Ultima atualizacao</dt><dd>-</dd></div>
+                                <div><dt>Ultima atualizacao</dt><dd>Nao disponivel</dd></div>
+                                <div><dt>Responsavel</dt><dd>Nao disponivel</dd></div>
                                 <div><dt>Status</dt><dd><StatusBadge label={categoryStatus(categoryToView).label} tone={categoryStatus(categoryToView).tone} /></dd></div>
                             </dl>
                         </section>

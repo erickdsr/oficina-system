@@ -1,20 +1,16 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
     Boxes,
-    Copy,
     Eye,
-    History,
     Layers3,
     ListFilter,
     PackageCheck,
     PackageX,
     Pencil,
     Plus,
-    RotateCcw,
     Trash2,
     X,
 } from "lucide-react";
-import { toast } from "sonner";
 import EmptyState from "../../components/common/EmptyState";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
 import LoadingState from "../../components/common/LoadingState";
@@ -31,7 +27,7 @@ import stockService from "../../services/stock.service";
 import type { DeletionReport } from "../../types/api.types";
 import type { Category } from "../../types/category.types";
 import type { ProductRequest, ProductResponse, Unit } from "../../types/product.types";
-import type { StockMovementDTO, StockRequest, StockResponse } from "../../types/stock.types";
+import type { StockRequest, StockResponse } from "../../types/stock.types";
 import type { Supplier } from "../../types/supplier.types";
 import { formatCurrency, formatDateTime } from "../../utils/formatters";
 import { canDelete, canManage } from "../../utils/permissions";
@@ -50,9 +46,6 @@ interface ProductTableRowProps {
     canRemove: boolean;
     onView: (product: ProductResponse) => void;
     onEdit: (product: ProductResponse) => void;
-    onDuplicate: (product: ProductResponse) => void;
-    onHistory: (product: ProductResponse) => void;
-    onMovements: (product: ProductResponse) => void;
     onDelete: (product: ProductResponse) => void;
 }
 
@@ -134,9 +127,6 @@ const ProductTableRow = memo(function ProductTableRow({
     canRemove,
     onView,
     onEdit,
-    onDuplicate,
-    onHistory,
-    onMovements,
     onDelete,
 }: ProductTableRowProps) {
     const status = productStatus(product);
@@ -200,47 +190,6 @@ const ProductTableRow = memo(function ProductTableRow({
                             <Pencil size={22} strokeWidth={2.3} aria-hidden="true" />
                         </button>
                     )}
-                    {canEdit && (
-                        <button
-                            type="button"
-                            className="table-action-button tooltip-button"
-                            aria-label={`Duplicar produto ${product.name}`}
-                            title="Duplicar produto"
-                            data-tooltip="Duplicar"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onDuplicate(product);
-                            }}
-                        >
-                            <Copy size={22} strokeWidth={2.3} aria-hidden="true" />
-                        </button>
-                    )}
-                    <button
-                        type="button"
-                        className="table-action-button tooltip-button"
-                        aria-label={`Historico do produto ${product.name}`}
-                        title="Historico"
-                        data-tooltip="Historico"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onHistory(product);
-                        }}
-                    >
-                        <History size={22} strokeWidth={2.3} aria-hidden="true" />
-                    </button>
-                    <button
-                        type="button"
-                        className="table-action-button tooltip-button"
-                        aria-label={`Movimentacoes do produto ${product.name}`}
-                        title="Movimentacoes"
-                        data-tooltip="Movimentacoes"
-                        onClick={(event) => {
-                            event.stopPropagation();
-                            onMovements(product);
-                        }}
-                    >
-                        <RotateCcw size={22} strokeWidth={2.3} aria-hidden="true" />
-                    </button>
                     {canRemove && (
                         <button
                             type="button"
@@ -268,7 +217,6 @@ export function ProductList() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [stocks, setStocks] = useState<StockResponse[]>([]);
-    const [movements, setMovements] = useState<StockMovementDTO[]>([]);
     const [search, setSearch] = useState("");
     const [showInactive, setShowInactive] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState("all");
@@ -284,13 +232,10 @@ export function ProductList() {
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [editingProduct, setEditingProduct] = useState<ProductResponse | null>(null);
-    const [duplicateSource, setDuplicateSource] = useState<ProductResponse | null>(null);
     const [productToDelete, setProductToDelete] = useState<ProductResponse | null>(null);
     const [productToView, setProductToView] = useState<ProductResponse | null>(null);
-    const [productToMovements, setProductToMovements] = useState<ProductResponse | null>(null);
     const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
-    const [loadingMovements, setLoadingMovements] = useState(false);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [deletionReport, setDeletionReport] = useState<DeletionReport | null>(null);
     const [showForm, setShowForm] = useState(false);
@@ -448,18 +393,8 @@ export function ProductList() {
         return Array.from({ length: end - start + 1 }, (_, index) => start + index);
     }, [currentPage, totalPages]);
 
-    const formProduct = duplicateSource
-        ? {
-              ...duplicateSource,
-              id: 0,
-              name: `${duplicateSource.name} - Copia`,
-              partNumber: `${duplicateSource.partNumber || internalCode(duplicateSource)}-COPIA`,
-              barCode: "",
-              createdAt: "",
-              updatedAt: "",
-          }
-        : editingProduct;
-    const formStock = editingProduct ? stockByProduct[editingProduct.id] : duplicateSource ? stockByProduct[duplicateSource.id] : undefined;
+    const formProduct = editingProduct;
+    const formStock = editingProduct ? stockByProduct[editingProduct.id] : undefined;
     const viewedStock = productToView ? stockByProduct[productToView.id] : undefined;
 
     async function syncStock(productId: number, payload: ProductFormPayload) {
@@ -501,7 +436,6 @@ export function ProductList() {
             await syncStock(savedProduct.id, payload);
             setShowForm(false);
             setEditingProduct(null);
-            setDuplicateSource(null);
             await loadData();
         } catch (submitError) {
             setFormError(getApiErrorMessage(submitError, "Nao foi possivel salvar o produto."));
@@ -517,32 +451,8 @@ export function ProductList() {
 
     const handleEditClick = useCallback((product: ProductResponse) => {
         setEditingProduct(product);
-        setDuplicateSource(null);
         setShowForm(true);
     }, []);
-
-    const handleDuplicateClick = useCallback((product: ProductResponse) => {
-        setDuplicateSource(product);
-        setEditingProduct(null);
-        setShowForm(true);
-    }, []);
-
-    function handleHistoryClick(product: ProductResponse) {
-        toast.info(`Historico de ${product.name} sera conectado ao modulo de auditoria.`);
-    }
-
-    async function handleMovementsClick(product: ProductResponse) {
-        setProductToMovements(product);
-        setMovements([]);
-        setLoadingMovements(true);
-        try {
-            setMovements(await stockService.listMovementsByProduct(product.id));
-        } catch (movementError) {
-            toast.error(getApiErrorMessage(movementError, "Nao foi possivel carregar as movimentacoes."));
-        } finally {
-            setLoadingMovements(false);
-        }
-    }
 
     async function handleDeleteClick(product: ProductResponse) {
         setDeleteError(null);
@@ -607,7 +517,6 @@ export function ProductList() {
     function closeForm() {
         setShowForm(false);
         setEditingProduct(null);
-        setDuplicateSource(null);
     }
 
     function resetFilters() {
@@ -664,7 +573,7 @@ export function ProductList() {
                         Mostrar registros desativados
                     </label>
                     {canEditProduct && (
-                        <button type="button" className="primary-button" onClick={() => { setEditingProduct(null); setDuplicateSource(null); setShowForm(true); }}>
+                        <button type="button" className="primary-button" onClick={() => { setEditingProduct(null); setShowForm(true); }}>
                             <Plus size={20} aria-hidden="true" />
                             Novo produto
                         </button>
@@ -784,9 +693,6 @@ export function ProductList() {
                                     canRemove={canDeleteProduct}
                                     onView={handleViewClick}
                                     onEdit={handleEditClick}
-                                    onDuplicate={handleDuplicateClick}
-                                    onHistory={handleHistoryClick}
-                                    onMovements={handleMovementsClick}
                                     onDelete={handleDeleteClick}
                                 />
                             ))}
@@ -886,47 +792,6 @@ export function ProductList() {
                 </div>
             )}
 
-            {productToMovements && (
-                <div className="modal-overlay" role="presentation" onMouseDown={(event) => {
-                    if (event.target === event.currentTarget) {
-                        setProductToMovements(null);
-                    }
-                }}>
-                    <aside className="product-detail-modal product-movements-modal" role="dialog" aria-modal="true" aria-label="Movimentacoes do produto">
-                        <div className="supplier-detail-modal__header">
-                            <div>
-                                <span>Movimentacoes</span>
-                                <h2>{productToMovements.name}</h2>
-                            </div>
-                            <button
-                                type="button"
-                                className="table-action-button tooltip-button"
-                                aria-label="Fechar movimentacoes"
-                                title="Fechar"
-                                data-tooltip="Fechar"
-                                onClick={() => setProductToMovements(null)}
-                            >
-                                <X size={19} aria-hidden="true" />
-                            </button>
-                        </div>
-                        {loadingMovements ? (
-                            <LoadingState />
-                        ) : movements.length === 0 ? (
-                            <EmptyState message="Nenhuma movimentacao encontrada." description="Este produto ainda nao possui entradas, saidas ou ajustes registrados." />
-                        ) : (
-                            <div className="product-movement-list">
-                                {movements.map((movement, index) => (
-                                    <div key={`${movement.type}-${movement.quantity}-${movement.reason}-${index}`}>
-                                        <StatusBadge label={movement.type} />
-                                        <strong>{movement.quantity.toLocaleString("pt-BR")} unidades</strong>
-                                        <span>{movement.reason || "-"}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </aside>
-                </div>
-            )}
         </section>
     );
 }

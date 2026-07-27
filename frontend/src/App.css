@@ -1253,6 +1253,11 @@
   padding: 12px;
 }
 
+.category-filter-panel__search {
+  flex-basis: 620px;
+  max-width: 760px;
+}
+
 .category-filter-panel .search-input,
 .category-filter-panel .primary-button,
 .category-filter-panel__toggle {
@@ -1395,17 +1400,23 @@
 
 .category-metric-card {
   grid-template-columns: auto 1fr;
-  min-height: 58px;
+  min-height: 78px;
   align-content: center;
   column-gap: 10px;
   row-gap: 2px;
-  padding: 11px 13px;
+  padding: 12px 13px;
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+  animation: categoryMetricPulse 220ms ease both;
 }
 
 .category-metric-card svg {
-  grid-row: span 2;
+  grid-row: span 3;
   color: rgba(147, 197, 253, 0.86);
+}
+
+.category-metric-card.warning svg,
+.category-metric-card.warning strong {
+  color: #fbbf24;
 }
 
 .category-metric-card span {
@@ -1416,6 +1427,16 @@
 .category-metric-card strong {
   font-size: 1.12rem;
   line-height: 1.15;
+}
+
+.category-metric-card small {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 750;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .category-metric-card strong.is-muted {
@@ -1825,7 +1846,9 @@
 
 .category-table tbody tr:nth-child(even):hover,
 .category-table tbody tr:hover {
-  background: rgba(28, 44, 69, 0.74);
+  background:
+    linear-gradient(90deg, rgba(59, 130, 246, 0.08), transparent 46%),
+    rgba(28, 44, 69, 0.74);
 }
 
 .category-row {
@@ -1833,8 +1856,8 @@
 }
 
 .category-row:hover {
-  outline-color: rgba(59, 130, 246, 0.34);
-  transform: translateY(-1px);
+  outline-color: rgba(59, 130, 246, 0.32);
+  transform: translateY(-0.5px);
 }
 
 .category-row--selected,
@@ -1859,21 +1882,36 @@
 }
 
 .category-products-count {
-  color: #dbeafe;
   font-weight: 850;
 }
 
+.category-products-badge,
 .category-empty-badge {
   display: inline-flex;
   align-items: center;
   min-height: 24px;
-  padding: 0 9px;
+  padding: 0 10px;
   color: var(--color-text-muted);
   background: rgba(148, 163, 184, 0.08);
   border: 1px solid rgba(148, 163, 184, 0.16);
   border-radius: var(--radius-pill);
   font-size: 0.76rem;
   font-weight: 850;
+  white-space: nowrap;
+  transition: background var(--motion-fast), border-color var(--motion-fast), color var(--motion-fast), transform var(--motion-fast);
+  animation: categoryBadgeIn 180ms ease both;
+}
+
+.category-products-badge.single {
+  color: #bfdbfe;
+  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(59, 130, 246, 0.24);
+}
+
+.category-products-badge.busy {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.13);
+  border-color: rgba(34, 197, 94, 0.24);
 }
 
 .category-actions {
@@ -1943,6 +1981,7 @@
 .category-page .empty-state {
   min-height: 260px;
   border-style: dashed;
+  animation: categoryBadgeIn 200ms ease both;
 }
 
 .category-page .empty-state .primary-button {
@@ -2806,6 +2845,30 @@
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes categoryMetricPulse {
+  from {
+    opacity: 0.82;
+    transform: translateY(3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes categoryBadgeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
