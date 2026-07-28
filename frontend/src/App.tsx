@@ -7,7 +7,7 @@ import CategoryList from './pages/Category/CategoryList'
 import ClientList from './pages/Client/ClientList'
 import EmployeeList from './pages/Employee/EmployeeList'
 import LoginPage from './pages/Login/LoginPage'
-import DashboardPage from './pages/Dashboard/DashboardPage'
+import HomePage from './pages/Home/HomePage'
 import ProductList from './pages/Product/ProductList'
 import PurchaseDetail from './pages/Purchase/PurchaseDetail'
 import PurchaseForm from './pages/Purchase/PurchaseForm'
@@ -31,7 +31,8 @@ function App() {
             </PrivateRoute>
           }
         >
-          <Route path="/" element={<DashboardPage />} />
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/home" element={<HomePage />} />
           <Route path="/categories" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER"]}><CategoryList /></PrivateRoute>} />
           <Route path="/suppliers" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK"]}><SupplierList /></PrivateRoute>} />
           <Route path="/clients" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "SALESPERSON"]}><ClientList /></PrivateRoute>} />
@@ -46,14 +47,6 @@ function App() {
           <Route path="/sales/new" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "SALESPERSON"]}><SaleForm /></PrivateRoute>} />
           <Route path="/sales/:id" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "SALESPERSON"]}><SaleDetail /></PrivateRoute>} />
         </Route>
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <Navigate to="/" replace />
-            </PrivateRoute>
-          }
-        />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
       <Toaster richColors position="top-right" theme="dark" />

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import PageHeader from "../../components/common/PageHeader";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
@@ -21,6 +21,7 @@ const initialItem: PurchaseItem = {
 export function PurchaseForm() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const { createPurchase } = usePurchase();
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [products, setProducts] = useState<ProductResponse[]>([]);
@@ -36,14 +37,24 @@ export function PurchaseForm() {
                 const [supplierData, productData] = await Promise.all([supplierService.list(), productService.list()]);
                 setSuppliers(supplierData);
                 setProducts(productData);
-                setSupplierId(supplierData[0]?.id ?? 0);
+                const productId = Number(new URLSearchParams(location.search).get("productId") ?? 0);
+                const selectedProduct = productData.find((product) => product.id === productId);
+                setSupplierId(selectedProduct?.supplierId ?? supplierData[0]?.id ?? 0);
+                if (selectedProduct) {
+                    setItems([{
+                        productId: selectedProduct.id,
+                        quantity: 1,
+                        unitCost: selectedProduct.costPrice,
+                        subtotal: selectedProduct.costPrice,
+                    }]);
+                }
             } catch (loadError) {
                 setError(getApiErrorMessage(loadError, "Nao foi possivel carregar dados da compra."));
             }
         }
 
         void loadData();
-    }, []);
+    }, [location.search]);
 
     const total = useMemo(() => items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0), [items]);
 

@@ -1,6 +1,6 @@
 import {
     BarChart3,
-    LayoutDashboard,
+    House,
     Package,
     Receipt,
     ShoppingCart,
@@ -27,7 +27,7 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-    { to: "/", label: "Dashboard", icon: LayoutDashboard, section: "GERAL", roles: ["ADMIN", "MANAGER", "SALESPERSON", "STOCK"] },
+    { to: "/home", label: "Home", icon: House, section: "GERAL", roles: ["ADMIN", "MANAGER", "SALESPERSON", "STOCK"] },
     { to: "/clients", label: "Clientes", icon: UserCheck, section: "CADASTROS", roles: ["ADMIN", "MANAGER", "SALESPERSON"] },
     { to: "/suppliers", label: "Fornecedores", icon: Truck, section: "CADASTROS", roles: ["ADMIN", "MANAGER", "STOCK"] },
     { to: "/employees", label: "Funcionarios", icon: Users, section: "CADASTROS", roles: ["ADMIN"] },

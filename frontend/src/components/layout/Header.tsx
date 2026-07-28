@@ -19,7 +19,8 @@ interface HeaderProps {
 }
 
 const routeLabels: Record<string, string> = {
-    "/": "Dashboard",
+    "/": "Home",
+    "/home": "Home",
     "/categories": "Categorias",
     "/suppliers": "Fornecedores",
     "/clients": "Clientes",
@@ -86,7 +87,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar 
                 {canCreateSales && (
                     <Link className="quick-action" to="/sales/new">
                         <Plus size={18} aria-hidden="true" />
-                        <span>Venda</span>
+                        <span>Nova Venda</span>
                     </Link>
                 )}
 
