@@ -1,12 +1,11 @@
 import { Camera, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import type { Employee, EmployeeRequest } from "../../types/employee.types";
 import { normalizeRole } from "../../utils/permissions";
 
 export interface EmployeeFormPayload extends EmployeeRequest {
     photoPreview?: string | null;
     notes?: string;
-    permissions: string[];
 }
 
 interface EmployeeFormProps {
@@ -16,18 +15,6 @@ interface EmployeeFormProps {
     onCancel: () => void;
     onSubmit: (employee: EmployeeFormPayload) => Promise<void>;
 }
-
-const permissionOptions = [
-    "Produtos",
-    "Estoque",
-    "Compras",
-    "Vendas",
-    "Clientes",
-    "Fornecedores",
-    "Funcionarios",
-    "Home",
-    "Relatorios",
-];
 
 const initialForm: EmployeeFormPayload = {
     name: "",
@@ -39,8 +26,35 @@ const initialForm: EmployeeFormPayload = {
     status: true,
     photoPreview: null,
     notes: "",
-    permissions: ["Home"],
 };
+
+const roleOptions = [
+    {
+        value: "ADMIN",
+        label: "Administrador",
+        description: "Acesso completo aos cadastros, movimentacoes, vendas, compras, relatorios e configuracoes administrativas.",
+    },
+    {
+        value: "MANAGER",
+        label: "Gerente",
+        description: "Acesso operacional amplo a cadastros, estoque, compras, vendas, movimentacoes e relatorios.",
+    },
+    {
+        value: "SALESPERSON",
+        label: "Vendedor",
+        description: "Pode acessar clientes, produtos e vendas. Possui estoque somente para consulta.",
+    },
+    {
+        value: "STOCK",
+        label: "Estoquista",
+        description: "Pode consultar produtos, acompanhar estoque e registrar movimentacoes autorizadas.",
+    },
+    {
+        value: "BUYER",
+        label: "Comprador",
+        description: "Pode gerenciar fornecedores, criar compras e acompanhar necessidades de reposicao.",
+    },
+] as const;
 
 export function roleLabel(roleName: string) {
     const role = normalizeRole(roleName) ?? roleName.toUpperCase();
@@ -50,7 +64,6 @@ export function roleLabel(roleName: string) {
         SALESPERSON: "Vendedor",
         STOCK: "Estoquista",
         BUYER: "Comprador",
-        FINANCE: "Financeiro",
     };
     return labels[role] ?? roleName;
 }
@@ -71,6 +84,7 @@ function avatarTone(name: string) {
 export function EmployeeForm({ employee, loading = false, error, onCancel, onSubmit }: EmployeeFormProps) {
     const [form, setForm] = useState<EmployeeFormPayload>(initialForm);
     const [confirmPassword, setConfirmPassword] = useState("");
+    const [changePassword, setChangePassword] = useState(false);
     const [validationError, setValidationError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -87,15 +101,15 @@ export function EmployeeForm({ employee, loading = false, error, onCancel, onSub
                       status: employee.status,
                       photoPreview: null,
                       notes: "",
-                      permissions: ["Home"],
                   }
                 : initialForm,
         );
         setConfirmPassword("");
+        setChangePassword(false);
         setValidationError(null);
     }, [employee]);
 
-    const selectedPermissions = useMemo(() => new Set(form.permissions), [form.permissions]);
+    const selectedRole = roleOptions.find((role) => role.value === form.roleName);
 
     function updateField<K extends keyof EmployeeFormPayload>(field: K, value: EmployeeFormPayload[K]) {
         setForm((current) => ({ ...current, [field]: value }));
@@ -127,30 +141,25 @@ export function EmployeeForm({ employee, loading = false, error, onCancel, onSub
         }
     }
 
-    function togglePermission(permission: string) {
-        setForm((current) => {
-            const nextPermissions = new Set(current.permissions);
-            if (nextPermissions.has(permission)) {
-                nextPermissions.delete(permission);
-            } else {
-                nextPermissions.add(permission);
-            }
-
-            return { ...current, permissions: Array.from(nextPermissions) };
-        });
-    }
-
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         if (!form.name.trim() || !form.cpf.trim() || !form.email.trim()) {
             setValidationError("Informe nome, CPF e e-mail.");
             return;
         }
+        if (!form.roleName) {
+            setValidationError("Selecione um perfil.");
+            return;
+        }
         if (!employee && !form.password.trim()) {
             setValidationError("Informe a senha do funcionario.");
             return;
         }
-        if (form.password && form.password !== confirmPassword) {
+        if (employee && changePassword && !form.password.trim()) {
+            setValidationError("Informe a nova senha.");
+            return;
+        }
+        if ((form.password || changePassword) && form.password !== confirmPassword) {
             setValidationError("A confirmacao de senha nao confere.");
             return;
         }
@@ -171,7 +180,7 @@ export function EmployeeForm({ employee, loading = false, error, onCancel, onSub
             <div className="entity-form__header employee-form__header">
                 <div>
                     <h3>{employee ? "Editar funcionario" : "Novo funcionario"}</h3>
-                    <p>Dados pessoais, acesso ao sistema e permissoes operacionais.</p>
+                    <p>Dados pessoais e perfil de acesso aplicado automaticamente pela role.</p>
                 </div>
             </div>
 
@@ -234,40 +243,50 @@ export function EmployeeForm({ employee, loading = false, error, onCancel, onSub
                 <h4>Dados de acesso</h4>
                 <div className="form-grid">
                     <label className="form-field">
-                        <span>Perfil</span>
+                        <span>Perfil *</span>
                         <select value={form.roleName} onChange={(event) => updateField("roleName", event.target.value)}>
-                            <option value="ADMIN">Administrador</option>
-                            <option value="MANAGER">Gerente</option>
-                            <option value="SALESPERSON">Vendedor</option>
-                            <option value="BUYER">Comprador</option>
-                            <option value="STOCK">Estoquista</option>
-                            <option value="FINANCE">Financeiro</option>
+                            <option value="">Selecione um perfil</option>
+                            {roleOptions.map((role) => (
+                                <option key={role.value} value={role.value}>{role.label}</option>
+                            ))}
                         </select>
-                    </label>
-                    <label className="form-field">
-                        <span>{employee ? "Alterar senha" : "Senha"}</span>
-                        <input type="password" value={form.password} onChange={(event) => updateField("password", event.target.value)} placeholder={employee ? "Manter senha atual" : ""} />
-                    </label>
-                    <label className="form-field">
-                        <span>Confirmar senha</span>
-                        <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder={employee ? "Confirmar nova senha" : ""} />
                     </label>
                     <label className="checkbox-field supplier-status-field">
                         <input type="checkbox" checked={form.status} onChange={(event) => updateField("status", event.target.checked)} />
                         Ativo
                     </label>
-                </div>
-            </section>
-
-            <section className="employee-form-section">
-                <h4>Permissoes</h4>
-                <div className="employee-permission-grid">
-                    {permissionOptions.map((permission) => (
-                        <label key={permission} className="checkbox-field employee-permission-item">
-                            <input type="checkbox" checked={selectedPermissions.has(permission)} onChange={() => togglePermission(permission)} />
-                            {permission}
+                    {selectedRole && (
+                        <div className="employee-role-description span-2">
+                            <strong>{selectedRole.label}</strong>
+                            <span>{selectedRole.description}</span>
+                        </div>
+                    )}
+                    {employee && (
+                        <label className="checkbox-field supplier-status-field span-2">
+                            <input
+                                type="checkbox"
+                                checked={changePassword}
+                                onChange={(event) => {
+                                    setChangePassword(event.target.checked);
+                                    updateField("password", "");
+                                    setConfirmPassword("");
+                                }}
+                            />
+                            Alterar senha
                         </label>
-                    ))}
+                    )}
+                    {(!employee || changePassword) && (
+                        <>
+                            <label className="form-field">
+                                <span>{employee ? "Nova senha" : "Senha *"}</span>
+                                <input type="password" value={form.password} onChange={(event) => updateField("password", event.target.value)} />
+                            </label>
+                            <label className="form-field">
+                                <span>{employee ? "Confirmar nova senha" : "Confirmar senha *"}</span>
+                                <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+                            </label>
+                        </>
+                    )}
                 </div>
             </section>
 

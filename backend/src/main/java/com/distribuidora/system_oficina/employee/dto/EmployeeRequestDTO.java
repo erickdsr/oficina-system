@@ -30,8 +30,7 @@ public class EmployeeRequestDTO {
     @Schema(description = "Employee email address", example = "joao.silva@email.com")
     private String email;
 
-    @NotBlank
-    @Size(min = 6, max = 100)
+    @Size(max = 100)
     @Schema(description = "Employee password", example = "password123")
     private String password;
 

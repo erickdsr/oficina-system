@@ -37,6 +37,7 @@ public class SystemOficinaApplication {
 			ensureRole(roleRepository, RoleNameNormalizer.MANAGER, "Gerente");
 			ensureRole(roleRepository, RoleNameNormalizer.SALESPERSON, "Vendedor");
 			ensureRole(roleRepository, RoleNameNormalizer.STOCK, "Estoquista");
+			ensureRole(roleRepository, RoleNameNormalizer.BUYER, "Comprador");
 
 			String adminEmail = environment.getProperty("ADMIN_EMAIL");
 			String adminPassword = environment.getProperty("ADMIN_PASSWORD");

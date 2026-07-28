@@ -33,6 +33,7 @@ import type { SaleResponse } from "../../types/sale.types";
 import { canDelete, canManage, normalizeRole } from "../../utils/permissions";
 import { formatCurrency, formatDateTime } from "../../utils/formatters";
 import { normalizeSearch } from "../../utils/text";
+import { brazilianStates } from "../../utils/brazilian-states";
 import ClientForm from "./ClientForm";
 
 type ClientSortKey = "name" | "createdAt" | "lastPurchase" | "totalPurchased";
@@ -647,7 +648,12 @@ export function ClientList() {
                     </label>
                     <label>
                         Estado
-                        <input value={stateFilter} onChange={(event) => setStateFilter(event.target.value.toUpperCase())} placeholder="UF" maxLength={2} />
+                        <select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}>
+                            <option value="">Todos</option>
+                            {brazilianStates.map((state) => (
+                                <option key={state} value={state}>{state}</option>
+                            ))}
+                        </select>
                     </label>
                     <label>
                         Cliente desde
@@ -678,6 +684,7 @@ export function ClientList() {
             {showForm && (
                 <ClientForm
                     client={editingClient}
+                    clients={clients}
                     loading={submitting}
                     error={formError}
                     onCancel={() => {

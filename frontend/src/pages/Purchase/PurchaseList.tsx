@@ -72,7 +72,7 @@ export function PurchaseList() {
                 eyebrow="Compras"
                 title="Compras"
                 description="Pedidos de compra e recebimento."
-                action={canManage(user?.role, ["ADMIN", "MANAGER", "STOCK"]) && <Link className="primary-button link-button" to="/purchases/new">Nova compra</Link>}
+                action={canManage(user?.role, ["ADMIN", "MANAGER", "STOCK", "BUYER"]) && <Link className="primary-button link-button" to="/purchases/new">Nova compra</Link>}
             />
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar compra..." />
             <label className="checkbox-field">

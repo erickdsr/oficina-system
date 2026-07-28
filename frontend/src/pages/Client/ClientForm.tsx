@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Loader2, MapPin, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Loader2, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import type { Client, ClientRequest } from "../../types/client.types";
+import { brazilianStates, isBrazilianState } from "../../utils/brazilian-states";
+import { formatPhone, formatZipCode, isValidEmail, onlyDigits } from "../../utils/supplier-formatters";
 
 interface ClientFormProps {
     client?: Client | null;
+    clients?: Client[];
     loading?: boolean;
     error?: string | null;
     onCancel: () => void;
@@ -12,7 +15,6 @@ interface ClientFormProps {
 }
 
 type ClientDraft = ClientRequest & {
-    birthDate: string;
     mobile: string;
     zipCode: string;
     street: string;
@@ -21,6 +23,8 @@ type ClientDraft = ClientRequest & {
     district: string;
     notes: string;
 };
+
+type FieldErrors = Partial<Record<keyof ClientDraft, string>>;
 
 const initialForm: ClientDraft = {
     name: "",
@@ -32,7 +36,6 @@ const initialForm: ClientDraft = {
     city: "",
     state: "",
     status: true,
-    birthDate: "",
     mobile: "",
     zipCode: "",
     street: "",
@@ -42,11 +45,7 @@ const initialForm: ClientDraft = {
     notes: "",
 };
 
-function onlyDigits(value: string) {
-    return value.replace(/\D/g, "");
-}
-
-function maskCpf(value: string) {
+function formatCpf(value?: string | null) {
     return onlyDigits(value)
         .slice(0, 11)
         .replace(/(\d{3})(\d)/, "$1.$2")
@@ -54,7 +53,7 @@ function maskCpf(value: string) {
         .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
 }
 
-function maskCnpj(value: string) {
+function formatCnpj(value?: string | null) {
     return onlyDigits(value)
         .slice(0, 14)
         .replace(/^(\d{2})(\d)/, "$1.$2")
@@ -63,28 +62,21 @@ function maskCnpj(value: string) {
         .replace(/(\d{4})(\d)/, "$1-$2");
 }
 
-function maskDocument(value: string, type: string) {
-    return type === "PJ" ? maskCnpj(value) : maskCpf(value);
+function formatDocument(value: string, type: string) {
+    return type === "PJ" ? formatCnpj(value) : formatCpf(value);
 }
 
-function maskPhone(value: string) {
-    const digits = onlyDigits(value).slice(0, 11);
-    if (digits.length <= 10) {
-        return digits
-            .replace(/^(\d{2})(\d)/, "($1) $2")
-            .replace(/(\d{4})(\d)/, "$1-$2");
-    }
-
-    return digits
-        .replace(/^(\d{2})(\d)/, "($1) $2")
-        .replace(/(\d{5})(\d)/, "$1-$2");
+function isValidCpf(value: string) {
+    const cpf = onlyDigits(value);
+    return cpf.length === 11 && !/^(\d)\1+$/.test(cpf);
 }
 
-function maskZipCode(value: string) {
-    return onlyDigits(value).slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+function isValidCnpj(value: string) {
+    const cnpj = onlyDigits(value);
+    return cnpj.length === 14 && !/^(\d)\1+$/.test(cnpj);
 }
 
-function clientToDraft(client?: Client | null): ClientDraft {
+function toForm(client?: Client | null): ClientDraft {
     if (!client) {
         return initialForm;
     }
@@ -92,13 +84,13 @@ function clientToDraft(client?: Client | null): ClientDraft {
     return {
         ...initialForm,
         name: client.name,
-        cpfCnpj: maskDocument(client.cpfCnpj, client.clientType || "PF"),
+        cpfCnpj: formatDocument(client.cpfCnpj, client.clientType || "PF"),
         clientType: client.clientType || "PF",
-        email: client.email,
-        phone: maskPhone(client.phone),
-        address: client.address,
-        city: client.city,
-        state: client.state,
+        email: client.email ?? "",
+        phone: formatPhone(client.phone),
+        address: client.address ?? "",
+        city: client.city ?? "",
+        state: client.state ?? "",
         status: client.status,
     };
 }
@@ -108,62 +100,109 @@ function buildAddress(form: ClientDraft) {
     return detailedAddress || form.address;
 }
 
-function RequiredMark() {
-    return <small className="client-required-mark">Obrigatorio</small>;
+function RequiredAsterisk() {
+    return <span className="client-required-asterisk" aria-hidden="true">*</span>;
 }
 
-export function ClientForm({ client, loading = false, error, onCancel, onSubmit }: ClientFormProps) {
+export function ClientForm({ client, clients = [], loading = false, error, onCancel, onSubmit }: ClientFormProps) {
+    const formRef = useRef<HTMLFormElement | null>(null);
     const [form, setForm] = useState<ClientDraft>(initialForm);
-    const [validationError, setValidationError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
     const [cepLoading, setCepLoading] = useState(false);
 
     useEffect(() => {
-        setForm(clientToDraft(client));
-        setValidationError(null);
+        setForm(toForm(client));
+        setFieldErrors({});
     }, [client]);
 
-    const isValid = useMemo(() => {
-        const documentLength = form.clientType === "PJ" ? 14 : 11;
-        return Boolean(
-            form.name.trim()
-            && onlyDigits(form.cpfCnpj).length === documentLength
-            && onlyDigits(form.phone).length >= 10
-            && typeof form.status === "boolean",
-        );
-    }, [form.clientType, form.cpfCnpj, form.name, form.phone, form.status]);
-    const documentLength = form.clientType === "PJ" ? 14 : 11;
-    const documentValid = onlyDigits(form.cpfCnpj).length === documentLength;
-    const phoneValid = onlyDigits(form.phone).length >= 10;
+    useEffect(() => {
+        formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, []);
 
-    const submitLabel = useMemo(() => {
-        if (loading) {
-            return client ? "Salvando..." : "Cadastrando...";
+    const documentLabel = form.clientType === "PJ" ? "CNPJ" : "CPF";
+    const nameLabel = form.clientType === "PJ" ? "Razao social" : "Nome completo";
+
+    const duplicateDocument = useMemo(() => {
+        const document = onlyDigits(form.cpfCnpj);
+        if (!document) {
+            return false;
         }
 
-        return client ? "Salvar alteracoes" : "Cadastrar Cliente";
-    }, [client, loading]);
+        return clients.some((currentClient) => currentClient.id !== client?.id && onlyDigits(currentClient.cpfCnpj) === document);
+    }, [client?.id, clients, form.cpfCnpj]);
+
+    function updateField<K extends keyof ClientDraft>(field: K, value: ClientDraft[K]) {
+        setForm((current) => ({ ...current, [field]: value }));
+        setFieldErrors((current) => ({ ...current, [field]: undefined }));
+    }
 
     function updateType(type: string) {
         setForm((current) => ({
             ...current,
             clientType: type,
-            cpfCnpj: maskDocument(current.cpfCnpj, type),
+            cpfCnpj: formatDocument(current.cpfCnpj, type),
         }));
+        setFieldErrors((current) => ({ ...current, clientType: undefined, cpfCnpj: undefined }));
+    }
+
+    function validate() {
+        const nextErrors: FieldErrors = {};
+        const document = onlyDigits(form.cpfCnpj);
+        const phone = onlyDigits(form.phone);
+        const zipCode = onlyDigits(form.zipCode);
+
+        if (!form.name.trim()) {
+            nextErrors.name = form.clientType === "PJ" ? "Informe a razao social." : "Informe o nome completo.";
+        }
+
+        if (!form.clientType) {
+            nextErrors.clientType = "Informe o tipo de pessoa.";
+        }
+
+        if (!document) {
+            nextErrors.cpfCnpj = `Informe o ${documentLabel}.`;
+        } else if (form.clientType === "PJ" ? !isValidCnpj(document) : !isValidCpf(document)) {
+            nextErrors.cpfCnpj = `Informe um ${documentLabel} valido.`;
+        } else if (duplicateDocument) {
+            nextErrors.cpfCnpj = `${documentLabel} ja cadastrado.`;
+        }
+
+        if (!phone) {
+            nextErrors.phone = "Informe o telefone.";
+        } else if (![10, 11].includes(phone.length)) {
+            nextErrors.phone = "Informe um telefone com DDD.";
+        }
+
+        if (form.email.trim() && !isValidEmail(form.email)) {
+            nextErrors.email = "Informe um e-mail valido.";
+        }
+
+        if (form.zipCode.trim() && zipCode.length !== 8) {
+            nextErrors.zipCode = "Informe um CEP com 8 digitos.";
+        }
+
+        if (form.state && !isBrazilianState(form.state)) {
+            nextErrors.state = "Selecione uma UF valida.";
+        }
+
+        setFieldErrors(nextErrors);
+        return Object.keys(nextErrors).length === 0;
     }
 
     async function handleZipSearch() {
         const zip = onlyDigits(form.zipCode);
-        if (zip.length !== 8 || cepLoading) {
-            toast.warning("Informe um CEP com 8 digitos.");
+        if (zip.length !== 8) {
+            setFieldErrors((current) => ({ ...current, zipCode: "Informe um CEP com 8 digitos." }));
             return;
         }
 
         setCepLoading(true);
+        setFieldErrors((current) => ({ ...current, zipCode: undefined }));
         try {
             const response = await fetch(`https://viacep.com.br/ws/${zip}/json/`);
             const data = await response.json();
             if (data.erro) {
-                toast.error("CEP nao encontrado.");
+                setFieldErrors((current) => ({ ...current, zipCode: "CEP nao encontrado." }));
                 return;
             }
 
@@ -172,12 +211,12 @@ export function ClientForm({ client, loading = false, error, onCancel, onSubmit 
                 street: data.logradouro ?? current.street,
                 district: data.bairro ?? current.district,
                 city: data.localidade ?? current.city,
-                state: data.uf ?? current.state,
+                state: isBrazilianState(data.uf) ? data.uf : current.state,
                 address: [data.logradouro, data.bairro].filter(Boolean).join(", "),
             }));
             toast.success("Endereco preenchido pelo CEP.");
         } catch {
-            toast.error("Nao foi possivel buscar o CEP agora.");
+            setFieldErrors((current) => ({ ...current, zipCode: "Nao foi possivel buscar o CEP agora." }));
         } finally {
             setCepLoading(false);
         }
@@ -185,12 +224,10 @@ export function ClientForm({ client, loading = false, error, onCancel, onSubmit 
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        if (!isValid) {
-            setValidationError("Preencha os campos obrigatorios: nome, CPF/CNPJ, telefone e status.");
+        if (loading || !validate()) {
             return;
         }
 
-        setValidationError(null);
         await onSubmit({
             name: form.name.trim(),
             cpfCnpj: onlyDigits(form.cpfCnpj),
@@ -205,114 +242,122 @@ export function ClientForm({ client, loading = false, error, onCancel, onSubmit 
     }
 
     return (
-        <div className="modal-overlay client-form-overlay" role="presentation" onMouseDown={(event) => {
-            if (event.target === event.currentTarget && !loading) {
-                onCancel();
-            }
-        }}>
-            <form className="client-form-modal" onSubmit={handleSubmit} noValidate>
-                <div className="client-form-header">
-                    <div>
-                        <h3>{client ? "Editar Cliente" : "Cadastrar Cliente"}</h3>
-                        <p>Preencha as informacoes para cadastrar um novo cliente.</p>
-                    </div>
-                    <button type="button" className="table-action-button tooltip-button" data-tooltip="Fechar" aria-label="Fechar cadastro" onClick={onCancel} disabled={loading}>
-                        <X size={19} aria-hidden="true" />
-                    </button>
+        <form ref={formRef} className="entity-form supplier-form client-inline-form" onSubmit={handleSubmit} noValidate>
+            <div className="entity-form__header">
+                <div>
+                    <h3>{client ? "Editar cliente" : "Novo cliente"}</h3>
+                    <p>Dados pessoais, contato e endereco.</p>
                 </div>
+            </div>
 
-                <div className="client-form-body">
-                    <div className="form-grid client-form-grid">
-                        <label className="form-field span-2">
-                            <span>Nome <RequiredMark /></span>
-                            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} aria-invalid={!form.name.trim()} autoFocus />
-                        </label>
-                        <label className="form-field">
-                            <span>CPF/CNPJ <RequiredMark /></span>
-                            <input inputMode="numeric" value={form.cpfCnpj} onChange={(event) => setForm({ ...form, cpfCnpj: maskDocument(event.target.value, form.clientType) })} aria-invalid={Boolean(form.cpfCnpj && !documentValid)} />
-                        </label>
-                        <label className="form-field">
-                            <span>Tipo</span>
-                            <select value={form.clientType} onChange={(event) => updateType(event.target.value)}>
-                                <option value="PF">Pessoa Fisica</option>
-                                <option value="PJ">Pessoa Juridica</option>
-                            </select>
-                        </label>
-                        <label className="form-field">
-                            <span>Telefone <RequiredMark /></span>
-                            <input inputMode="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: maskPhone(event.target.value) })} aria-invalid={Boolean(form.phone && !phoneValid)} />
-                        </label>
-                        <label className="form-field">
-                            <span>Celular</span>
-                            <input inputMode="tel" value={form.mobile} onChange={(event) => setForm({ ...form, mobile: maskPhone(event.target.value) })} />
-                        </label>
-                        <label className="form-field span-2">
-                            <span>Email</span>
-                            <input type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-                        </label>
-                        <label className="form-field">
-                            <span>Data de nascimento</span>
-                            <input type="date" value={form.birthDate} onChange={(event) => setForm({ ...form, birthDate: event.target.value })} />
-                        </label>
-                        <label className="form-field">
-                            <span>Status <RequiredMark /></span>
-                            <select value={form.status ? "active" : "inactive"} onChange={(event) => setForm({ ...form, status: event.target.value === "active" })}>
-                                <option value="active">Ativo</option>
-                                <option value="inactive">Inativo</option>
-                            </select>
-                        </label>
-                        <label className="form-field client-zip-field">
-                            <span>CEP</span>
-                            <div>
-                                <input inputMode="numeric" value={form.zipCode} onChange={(event) => setForm({ ...form, zipCode: maskZipCode(event.target.value) })} />
-                                <button type="button" className="secondary-button" onClick={handleZipSearch} disabled={cepLoading}>
-                                    {cepLoading ? <Loader2 size={16} className="loading-state__spinner" aria-hidden="true" /> : <MapPin size={16} aria-hidden="true" />}
-                                    Buscar CEP
-                                </button>
-                            </div>
-                        </label>
-                        <label className="form-field">
-                            <span>Numero</span>
-                            <input value={form.number} onChange={(event) => setForm({ ...form, number: event.target.value })} />
-                        </label>
-                        <label className="form-field">
-                            <span>Rua</span>
-                            <input value={form.street} onChange={(event) => setForm({ ...form, street: event.target.value })} />
-                        </label>
-                        <label className="form-field">
-                            <span>Complemento</span>
-                            <input value={form.complement} onChange={(event) => setForm({ ...form, complement: event.target.value })} />
-                        </label>
-                        <label className="form-field">
-                            <span>Bairro</span>
-                            <input value={form.district} onChange={(event) => setForm({ ...form, district: event.target.value })} />
-                        </label>
-                        <label className="form-field">
-                            <span>Cidade</span>
-                            <input value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} />
-                        </label>
-                        <label className="form-field">
-                            <span>Estado</span>
-                            <input maxLength={2} value={form.state} onChange={(event) => setForm({ ...form, state: event.target.value.toUpperCase() })} />
-                        </label>
-                        <label className="form-field span-2">
-                            <span>Observacoes</span>
-                            <textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
-                        </label>
-                    </div>
-
-                    {(validationError || error) && <div className="form-error">{validationError ?? error}</div>}
+            <div className="client-inline-section">
+                <h4>Dados principais</h4>
+                <div className="form-grid client-inline-grid">
+                    <label className="form-field">
+                        <span>{nameLabel} <RequiredAsterisk /></span>
+                        <input value={form.name} onChange={(event) => updateField("name", event.target.value)} aria-invalid={Boolean(fieldErrors.name)} autoFocus />
+                        {fieldErrors.name && <small>{fieldErrors.name}</small>}
+                    </label>
+                    <label className="form-field">
+                        <span>Tipo de pessoa <RequiredAsterisk /></span>
+                        <select value={form.clientType} onChange={(event) => updateType(event.target.value)}>
+                            <option value="PF">Pessoa Fisica</option>
+                            <option value="PJ">Pessoa Juridica</option>
+                        </select>
+                        {fieldErrors.clientType && <small>{fieldErrors.clientType}</small>}
+                    </label>
+                    <label className="form-field">
+                        <span>{documentLabel} <RequiredAsterisk /></span>
+                        <input inputMode="numeric" value={form.cpfCnpj} onChange={(event) => updateField("cpfCnpj", formatDocument(event.target.value, form.clientType))} aria-invalid={Boolean(fieldErrors.cpfCnpj)} />
+                        {fieldErrors.cpfCnpj && <small>{fieldErrors.cpfCnpj}</small>}
+                    </label>
+                    <label className="form-field">
+                        <span>Telefone <RequiredAsterisk /></span>
+                        <input inputMode="tel" value={form.phone} onChange={(event) => updateField("phone", formatPhone(event.target.value))} aria-invalid={Boolean(fieldErrors.phone)} />
+                        {fieldErrors.phone && <small>{fieldErrors.phone}</small>}
+                    </label>
+                    <label className="form-field">
+                        <span>Celular</span>
+                        <input inputMode="tel" value={form.mobile} onChange={(event) => updateField("mobile", formatPhone(event.target.value))} />
+                    </label>
+                    <label className="form-field">
+                        <span>E-mail</span>
+                        <input type="email" value={form.email} onChange={(event) => updateField("email", event.target.value)} aria-invalid={Boolean(fieldErrors.email)} />
+                        {fieldErrors.email && <small>{fieldErrors.email}</small>}
+                    </label>
+                    <label className="checkbox-field supplier-status-field client-status-field">
+                        <input type="checkbox" checked={form.status} onChange={(event) => updateField("status", event.target.checked)} />
+                        Status ativo <RequiredAsterisk />
+                    </label>
                 </div>
+            </div>
 
-                <div className="form-actions client-form-actions">
-                    <button type="button" className="secondary-button" onClick={onCancel} disabled={loading}>Cancelar</button>
-                    <button type="submit" className="primary-button" disabled={loading || !isValid}>
-                        {loading && <Loader2 size={16} className="loading-state__spinner" aria-hidden="true" />}
-                        {submitLabel}
-                    </button>
+            <div className="client-inline-section">
+                <h4>Endereco</h4>
+                <div className="form-grid client-inline-grid">
+                    <label className="form-field client-cep-field">
+                        <span>CEP</span>
+                        <div className="client-cep-control">
+                            <input inputMode="numeric" value={form.zipCode} onChange={(event) => updateField("zipCode", formatZipCode(event.target.value))} aria-invalid={Boolean(fieldErrors.zipCode)} />
+                            <button type="button" className="secondary-button" onClick={handleZipSearch} disabled={cepLoading || loading}>
+                                {cepLoading ? <Loader2 size={16} className="loading-state__spinner" aria-hidden="true" /> : <MapPin size={16} aria-hidden="true" />}
+                                Buscar CEP
+                            </button>
+                        </div>
+                        {fieldErrors.zipCode && <small>{fieldErrors.zipCode}</small>}
+                    </label>
+                    <label className="form-field">
+                        <span>Numero</span>
+                        <input value={form.number} onChange={(event) => updateField("number", event.target.value)} />
+                    </label>
+                    <label className="form-field">
+                        <span>Rua</span>
+                        <input value={form.street} onChange={(event) => updateField("street", event.target.value)} />
+                    </label>
+                    <label className="form-field">
+                        <span>Complemento</span>
+                        <input value={form.complement} onChange={(event) => updateField("complement", event.target.value)} />
+                    </label>
+                    <label className="form-field">
+                        <span>Bairro</span>
+                        <input value={form.district} onChange={(event) => updateField("district", event.target.value)} />
+                    </label>
+                    <label className="form-field">
+                        <span>Cidade</span>
+                        <input value={form.city} onChange={(event) => updateField("city", event.target.value)} />
+                    </label>
+                    <label className="form-field">
+                        <span>Estado</span>
+                        <select value={form.state} onChange={(event) => updateField("state", event.target.value)} aria-invalid={Boolean(fieldErrors.state)}>
+                            <option value="">Selecione o estado</option>
+                            {brazilianStates.map((state) => (
+                                <option key={state} value={state}>{state}</option>
+                            ))}
+                        </select>
+                        {fieldErrors.state && <small>{fieldErrors.state}</small>}
+                    </label>
                 </div>
-            </form>
-        </div>
+            </div>
+
+            <div className="client-inline-section">
+                <h4>Observacoes</h4>
+                <label className="form-field">
+                    <span>Observacoes</span>
+                    <textarea value={form.notes} onChange={(event) => updateField("notes", event.target.value)} />
+                </label>
+            </div>
+
+            {error && <div className="form-error">{error}</div>}
+            <div className="form-actions client-inline-actions">
+                <button type="button" className="secondary-button" onClick={onCancel} disabled={loading}>
+                    Cancelar
+                </button>
+                <button type="submit" className="primary-button" disabled={loading}>
+                    {loading && <Loader2 size={16} className="loading-state__spinner" aria-hidden="true" />}
+                    {loading ? "Salvando..." : client ? "Salvar cliente" : "Cadastrar cliente"}
+                </button>
+            </div>
+        </form>
     );
 }
 

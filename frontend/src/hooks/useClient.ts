@@ -29,7 +29,7 @@ export function useClient() {
 
     const create = useCallback(async (data: ClientRequest) => {
         const client = await clientService.create(data);
-        toast.success("Cliente criado com sucesso.");
+        toast.success("Cliente cadastrado com sucesso");
         return client;
     }, []);
     const update = useCallback(async (id: ApiId, data: ClientRequest) => {

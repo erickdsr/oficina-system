@@ -34,15 +34,15 @@ function App() {
           <Route path="/" element={<Navigate to="/home" replace />} />
           <Route path="/home" element={<HomePage />} />
           <Route path="/categories" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER"]}><CategoryList /></PrivateRoute>} />
-          <Route path="/suppliers" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK"]}><SupplierList /></PrivateRoute>} />
+          <Route path="/suppliers" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK", "BUYER"]}><SupplierList /></PrivateRoute>} />
           <Route path="/clients" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "SALESPERSON"]}><ClientList /></PrivateRoute>} />
           <Route path="/employees" element={<PrivateRoute allowedRoles={["ADMIN"]}><EmployeeList /></PrivateRoute>} />
-          <Route path="/products" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "SALESPERSON", "STOCK"]}><ProductList /></PrivateRoute>} />
-          <Route path="/stock" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK"]}><StockList /></PrivateRoute>} />
-          <Route path="/stock/movements" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK"]}><StockMovements /></PrivateRoute>} />
-          <Route path="/purchases" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK"]}><PurchaseList /></PrivateRoute>} />
-          <Route path="/purchases/new" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK"]}><PurchaseForm /></PrivateRoute>} />
-          <Route path="/purchases/:id" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK"]}><PurchaseDetail /></PrivateRoute>} />
+          <Route path="/products" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "SALESPERSON", "STOCK", "BUYER"]}><ProductList /></PrivateRoute>} />
+          <Route path="/stock" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK", "BUYER"]}><StockList /></PrivateRoute>} />
+          <Route path="/stock/movements" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK", "BUYER"]}><StockMovements /></PrivateRoute>} />
+          <Route path="/purchases" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK", "BUYER"]}><PurchaseList /></PrivateRoute>} />
+          <Route path="/purchases/new" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK", "BUYER"]}><PurchaseForm /></PrivateRoute>} />
+          <Route path="/purchases/:id" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "STOCK", "BUYER"]}><PurchaseDetail /></PrivateRoute>} />
           <Route path="/sales" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "SALESPERSON"]}><SaleList /></PrivateRoute>} />
           <Route path="/sales/new" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "SALESPERSON"]}><SaleForm /></PrivateRoute>} />
           <Route path="/sales/:id" element={<PrivateRoute allowedRoles={["ADMIN", "MANAGER", "SALESPERSON"]}><SaleDetail /></PrivateRoute>} />

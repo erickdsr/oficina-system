@@ -56,7 +56,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar 
     const [menuOpen, setMenuOpen] = useState(false);
     const currentLabel = getRouteLabel(location.pathname);
     const canCreateSales = canManage(user?.role, ["ADMIN", "MANAGER", "SALESPERSON"]);
-    const canViewStockMovements = canManage(user?.role, ["ADMIN", "MANAGER", "STOCK"]);
+    const canViewStockMovements = canManage(user?.role, ["ADMIN", "MANAGER", "STOCK", "BUYER"]);
     const initials = (user?.name ?? "Usuario")
         .split(" ")
         .map((namePart) => namePart[0])

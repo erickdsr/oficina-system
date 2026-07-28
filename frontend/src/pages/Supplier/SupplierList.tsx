@@ -236,7 +236,7 @@ export function SupplierList() {
     }, [currentPage, totalPages]);
 
     const hasLinkedProducts = Boolean((deletionReport?.dependencies.products ?? 0) > 0);
-    const canEditSupplier = canManage(user?.role, ["ADMIN", "MANAGER", "STOCK"]);
+    const canEditSupplier = canManage(user?.role, ["ADMIN", "MANAGER", "STOCK", "BUYER"]);
     const canDeleteSupplier = canDelete(user?.role, ["ADMIN", "MANAGER", "STOCK"]);
 
     const handleViewClick = useCallback((supplier: Supplier) => {

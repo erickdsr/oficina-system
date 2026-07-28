@@ -39,6 +39,7 @@ public class SecurityConfig {
     private static final String MANAGER = RoleNameNormalizer.MANAGER;
     private static final String SALESPERSON = RoleNameNormalizer.SALESPERSON;
     private static final String STOCK = RoleNameNormalizer.STOCK;
+    private static final String BUYER = RoleNameNormalizer.BUYER;
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final UserDetailsServiceImpl userDetailsService;
@@ -72,14 +73,15 @@ public class SecurityConfig {
                         .requestMatchers("/employees", "/employees/**").hasRole(ADMIN)
                         .requestMatchers(HttpMethod.GET, "/clients", "/clients/**").hasAnyRole(ADMIN, MANAGER, SALESPERSON)
                         .requestMatchers("/clients", "/clients/**").hasAnyRole(ADMIN, MANAGER, SALESPERSON)
-                        .requestMatchers(HttpMethod.GET, "/suppliers", "/suppliers/**").hasAnyRole(ADMIN, MANAGER, STOCK)
-                        .requestMatchers("/suppliers", "/suppliers/**").hasAnyRole(ADMIN, MANAGER, STOCK)
+                        .requestMatchers(HttpMethod.GET, "/suppliers", "/suppliers/**").hasAnyRole(ADMIN, MANAGER, STOCK, BUYER)
+                        .requestMatchers("/suppliers", "/suppliers/**").hasAnyRole(ADMIN, MANAGER, STOCK, BUYER)
                         .requestMatchers(HttpMethod.GET, "/categories", "/categories/**").hasAnyRole(ADMIN, MANAGER, STOCK)
                         .requestMatchers("/categories", "/categories/**").hasAnyRole(ADMIN, MANAGER)
-                        .requestMatchers(HttpMethod.GET, "/products", "/products/**").hasAnyRole(ADMIN, MANAGER, SALESPERSON, STOCK)
+                        .requestMatchers(HttpMethod.GET, "/products", "/products/**").hasAnyRole(ADMIN, MANAGER, SALESPERSON, STOCK, BUYER)
                         .requestMatchers("/products", "/products/**").hasAnyRole(ADMIN, MANAGER, STOCK)
+                        .requestMatchers(HttpMethod.GET, "/stock", "/stock/**").hasAnyRole(ADMIN, MANAGER, STOCK, BUYER)
                         .requestMatchers("/stock", "/stock/**").hasAnyRole(ADMIN, MANAGER, STOCK)
-                        .requestMatchers("/purchases", "/purchases/**").hasAnyRole(ADMIN, MANAGER, STOCK)
+                        .requestMatchers("/purchases", "/purchases/**").hasAnyRole(ADMIN, MANAGER, STOCK, BUYER)
                         .requestMatchers("/sales", "/sales/**").hasAnyRole(ADMIN, MANAGER, SALESPERSON)
                         .requestMatchers(HttpMethod.GET, "/payment-methods", "/payment-methods/**").hasAnyRole(ADMIN, MANAGER, SALESPERSON)
                         .anyRequest().hasRole(ADMIN))

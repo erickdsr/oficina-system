@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.AllArgsConstructor;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -22,10 +23,10 @@ public class ClientRequestDTO {
     
     @NotBlank
     @Size(max = 20)
+    @Pattern(regexp = "^(\\d{11}|\\d{14})$", message = "CPF/CNPJ deve conter 11 ou 14 digitos")
     @Schema(description = "Client CPF or CNPJ", example = "123.456.789-00")
     private String cpfCnpj;
     
-    @NotBlank
     @Size(max = 254)
     @Schema(description = "Client email address", example = "john.smith@email.com")
     private String email;
@@ -49,6 +50,9 @@ public class ClientRequestDTO {
     private String city;
 
     @Size(max = 100)
+    @Pattern(
+            regexp = "^(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)?$",
+            message = "State must be a valid Brazilian UF")
     @Schema(description = "Client state", example = "SP")
     private String state;
 

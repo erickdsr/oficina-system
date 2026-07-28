@@ -27,16 +27,16 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-    { to: "/home", label: "Home", icon: House, section: "GERAL", roles: ["ADMIN", "MANAGER", "SALESPERSON", "STOCK"] },
+    { to: "/home", label: "Home", icon: House, section: "GERAL", roles: ["ADMIN", "MANAGER", "SALESPERSON", "STOCK", "BUYER"] },
     { to: "/clients", label: "Clientes", icon: UserCheck, section: "CADASTROS", roles: ["ADMIN", "MANAGER", "SALESPERSON"] },
-    { to: "/suppliers", label: "Fornecedores", icon: Truck, section: "CADASTROS", roles: ["ADMIN", "MANAGER", "STOCK"] },
+    { to: "/suppliers", label: "Fornecedores", icon: Truck, section: "CADASTROS", roles: ["ADMIN", "MANAGER", "STOCK", "BUYER"] },
     { to: "/employees", label: "Funcionarios", icon: Users, section: "CADASTROS", roles: ["ADMIN"] },
     { to: "/categories", label: "Categorias", icon: Tag, section: "CADASTROS", roles: ["ADMIN", "MANAGER"] },
-    { to: "/products", label: "Produtos", icon: Package, section: "CADASTROS", roles: ["ADMIN", "MANAGER", "SALESPERSON", "STOCK"] },
-    { to: "/stock", label: "Estoque", icon: Warehouse, section: "MOVIMENTACOES", roles: ["ADMIN", "MANAGER", "STOCK"] },
-    { to: "/purchases", label: "Compras", icon: ShoppingCart, section: "MOVIMENTACOES", roles: ["ADMIN", "MANAGER", "STOCK"] },
+    { to: "/products", label: "Produtos", icon: Package, section: "CADASTROS", roles: ["ADMIN", "MANAGER", "SALESPERSON", "STOCK", "BUYER"] },
+    { to: "/stock", label: "Estoque", icon: Warehouse, section: "MOVIMENTACOES", roles: ["ADMIN", "MANAGER", "STOCK", "BUYER"] },
+    { to: "/purchases", label: "Compras", icon: ShoppingCart, section: "MOVIMENTACOES", roles: ["ADMIN", "MANAGER", "STOCK", "BUYER"] },
     { to: "/sales", label: "Vendas", icon: Receipt, section: "MOVIMENTACOES", roles: ["ADMIN", "MANAGER", "SALESPERSON"] },
-    { to: "/stock/movements", label: "Movimentacoes", icon: BarChart3, section: "RELATORIOS", roles: ["ADMIN", "MANAGER", "STOCK"] },
+    { to: "/stock/movements", label: "Movimentacoes", icon: BarChart3, section: "RELATORIOS", roles: ["ADMIN", "MANAGER", "STOCK", "BUYER"] },
 ];
 
 interface SidebarProps {

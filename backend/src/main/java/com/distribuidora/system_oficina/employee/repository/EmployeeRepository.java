@@ -12,4 +12,5 @@ public interface EmployeeRepository extends JpaRepository<Employee, Integer>{
     Optional<Employee> findByCpf(String cpf);
     List<Employee> findByRole(Role role);
     List<Employee> findByStatus(Boolean status);
+    long countByRoleAndStatus(Role role, Boolean status);
 }

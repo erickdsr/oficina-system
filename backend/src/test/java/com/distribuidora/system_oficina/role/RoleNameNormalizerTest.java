@@ -20,7 +20,9 @@ class RoleNameNormalizerTest {
             "estoquista, STOCK",
             "stock, STOCK",
             "vendedor, SALESPERSON",
-            "salesperson, SALESPERSON"
+            "salesperson, SALESPERSON",
+            "comprador, BUYER",
+            "buyer, BUYER"
     })
     void normalize_deveReconhecerAliasesDeRoles(String roleName, String expected) {
         assertEquals(expected, RoleNameNormalizer.normalize(roleName));
@@ -31,7 +33,8 @@ class RoleNameNormalizerTest {
             "admin, ROLE_ADMIN",
             "gerente, ROLE_MANAGER",
             "vendedor, ROLE_SALESPERSON",
-            "estoquista, ROLE_STOCK"
+            "estoquista, ROLE_STOCK",
+            "comprador, ROLE_BUYER"
     })
     void authority_deveRetornarGrantedAuthorityCanonica(String roleName, String expected) {
         assertEquals(expected, RoleNameNormalizer.authority(roleName));

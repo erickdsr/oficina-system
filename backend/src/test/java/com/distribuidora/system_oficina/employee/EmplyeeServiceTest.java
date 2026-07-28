@@ -25,6 +25,7 @@ import com.distribuidora.system_oficina.employee.dto.EmployeeResponseDTO;
 import com.distribuidora.system_oficina.employee.entity.Employee;
 import com.distribuidora.system_oficina.employee.repository.EmployeeRepository;
 import com.distribuidora.system_oficina.employee.service.EmployeeService;
+import com.distribuidora.system_oficina.deletion.DeletionService;
 import com.distribuidora.system_oficina.role.entity.Role;
 import com.distribuidora.system_oficina.role.repository.RoleRepository;
 
@@ -39,6 +40,9 @@ class EmplyeeServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private DeletionService deletionService;
 
     @InjectMocks
     private EmployeeService employeeService;
@@ -139,5 +143,69 @@ class EmplyeeServiceTest {
         assertThat(result.getEmail()).isEqualTo("novo@email.com");
         assertThat(result.getRoleName()).isEqualTo("ADMIN");
         assertThat(result.getStatus()).isFalse();
+    }
+
+    @Test
+    @DisplayName("updateEmployee sem nova senha deve manter a senha atual")
+    void updateEmployee_semNovaSenha_deveManterSenhaAtual() {
+        Employee existing = new Employee();
+        existing.setId(1);
+        existing.setName("Antigo");
+        existing.setCpf("99999999999");
+        existing.setEmail("antigo@email.com");
+        existing.setPassword("old-password");
+        existing.setPhone("11111111111");
+        existing.setStatus(true);
+
+        Role role = new Role();
+        role.setName("SALESPERSON");
+        existing.setRole(role);
+
+        EmployeeRequestDTO request = EmployeeRequestDTO.builder()
+                .name("Novo")
+                .cpf("12345678901")
+                .email("novo@email.com")
+                .password("")
+                .roleName("SALESPERSON")
+                .phone("11999999999")
+                .status(true)
+                .build();
+
+        when(employeeRepository.findById(1)).thenReturn(Optional.of(existing));
+        when(roleRepository.findAll()).thenReturn(List.of(role));
+        when(employeeRepository.save(any(Employee.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        EmployeeResponseDTO result = employeeService.updateEmployee(1, request);
+
+        assertThat(result.getName()).isEqualTo("Novo");
+        assertThat(existing.getPassword()).isEqualTo("old-password");
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    @DisplayName("updateEmployee nao deve desativar o ultimo administrador ativo")
+    void updateEmployee_ultimoAdminAtivo_deveBloquearDesativacao() {
+        Role adminRole = new Role();
+        adminRole.setName("ADMIN");
+
+        Employee existing = new Employee();
+        existing.setId(1);
+        existing.setRole(adminRole);
+        existing.setStatus(true);
+
+        EmployeeRequestDTO request = EmployeeRequestDTO.builder()
+                .name("Admin")
+                .cpf("12345678901")
+                .email("admin@email.com")
+                .roleName("ADMIN")
+                .status(false)
+                .build();
+
+        when(employeeRepository.findById(1)).thenReturn(Optional.of(existing));
+        when(roleRepository.findAll()).thenReturn(List.of(adminRole));
+        when(employeeRepository.countByRoleAndStatus(adminRole, true)).thenReturn(1L);
+
+        assertThrows(ResponseStatusException.class, () -> employeeService.updateEmployee(1, request));
+        verify(employeeRepository, never()).save(any(Employee.class));
     }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import type { Supplier, SupplierRequest } from "../../types/supplier.types";
+import { brazilianStates, isBrazilianState } from "../../utils/brazilian-states";
 import { formatCnpj, formatPhone, formatZipCode, isValidEmail, isValidState, onlyDigits } from "../../utils/supplier-formatters";
 
 interface SupplierFormProps {
@@ -94,8 +95,8 @@ function validate(form: SupplierRequest) {
         return "Informe um e-mail valido.";
     }
 
-    if (!isValidState(form.state)) {
-        return "Informe a UF com 2 letras.";
+    if (!isValidState(form.state) || !isBrazilianState(form.state)) {
+        return "Selecione uma UF valida.";
     }
 
     return null;
@@ -196,7 +197,12 @@ export function SupplierForm({ supplier, loading = false, error, onCancel, onSub
                 </label>
                 <label className="form-field">
                     <span>Estado</span>
-                    <input maxLength={2} value={form.state} onChange={(event) => updateField("state", event.target.value.toUpperCase())} />
+                    <select value={form.state} onChange={(event) => updateField("state", event.target.value)}>
+                        <option value="">Selecione o estado</option>
+                        {brazilianStates.map((state) => (
+                            <option key={state} value={state}>{state}</option>
+                        ))}
+                    </select>
                 </label>
                 <label className="form-field">
                     <span>Complemento</span>

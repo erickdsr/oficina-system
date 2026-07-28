@@ -71,9 +71,6 @@ function roleTone(roleName: string) {
     if (role === "BUYER") {
         return "buyer";
     }
-    if (role === "FINANCE") {
-        return "finance";
-    }
     return "stock";
 }
 
@@ -507,7 +504,6 @@ export function EmployeeList() {
                             <option value="SALESPERSON">Vendedor</option>
                             <option value="BUYER">Comprador</option>
                             <option value="STOCK">Estoquista</option>
-                            <option value="FINANCE">Financeiro</option>
                         </select>
                     </label>
                     <label className="employee-filter-field">
@@ -665,7 +661,7 @@ export function EmployeeList() {
                             <div><dt>Data de cadastro</dt><dd>{formatDateTime(employeeToView.createdAt)}</dd></div>
                             <div><dt>Ultimo login</dt><dd>Nao disponivel</dd></div>
                             <div><dt>Ultima alteracao</dt><dd>{formatDateTime(employeeToView.updatedAt)}</dd></div>
-                            <div className="span-2"><dt>Permissoes</dt><dd>Permissoes individuais preparadas para modulo futuro.</dd></div>
+                            <div className="span-2"><dt>Acessos</dt><dd>Definidos automaticamente pelo perfil {roleLabel(employeeToView.roleName)}.</dd></div>
                         </dl>
                     </aside>
                 </div>

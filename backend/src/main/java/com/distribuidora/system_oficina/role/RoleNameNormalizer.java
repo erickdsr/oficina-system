@@ -9,6 +9,7 @@ public final class RoleNameNormalizer {
     public static final String MANAGER = "MANAGER";
     public static final String SALESPERSON = "SALESPERSON";
     public static final String STOCK = "STOCK";
+    public static final String BUYER = "BUYER";
 
     private RoleNameNormalizer() {
     }
@@ -31,6 +32,7 @@ public final class RoleNameNormalizer {
             case "manager", "gerente" -> MANAGER;
             case "salesperson", "sales person", "seller", "vendedor" -> SALESPERSON;
             case "stock", "stockkeeper", "estoque", "estoquista" -> STOCK;
+            case "buyer", "comprador" -> BUYER;
             default -> normalized.toUpperCase(Locale.ROOT).replace(' ', '_');
         };
     }

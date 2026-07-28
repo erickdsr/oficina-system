@@ -1,4 +1,4 @@
-export type AppRole = "ADMIN" | "MANAGER" | "SALESPERSON" | "STOCK";
+export type AppRole = "ADMIN" | "MANAGER" | "SALESPERSON" | "STOCK" | "BUYER";
 
 export function normalizeRole(role?: string): AppRole | null {
     const normalizedRole = role
@@ -24,6 +24,8 @@ export function normalizeRole(role?: string): AppRole | null {
         stockkeeper: "STOCK",
         estoque: "STOCK",
         estoquista: "STOCK",
+        buyer: "BUYER",
+        comprador: "BUYER",
     };
 
     return normalizedRole ? roleAliases[normalizedRole] ?? null : null;
@@ -45,6 +47,7 @@ export function getRoleLabel(role?: string) {
         MANAGER: "Gerente",
         SALESPERSON: "Vendedor",
         STOCK: "Estoquista",
+        BUYER: "Comprador",
     };
 
     return normalizedRole ? roleLabels[normalizedRole] : role ?? "Sem perfil";
