@@ -41,9 +41,34 @@ public class ClientRequestDTO {
     @Schema(description = "Client phone number", example = "(11) 98765-4321")
     private String phone;
 
+    @Size(max = 20)
+    @Schema(description = "Client secondary phone number", example = "(11) 98888-7777")
+    private String secondaryPhone;
+
     @Size(max = 255)
     @Schema(description = "Client address", example = "Main Street, 123")
     private String address;
+
+    @Size(max = 8)
+    @Pattern(regexp = "^(\\d{8})?$", message = "CEP deve conter 8 digitos")
+    @Schema(description = "Client ZIP code", example = "01001000")
+    private String zipCode;
+
+    @Size(max = 150)
+    @Schema(description = "Client street", example = "Rua das Flores")
+    private String street;
+
+    @Size(max = 20)
+    @Schema(description = "Client address number", example = "123")
+    private String number;
+
+    @Size(max = 120)
+    @Schema(description = "Client address complement", example = "Sala 4")
+    private String complement;
+
+    @Size(max = 100)
+    @Schema(description = "Client district", example = "Centro")
+    private String district;
 
     @Size(max = 100)
     @Schema(description = "Client city", example = "São Paulo")
@@ -59,4 +84,8 @@ public class ClientRequestDTO {
     @NotNull
     @Schema(description = "Client active status", example = "true")
     private Boolean status;
+
+    @Size(max = 1000)
+    @Schema(description = "Client notes", example = "Prefere contato por telefone no periodo da manha")
+    private String notes;
 }

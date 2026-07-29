@@ -33,6 +33,9 @@ public class Client {
     
     @Column(name =  "phone", nullable = false, length = 20)
     private String phone;
+
+    @Column(name = "secondary_phone", length = 20)
+    private String secondaryPhone;
     
     @Column(name = "cpf_cnpj", nullable = false, length = 20)
     private String cpfCnpj;
@@ -42,6 +45,21 @@ public class Client {
     
     @Column(name = "address", length = 255)
     private String address;
+
+    @Column(name = "zip_code", length = 8)
+    private String zipCode;
+
+    @Column(name = "street", length = 150)
+    private String street;
+
+    @Column(name = "number", length = 20)
+    private String number;
+
+    @Column(name = "complement", length = 120)
+    private String complement;
+
+    @Column(name = "district", length = 100)
+    private String district;
     
     @Column(name = "city", length = 150)
     private String city;
@@ -51,6 +69,9 @@ public class Client {
     
     @Column(name = "status", nullable = false)
     private Boolean status = true;
+
+    @Column(name = "notes", length = 1000)
+    private String notes;
     
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)

@@ -1,5 +1,6 @@
 package com.distribuidora.system_oficina.stock.dto;
 
+import java.sql.Timestamp;
 import com.distribuidora.system_oficina.stock.entity.StockMovement;
 import com.distribuidora.system_oficina.stock.entity.StockMovementType;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -37,6 +38,9 @@ public class StockMovementDTO {
 
     @Schema(description = "quantidade de movimento", example = "3 vendas")
     private Integer quantity;
+
+    @Schema(description = "data de criacao da movimentacao", example = "2026-07-28T16:05:00")
+    private Timestamp createdAt;
      
     public static StockMovementDTO fromEntity(StockMovement stock) {
         return StockMovementDTO.builder()
@@ -45,6 +49,7 @@ public class StockMovementDTO {
                 .type(stock.getType())
                 .reason(stock.getReason())
                 .quantity(stock.getQuantity())
+                .createdAt(stock.getCreatedAt())
                 .build();
     }
 }

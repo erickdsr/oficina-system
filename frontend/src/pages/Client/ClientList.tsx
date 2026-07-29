@@ -7,6 +7,7 @@ import {
     FileSpreadsheet,
     History,
     ListFilter,
+    Loader2,
     Pencil,
     Plus,
     Search,
@@ -28,10 +29,10 @@ import clientService from "../../services/client.service";
 import saleService from "../../services/sale.service";
 import useClient from "../../hooks/useClient";
 import type { DeletionReport } from "../../types/api.types";
-import type { Client, ClientRequest } from "../../types/client.types";
+import type { Client, ClientRequest, ClientSummary } from "../../types/client.types";
 import type { SaleResponse } from "../../types/sale.types";
 import { canDelete, canManage, normalizeRole } from "../../utils/permissions";
-import { formatCurrency, formatDateTime } from "../../utils/formatters";
+import { displayValue, formatCpfCnpj, formatCurrency, formatDateTime, formatPhone, onlyDigits } from "../../utils/formatters";
 import { normalizeSearch } from "../../utils/text";
 import { brazilianStates } from "../../utils/brazilian-states";
 import ClientForm from "./ClientForm";
@@ -65,10 +66,6 @@ interface ClientCommercialMetrics {
 
 const avatarColors = ["blue", "green", "orange", "purple", "red"] as const;
 
-function onlyDigits(value?: string | null) {
-    return (value ?? "").replace(/\D/g, "");
-}
-
 function initials(name: string) {
     const parts = name.trim().split(/\s+/).filter(Boolean);
     const first = parts[0]?.[0] ?? "C";
@@ -101,6 +98,18 @@ function cityState(client: Client) {
 
 function clientTypeLabel(type: string) {
     return type === "PJ" ? "Pessoa juridica" : "Pessoa fisica";
+}
+
+function formatClientDocument(client: Client) {
+    return formatCpfCnpj(client.cpfCnpj);
+}
+
+function formatZipCode(value?: string | null) {
+    const digits = onlyDigits(value);
+    if (digits.length === 8) {
+        return digits.replace(/(\d{5})(\d{3})/, "$1-$2");
+    }
+    return displayValue(value);
 }
 
 function relativeDate(value: string | null) {
@@ -178,8 +187,8 @@ const ClientTableRow = memo(function ClientTableRow({
                     <span>{clientTypeLabel(client.clientType)}</span>
                 </div>
             </td>
-            <td className="client-document">{client.cpfCnpj}</td>
-            <td>{client.phone || "-"}</td>
+            <td className="client-document">{formatClientDocument(client)}</td>
+            <td>{formatPhone(client.phone)}</td>
             <td>{cityState(client)}</td>
             <td>{relativeDate(metrics.lastPurchaseAt)}</td>
             <td className="client-money">{formatCurrency(metrics.totalPurchased)}</td>
@@ -254,6 +263,7 @@ export function ClientList() {
     const { user } = useAuth();
     const { clients, loading, error, setError, fetchAll, create, update, remove, forceDelete } = useClient();
     const [sales, setSales] = useState<SaleResponse[]>([]);
+    const [clientSummary, setClientSummary] = useState<ClientSummary>({ activeCount: 0, inactiveCount: 0, totalCount: 0 });
     const [salesLoading, setSalesLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [showInactive, setShowInactive] = useState(false);
@@ -273,6 +283,8 @@ export function ClientList() {
     const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
     const [deleteMode, setDeleteMode] = useState<DeleteMode>("deactivate");
     const [clientToView, setClientToView] = useState<Client | null>(null);
+    const [clientDetailsLoading, setClientDetailsLoading] = useState(false);
+    const [clientDetailsError, setClientDetailsError] = useState<string | null>(null);
     const [historyClient, setHistoryClient] = useState<Client | null>(null);
     const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -286,7 +298,11 @@ export function ClientList() {
 
     const loadData = useCallback(async () => {
         setError(null);
-        await fetchAll(showInactive);
+        const [, summary] = await Promise.all([
+            fetchAll(showInactive),
+            clientService.summary(),
+        ]);
+        setClientSummary(summary);
         setSalesLoading(true);
         try {
             setSales(await saleService.list());
@@ -319,17 +335,6 @@ export function ClientList() {
             return accumulator;
         }, {});
     }, [clients, sales]);
-
-    const clientStats = useMemo(() => {
-        const activeCount = clients.filter((client) => client.status).length;
-        const inactiveCount = clients.length - activeCount;
-
-        return {
-            activeCount,
-            inactiveCount,
-            totalCount: clients.length,
-        };
-    }, [clients]);
 
     const filteredClients = useMemo(() => {
         const term = normalizeSearch(search);
@@ -441,14 +446,38 @@ export function ClientList() {
         setSortDirection("asc");
     }
 
-    const handleViewClick = useCallback((client: Client) => {
+    const handleViewClick = useCallback(async (client: Client) => {
         setSelectedClientId(client.id);
-        setClientToView(client);
+        setClientDetailsLoading(true);
+        setClientDetailsError(null);
+        setClientToView(null);
+        try {
+            setClientToView(await clientService.getById(client.id));
+        } catch (detailsError) {
+            const message = getApiErrorMessage(detailsError, "Nao foi possivel carregar os dados completos do cliente.");
+            setClientDetailsError(message);
+            toast.error(message);
+        } finally {
+            setClientDetailsLoading(false);
+        }
     }, []);
 
-    const handleEditClick = useCallback((client: Client) => {
-        setEditingClient(client);
-        setShowForm(true);
+    const handleEditClick = useCallback(async (client: Client) => {
+        setSelectedClientId(client.id);
+        setClientDetailsLoading(true);
+        setClientDetailsError(null);
+        setShowForm(false);
+        setEditingClient(null);
+        try {
+            setEditingClient(await clientService.getById(client.id));
+            setShowForm(true);
+        } catch (detailsError) {
+            const message = getApiErrorMessage(detailsError, "Nao foi possivel carregar os dados completos para edicao.");
+            setClientDetailsError(message);
+            toast.error(message);
+        } finally {
+            setClientDetailsLoading(false);
+        }
     }, []);
 
     async function handleSubmit(data: ClientRequest) {
@@ -542,8 +571,8 @@ export function ClientList() {
             const metrics = clientMetrics[client.id] ?? emptyMetrics;
             return [
                 client.name,
-                client.cpfCnpj,
-                client.phone,
+                formatClientDocument(client),
+                formatPhone(client.phone),
                 client.city,
                 client.state,
                 statusInfo(client).label,
@@ -559,7 +588,7 @@ export function ClientList() {
     function exportExcel() {
         const rows = filteredClients.map((client) => {
             const metrics = clientMetrics[client.id] ?? emptyMetrics;
-            return `<tr><td>${client.name}</td><td>${client.cpfCnpj}</td><td>${client.phone}</td><td>${client.email}</td><td>${cityState(client)}</td><td>${statusInfo(client).label}</td><td>${metrics.lastPurchaseAt ? formatDateTime(metrics.lastPurchaseAt) : "Nunca comprou"}</td><td>${formatCurrency(metrics.totalPurchased)}</td></tr>`;
+            return `<tr><td>${client.name}</td><td>${formatClientDocument(client)}</td><td>${formatPhone(client.phone)}</td><td>${client.email}</td><td>${cityState(client)}</td><td>${statusInfo(client).label}</td><td>${metrics.lastPurchaseAt ? formatDateTime(metrics.lastPurchaseAt) : "Nunca comprou"}</td><td>${formatCurrency(metrics.totalPurchased)}</td></tr>`;
         }).join("");
         const table = `<table><thead><tr><th>Nome</th><th>CPF/CNPJ</th><th>Telefone</th><th>Email</th><th>Cidade</th><th>Status</th><th>Ultima compra</th><th>Total comprado</th></tr></thead><tbody>${rows}</tbody></table>`;
 
@@ -578,17 +607,17 @@ export function ClientList() {
                     <div className="metric-card supplier-metric-card client-metric-card success">
                         <UserCheck size={18} aria-hidden="true" />
                         <span>Clientes ativos</span>
-                        <strong>{clientStats.activeCount.toLocaleString("pt-BR")}</strong>
+                        <strong>{clientSummary.activeCount.toLocaleString("pt-BR")}</strong>
                     </div>
                     <div className="metric-card supplier-metric-card client-metric-card">
                         <UserRoundX size={18} aria-hidden="true" />
                         <span>Clientes inativos</span>
-                        <strong>{clientStats.inactiveCount.toLocaleString("pt-BR")}</strong>
+                        <strong>{clientSummary.inactiveCount.toLocaleString("pt-BR")}</strong>
                     </div>
                     <div className="metric-card supplier-metric-card client-metric-card">
                         <Users size={18} aria-hidden="true" />
                         <span>Total de clientes</span>
-                        <strong>{clientStats.totalCount.toLocaleString("pt-BR")}</strong>
+                        <strong>{clientSummary.totalCount.toLocaleString("pt-BR")}</strong>
                     </div>
                 </div>
             </div>
@@ -616,7 +645,7 @@ export function ClientList() {
                         Excel
                     </button>
                     {canEditClient && (
-                        <button type="button" className="primary-button" onClick={() => { setEditingClient(null); setShowForm(true); }}>
+                        <button type="button" className="primary-button" onClick={() => { setClientDetailsError(null); setEditingClient(null); setShowForm(true); }}>
                             <Plus size={20} aria-hidden="true" />
                             Novo cliente
                         </button>
@@ -685,15 +714,23 @@ export function ClientList() {
                 <ClientForm
                     client={editingClient}
                     clients={clients}
-                    loading={submitting}
+                    loading={submitting || clientDetailsLoading}
                     error={formError}
                     onCancel={() => {
                         setShowForm(false);
                         setEditingClient(null);
+                        setClientDetailsError(null);
                     }}
                     onSubmit={handleSubmit}
                 />
             )}
+            {clientDetailsLoading && !showForm && (
+                <div className="client-details-status" role="status">
+                    <Loader2 size={18} className="loading-state__spinner" aria-hidden="true" />
+                    Carregando dados completos do cliente...
+                </div>
+            )}
+            {clientDetailsError && !showForm && <div className="form-error">{clientDetailsError}</div>}
             {error && <div className="form-error">{error}</div>}
 
             {loading ? (
@@ -703,7 +740,7 @@ export function ClientList() {
                     message="Nenhum cliente cadastrado."
                     description="Cadastre o primeiro cliente para iniciar suas vendas."
                     actionLabel={canEditClient ? "Cadastrar Cliente" : undefined}
-                    onAction={canEditClient ? () => setShowForm(true) : undefined}
+                    onAction={canEditClient ? () => { setClientDetailsError(null); setEditingClient(null); setShowForm(true); } : undefined}
                 />
             ) : (
                 <>
@@ -781,12 +818,12 @@ export function ClientList() {
                                         <ClientAvatar client={client} />
                                         <div>
                                             <strong>{client.name}</strong>
-                                            <span>{client.cpfCnpj}</span>
+                                            <span>{formatClientDocument(client)}</span>
                                         </div>
                                         <StatusBadge label={status.label} tone={status.tone} />
                                     </div>
                                     <dl>
-                                        <div><dt>Telefone</dt><dd>{client.phone || "-"}</dd></div>
+                                        <div><dt>Telefone</dt><dd>{formatPhone(client.phone)}</dd></div>
                                         <div><dt>Cidade</dt><dd>{cityState(client)}</dd></div>
                                         <div><dt>Ultima compra</dt><dd>{relativeDate(metrics.lastPurchaseAt)}</dd></div>
                                         <div><dt>Total comprado</dt><dd>{formatCurrency(metrics.totalPurchased)}</dd></div>
@@ -871,17 +908,52 @@ export function ClientList() {
                         </div>
 
                         <section className="supplier-detail-section">
-                            <h3>Resumo</h3>
+                            <h3>Dados gerais</h3>
                             <dl className="supplier-detail-grid client-detail-grid">
                                 <div><dt>Status</dt><dd><StatusBadge label={statusInfo(clientToView).label} tone={statusInfo(clientToView).tone} /></dd></div>
-                                <div><dt>CPF/CNPJ</dt><dd>{clientToView.cpfCnpj}</dd></div>
-                                <div><dt>Telefone</dt><dd>{clientToView.phone || "-"}</dd></div>
-                                <div><dt>Email</dt><dd>{clientToView.email || "-"}</dd></div>
-                                <div className="span-2"><dt>Endereco</dt><dd>{clientToView.address || cityState(clientToView)}</dd></div>
+                                <div><dt>Tipo de pessoa</dt><dd>{clientTypeLabel(clientToView.clientType)}</dd></div>
+                                <div className="span-2"><dt>{clientToView.clientType === "PJ" ? "Razao social" : "Nome completo"}</dt><dd>{displayValue(clientToView.name)}</dd></div>
                                 <div><dt>Data de cadastro</dt><dd>{formatDateTime(clientToView.createdAt)}</dd></div>
+                                <div><dt>Ultima atualizacao</dt><dd>{formatDateTime(clientToView.updatedAt)}</dd></div>
+                            </dl>
+                        </section>
+
+                        <section className="supplier-detail-section">
+                            <h3>Documentos</h3>
+                            <dl className="supplier-detail-grid client-detail-grid">
+                                <div><dt>{clientToView.clientType === "PJ" ? "CNPJ" : "CPF"}</dt><dd>{formatClientDocument(clientToView)}</dd></div>
+                            </dl>
+                        </section>
+
+                        <section className="supplier-detail-section">
+                            <h3>Contato</h3>
+                            <dl className="supplier-detail-grid client-detail-grid">
+                                <div><dt>Telefone principal</dt><dd>{formatPhone(clientToView.phone)}</dd></div>
+                                <div><dt>Telefone secundario</dt><dd>{formatPhone(clientToView.secondaryPhone)}</dd></div>
+                                <div className="span-2"><dt>Email</dt><dd>{displayValue(clientToView.email)}</dd></div>
+                            </dl>
+                        </section>
+
+                        <section className="supplier-detail-section">
+                            <h3>Endereco</h3>
+                            <dl className="supplier-detail-grid client-detail-grid">
+                                <div><dt>CEP</dt><dd>{formatZipCode(clientToView.zipCode)}</dd></div>
+                                <div><dt>Estado</dt><dd>{displayValue(clientToView.state)}</dd></div>
+                                <div className="span-2"><dt>Logradouro</dt><dd>{displayValue(clientToView.street || clientToView.address)}</dd></div>
+                                <div><dt>Numero</dt><dd>{displayValue(clientToView.number)}</dd></div>
+                                <div><dt>Complemento</dt><dd>{displayValue(clientToView.complement)}</dd></div>
+                                <div><dt>Bairro</dt><dd>{displayValue(clientToView.district)}</dd></div>
+                                <div><dt>Cidade</dt><dd>{displayValue(clientToView.city)}</dd></div>
+                            </dl>
+                        </section>
+
+                        <section className="supplier-detail-section">
+                            <h3>Informacoes adicionais</h3>
+                            <dl className="supplier-detail-grid client-detail-grid">
                                 <div><dt>Ultima compra</dt><dd>{relativeDate(viewedMetrics.lastPurchaseAt)}</dd></div>
                                 <div><dt>Quantidade de compras</dt><dd>{viewedMetrics.purchaseCount.toLocaleString("pt-BR")}</dd></div>
                                 <div><dt>Valor total comprado</dt><dd>{formatCurrency(viewedMetrics.totalPurchased)}</dd></div>
+                                <div className="span-2"><dt>Observacoes</dt><dd>{displayValue(clientToView.notes)}</dd></div>
                             </dl>
                         </section>
 
@@ -890,11 +962,6 @@ export function ClientList() {
                             <div className="client-product-list">
                                 {viewedMetrics.topProducts.length > 0 ? viewedMetrics.topProducts.map((product) => <span key={product}>{product}</span>) : <span>Nenhum produto comprado</span>}
                             </div>
-                        </section>
-
-                        <section className="supplier-detail-section">
-                            <h3>Observacoes</h3>
-                            <p className="client-detail-note">Sem observacoes cadastradas.</p>
                         </section>
 
                         <button type="button" className="primary-button client-history-button" onClick={() => setHistoryClient(clientToView)}>

@@ -2,6 +2,7 @@ import { Camera, X } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import type { Employee, EmployeeRequest } from "../../types/employee.types";
 import { normalizeRole } from "../../utils/permissions";
+import { formatPhone, onlyDigits } from "../../utils/supplier-formatters";
 
 export interface EmployeeFormPayload extends EmployeeRequest {
     photoPreview?: string | null;
@@ -81,6 +82,14 @@ function avatarTone(name: string) {
     return colors[total % colors.length];
 }
 
+function formatCpfInput(value?: string | null) {
+    return onlyDigits(value)
+        .slice(0, 11)
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d)/, "$1.$2")
+        .replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+}
+
 export function EmployeeForm({ employee, loading = false, error, onCancel, onSubmit }: EmployeeFormProps) {
     const [form, setForm] = useState<EmployeeFormPayload>(initialForm);
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -93,11 +102,11 @@ export function EmployeeForm({ employee, loading = false, error, onCancel, onSub
             employee
                 ? {
                       name: employee.name,
-                      cpf: employee.cpf,
+                      cpf: formatCpfInput(employee.cpf),
                       email: employee.email,
                       password: "",
                       roleName: normalizeRole(employee.roleName) ?? "SALESPERSON",
-                      phone: employee.phone,
+                      phone: formatPhone(employee.phone),
                       status: employee.status,
                       photoPreview: null,
                       notes: "",
@@ -168,9 +177,9 @@ export function EmployeeForm({ employee, loading = false, error, onCancel, onSub
         await onSubmit({
             ...form,
             name: form.name.trim(),
-            cpf: form.cpf.trim(),
+            cpf: onlyDigits(form.cpf),
             email: form.email.trim(),
-            phone: form.phone.trim(),
+            phone: onlyDigits(form.phone),
             notes: form.notes?.trim(),
         });
     }
@@ -222,11 +231,11 @@ export function EmployeeForm({ employee, loading = false, error, onCancel, onSub
                     </label>
                     <label className="form-field">
                         <span>CPF</span>
-                        <input inputMode="numeric" value={form.cpf} onChange={(event) => updateField("cpf", event.target.value)} />
+                        <input inputMode="numeric" value={form.cpf} onChange={(event) => updateField("cpf", formatCpfInput(event.target.value))} />
                     </label>
                     <label className="form-field">
                         <span>Telefone</span>
-                        <input inputMode="tel" value={form.phone} onChange={(event) => updateField("phone", event.target.value)} />
+                        <input inputMode="tel" value={form.phone} onChange={(event) => updateField("phone", formatPhone(event.target.value))} />
                     </label>
                     <label className="form-field span-2">
                         <span>Email</span>

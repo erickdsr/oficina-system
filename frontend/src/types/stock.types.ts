@@ -25,6 +25,7 @@ export interface StockMovementDTO{
     type: StockMovementType;
     reason: string;
     quantity: number;
+    createdAt?: ApiDateTime;
 }
 
 export type StockMovementType =

@@ -5,9 +5,12 @@ import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import com.distribuidora.system_oficina.client.dto.ClientDetailsResponseDTO;
+import com.distribuidora.system_oficina.client.dto.ClientListResponseDTO;
+import com.distribuidora.system_oficina.client.dto.ClientSummaryResponseDTO;
 import org.springframework.web.server.ResponseStatusException;
 import com.distribuidora.system_oficina.client.dto.ClientRequestDTO;
-import com.distribuidora.system_oficina.client.dto.ClientResponseDTO;
 import com.distribuidora.system_oficina.client.repository.ClientRepository;
 import com.distribuidora.system_oficina.client.entity.Client;
 import com.distribuidora.system_oficina.deletion.DeletionReportDTO;
@@ -25,50 +28,112 @@ public class ClientService {
 
     private Client toEntity(ClientRequestDTO dto) {
         Client entity = new Client();
-        entity.setName(dto.getName());
-        entity.setCpfCnpj(dto.getCpfCnpj());
-        entity.setEmail(dto.getEmail());
-        entity.setClientType(dto.getClientType());
-        entity.setPhone(dto.getPhone());
-        entity.setAddress(dto.getAddress());
-        entity.setCity(dto.getCity());
-        entity.setState(dto.getState());
+        entity.setName(trim(dto.getName()));
+        entity.setCpfCnpj(digits(dto.getCpfCnpj()));
+        entity.setEmail(trim(dto.getEmail()));
+        entity.setClientType(trim(dto.getClientType()));
+        entity.setPhone(digits(dto.getPhone()));
+        entity.setSecondaryPhone(digits(dto.getSecondaryPhone()));
+        entity.setAddress(trim(dto.getAddress()));
+        entity.setZipCode(digits(dto.getZipCode()));
+        entity.setStreet(trim(dto.getStreet()));
+        entity.setNumber(trim(dto.getNumber()));
+        entity.setComplement(trim(dto.getComplement()));
+        entity.setDistrict(trim(dto.getDistrict()));
+        entity.setCity(trim(dto.getCity()));
+        entity.setState(trim(dto.getState()));
+        entity.setNotes(trim(dto.getNotes()));
         entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
         return entity;
     }
-    private ClientResponseDTO toResponseDTO(Client entity) {
-        return ClientResponseDTO.fromEntity(entity);
+
+    private ClientDetailsResponseDTO toDetailsResponseDTO(Client entity) {
+        return ClientDetailsResponseDTO.fromEntity(entity);
     }
-    public List<ClientResponseDTO> listClients(boolean includeInactive) {
+
+    private ClientListResponseDTO toListResponseDTO(Client entity) {
+        return ClientListResponseDTO.fromEntity(entity);
+    }
+
+    public List<ClientListResponseDTO> listClients(boolean includeInactive) {
         return (includeInactive ? clientRepository.findAll() : clientRepository.findByStatus(true)).stream()
-                .map(this::toResponseDTO)
+                .map(this::toListResponseDTO)
                 .collect(Collectors.toList());
     }
-    public List<ClientResponseDTO> listClients() {
+    public List<ClientListResponseDTO> listClients() {
         return listClients(false);
     }
-    public ClientResponseDTO getClientById(Integer id) {
-        return toResponseDTO(clientRepository.findById(id).orElseThrow(
+
+    public ClientSummaryResponseDTO getClientSummary() {
+        long activeCount = clientRepository.countByStatus(true);
+        long inactiveCount = clientRepository.countByStatus(false);
+        return ClientSummaryResponseDTO.builder()
+                .activeCount(activeCount)
+                .inactiveCount(inactiveCount)
+                .totalCount(activeCount + inactiveCount)
+                .build();
+    }
+
+    public ClientDetailsResponseDTO getClientById(Integer id) {
+        return toDetailsResponseDTO(clientRepository.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found with id: " + id)));
     }
-    public ClientResponseDTO createClient(ClientRequestDTO dto) {
+    public ClientDetailsResponseDTO createClient(ClientRequestDTO dto) {
         Client client = toEntity(dto);
-        return toResponseDTO(clientRepository.save(client));
+        return toDetailsResponseDTO(clientRepository.save(client));
     }
-    public ClientResponseDTO updateClient(Integer id, ClientRequestDTO dto) {
+    public ClientDetailsResponseDTO updateClient(Integer id, ClientRequestDTO dto) {
         Client entity = clientRepository.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found with id: " + id));
-        entity.setName(dto.getName());
-        entity.setCpfCnpj(dto.getCpfCnpj());
-        entity.setClientType(dto.getClientType());
-        entity.setEmail(dto.getEmail());
-        entity.setPhone(dto.getPhone());
-        entity.setAddress(dto.getAddress());
-        entity.setCity(dto.getCity());
-        entity.setState(dto.getState());
-        entity.setStatus(dto.getStatus() != null ? dto.getStatus() : true);
-        return toResponseDTO(clientRepository.save(entity));
+
+        merge(dto.getName(), entity::setName);
+        mergeDigits(dto.getCpfCnpj(), entity::setCpfCnpj);
+        merge(dto.getClientType(), entity::setClientType);
+        mergeNullable(dto.getEmail(), entity::setEmail);
+        mergeDigits(dto.getPhone(), entity::setPhone);
+        mergeDigits(dto.getSecondaryPhone(), entity::setSecondaryPhone);
+        mergeNullable(dto.getAddress(), entity::setAddress);
+        mergeDigits(dto.getZipCode(), entity::setZipCode);
+        mergeNullable(dto.getStreet(), entity::setStreet);
+        mergeNullable(dto.getNumber(), entity::setNumber);
+        mergeNullable(dto.getComplement(), entity::setComplement);
+        mergeNullable(dto.getDistrict(), entity::setDistrict);
+        mergeNullable(dto.getCity(), entity::setCity);
+        mergeNullable(dto.getState(), entity::setState);
+        mergeNullable(dto.getNotes(), entity::setNotes);
+        if (dto.getStatus() != null) {
+            entity.setStatus(dto.getStatus());
+        }
+
+        return toDetailsResponseDTO(clientRepository.save(entity));
     }
+
+    private void merge(String value, java.util.function.Consumer<String> setter) {
+        if (StringUtils.hasText(value)) {
+            setter.accept(value.trim());
+        }
+    }
+
+    private void mergeNullable(String value, java.util.function.Consumer<String> setter) {
+        if (value != null) {
+            setter.accept(value.trim());
+        }
+    }
+
+    private void mergeDigits(String value, java.util.function.Consumer<String> setter) {
+        if (value != null) {
+            setter.accept(digits(value));
+        }
+    }
+
+    private String trim(String value) {
+        return value == null ? null : value.trim();
+    }
+
+    private String digits(String value) {
+        return value == null ? null : value.replaceAll("\\D", "");
+    }
+
     @Transactional
     public DeletionResultDTO deleteClient(Integer id) {
         return deletionService.delete(DeletionResource.CLIENT, id);

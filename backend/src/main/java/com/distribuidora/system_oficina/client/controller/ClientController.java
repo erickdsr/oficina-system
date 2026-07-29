@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
+import com.distribuidora.system_oficina.client.dto.ClientDetailsResponseDTO;
+import com.distribuidora.system_oficina.client.dto.ClientListResponseDTO;
 import com.distribuidora.system_oficina.client.dto.ClientRequestDTO;
-import com.distribuidora.system_oficina.client.dto.ClientResponseDTO;
+import com.distribuidora.system_oficina.client.dto.ClientSummaryResponseDTO;
 import com.distribuidora.system_oficina.client.service.ClientService;
 import com.distribuidora.system_oficina.deletion.DeletionReportDTO;
 import com.distribuidora.system_oficina.deletion.DeletionResultDTO;
@@ -34,25 +36,31 @@ public class ClientController {
 
     @GetMapping
     @Operation(summary = "List all clients", description = "Returns all registered clients")
-    public ResponseEntity<List<ClientResponseDTO>> listClients(@RequestParam(defaultValue = "false") boolean includeInactive) {
+    public ResponseEntity<List<ClientListResponseDTO>> listClients(@RequestParam(defaultValue = "false") boolean includeInactive) {
         return ResponseEntity.ok(clientService.listClients(includeInactive));
+    }
+
+    @GetMapping("/summary")
+    @Operation(summary = "Get client summary", description = "Returns client totals grouped by status")
+    public ResponseEntity<ClientSummaryResponseDTO> getClientSummary() {
+        return ResponseEntity.ok(clientService.getClientSummary());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get client by ID", description = "Returns the client matching the provided identifier")
-    public ResponseEntity<ClientResponseDTO> getClientById(@PathVariable Integer id) {
+    public ResponseEntity<ClientDetailsResponseDTO> getClientById(@PathVariable Integer id) {
         return ResponseEntity.ok(clientService.getClientById(id));
     }
 
     @PostMapping
     @Operation(summary = "Create a new client", description = "Creates a new client record with the provided details")
-    public ResponseEntity<ClientResponseDTO> createClient(@RequestBody @Valid ClientRequestDTO dto) {
+    public ResponseEntity<ClientDetailsResponseDTO> createClient(@RequestBody @Valid ClientRequestDTO dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(clientService.createClient(dto));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update an existing client", description = "Updates the client information for the specified identifier")
-    public ResponseEntity<ClientResponseDTO> updateClient(@PathVariable Integer id, @RequestBody @Valid ClientRequestDTO dto) {
+    public ResponseEntity<ClientDetailsResponseDTO> updateClient(@PathVariable Integer id, @RequestBody @Valid ClientRequestDTO dto) {
         return ResponseEntity.ok(clientService.updateClient(id, dto));
     }
 

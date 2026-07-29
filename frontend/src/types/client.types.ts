@@ -1,6 +1,6 @@
 import type { ApiDateTime, ApiId } from "./api.types";
 
-export interface Client{
+export interface ClientListItem{
 
     id: ApiId;
     name: string;
@@ -8,13 +8,24 @@ export interface Client{
     clientType: string;
     email: string;
     phone: string;
-    address: string;
     city: string;
     state: string;
     status: boolean;
     createdAt: ApiDateTime;
     updatedAt: ApiDateTime;
 }
+
+export interface Client extends ClientListItem{
+    secondaryPhone?: string | null;
+    address?: string | null;
+    zipCode?: string | null;
+    street?: string | null;
+    number?: string | null;
+    complement?: string | null;
+    district?: string | null;
+    notes?: string | null;
+}
+
 export interface ClientRequest{
 
     name: string;
@@ -22,8 +33,21 @@ export interface ClientRequest{
     email: string;
     clientType: string;
     phone: string;
-    address: string;
+    secondaryPhone?: string;
+    address?: string;
+    zipCode?: string;
+    street?: string;
+    number?: string;
+    complement?: string;
+    district?: string;
     city: string;
     state: string;
+    notes?: string;
     status: boolean;
+}
+
+export interface ClientSummary {
+    activeCount: number;
+    inactiveCount: number;
+    totalCount: number;
 }

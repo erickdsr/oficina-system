@@ -1,17 +1,22 @@
 import api from "./api";
 import type { ApiId, DeletionReport, DeletionResult } from "../types/api.types";
-import type { Client, ClientRequest } from "../types/client.types";
+import type { Client, ClientListItem, ClientRequest, ClientSummary } from "../types/client.types";
 
 const RESOURCE = "/clients";
 
 export const clientService = {
     async list(includeInactive = false) {
-        const { data } = await api.get<Client[]>(RESOURCE, { params: { includeInactive } });
+        const { data } = await api.get<ClientListItem[]>(RESOURCE, { params: { includeInactive } });
         return data;
     },
 
     async getById(id: ApiId) {
         const { data } = await api.get<Client>(`${RESOURCE}/${id}`);
+        return data;
+    },
+
+    async summary() {
+        const { data } = await api.get<ClientSummary>(`${RESOURCE}/summary`);
         return data;
     },
 

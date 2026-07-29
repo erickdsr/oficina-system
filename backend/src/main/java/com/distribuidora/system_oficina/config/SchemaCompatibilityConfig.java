@@ -26,6 +26,13 @@ public class SchemaCompatibilityConfig {
             jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS number varchar(20)");
             jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS district varchar(100)");
             jdbcTemplate.execute("ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS complement varchar(120)");
+            jdbcTemplate.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS secondary_phone varchar(20)");
+            jdbcTemplate.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS zip_code varchar(8)");
+            jdbcTemplate.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS street varchar(150)");
+            jdbcTemplate.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS number varchar(20)");
+            jdbcTemplate.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS complement varchar(120)");
+            jdbcTemplate.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS district varchar(100)");
+            jdbcTemplate.execute("ALTER TABLE clients ADD COLUMN IF NOT EXISTS notes varchar(1000)");
         };
     }
 }

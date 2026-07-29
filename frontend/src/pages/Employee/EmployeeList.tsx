@@ -1,6 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, KeyRound, Lock, Mail, Pencil, Plus, ShieldCheck, Trash2, UserCheck, UserRoundX, Users, X } from "lucide-react";
-import { toast } from "sonner";
+import { Eye, Pencil, Plus, ShieldCheck, Trash2, UserCheck, UserRoundX, Users, X } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
 import LoadingState from "../../components/common/LoadingState";
@@ -14,7 +13,7 @@ import useEmployee from "../../hooks/useEmployee";
 import type { DeletionReport } from "../../types/api.types";
 import type { Employee, EmployeeRequest } from "../../types/employee.types";
 import { canDelete, canManage, normalizeRole } from "../../utils/permissions";
-import { formatDateTime } from "../../utils/formatters";
+import { displayValue, formatCpf, formatDateTime, formatPhone } from "../../utils/formatters";
 import { normalizeSearch } from "../../utils/text";
 import EmployeeForm, { roleLabel, type EmployeeFormPayload } from "./EmployeeForm";
 
@@ -28,9 +27,6 @@ interface EmployeeTableRowProps {
     canRemove: boolean;
     onView: (employee: Employee) => void;
     onEdit: (employee: Employee) => void;
-    onResetPassword: (employee: Employee) => void;
-    onBlock: (employee: Employee) => void;
-    onSendReset: (employee: Employee) => void;
     onDelete: (employee: Employee) => void;
 }
 
@@ -84,10 +80,6 @@ function lastAccessLabel() {
     return "Preparado para auditoria";
 }
 
-function phoneLabel(phone?: string) {
-    return phone?.trim() || "-";
-}
-
 function EmployeeAvatar({ employee, size = "md" }: { employee: Employee; size?: "md" | "lg" }) {
     return (
         <div className={`employee-avatar employee-avatar--${avatarTone(employee.name)} employee-avatar--${size}`} aria-hidden="true">
@@ -103,9 +95,6 @@ const EmployeeTableRow = memo(function EmployeeTableRow({
     canRemove,
     onView,
     onEdit,
-    onResetPassword,
-    onBlock,
-    onSendReset,
     onDelete,
 }: EmployeeTableRowProps) {
     const status = employeeStatus(employee);
@@ -124,8 +113,7 @@ const EmployeeTableRow = memo(function EmployeeTableRow({
             <td><span className={`employee-role-badge ${roleTone(employee.roleName)}`}>{roleLabel(employee.roleName)}</span></td>
             <td>
                 <div className="employee-contact-cell">
-                    <strong>{phoneLabel(employee.phone)}</strong>
-                    <span>Cidade nao informada</span>
+                    <strong>{formatPhone(employee.phone)}</strong>
                 </div>
             </td>
             <td><span className="employee-last-access">{lastAccessLabel()}</span></td>
@@ -158,51 +146,6 @@ const EmployeeTableRow = memo(function EmployeeTableRow({
                             }}
                         >
                             <Pencil size={22} strokeWidth={2.3} aria-hidden="true" />
-                        </button>
-                    )}
-                    {canEdit && (
-                        <button
-                            type="button"
-                            className="table-action-button tooltip-button"
-                            aria-label={`Alterar senha de ${employee.name}`}
-                            title="Alterar senha"
-                            data-tooltip="Alterar senha"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onResetPassword(employee);
-                            }}
-                        >
-                            <KeyRound size={22} strokeWidth={2.3} aria-hidden="true" />
-                        </button>
-                    )}
-                    {canEdit && (
-                        <button
-                            type="button"
-                            className="table-action-button tooltip-button"
-                            aria-label={`Bloquear usuario ${employee.name}`}
-                            title="Bloquear usuario"
-                            data-tooltip="Bloquear usuario"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onBlock(employee);
-                            }}
-                        >
-                            <Lock size={22} strokeWidth={2.3} aria-hidden="true" />
-                        </button>
-                    )}
-                    {canEdit && (
-                        <button
-                            type="button"
-                            className="table-action-button tooltip-button"
-                            aria-label={`Enviar redefinicao de senha para ${employee.name}`}
-                            title="Enviar redefinicao de senha"
-                            data-tooltip="Enviar redefinicao"
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                onSendReset(employee);
-                            }}
-                        >
-                            <Mail size={22} strokeWidth={2.3} aria-hidden="true" />
                         </button>
                     )}
                     {canRemove && (
@@ -371,10 +314,6 @@ export function EmployeeList() {
         setEditingEmployee(employee);
         setShowForm(true);
     }, []);
-
-    function handlePreparedAction(action: string, employee: Employee) {
-        toast.info(`${action} para ${employee.name} sera conectado ao modulo de seguranca.`);
-    }
 
     async function handleDeleteClick(employee: Employee) {
         setDeleteError(null);
@@ -570,9 +509,6 @@ export function EmployeeList() {
                                     canRemove={canDeleteEmployee}
                                     onView={handleViewClick}
                                     onEdit={handleEditClick}
-                                    onResetPassword={(target) => handlePreparedAction("Alteracao de senha", target)}
-                                    onBlock={(target) => handlePreparedAction("Bloqueio de usuario", target)}
-                                    onSendReset={(target) => handlePreparedAction("Redefinicao de senha", target)}
                                     onDelete={handleDeleteClick}
                                 />
                             ))}
@@ -651,18 +587,27 @@ export function EmployeeList() {
                                 <X size={19} aria-hidden="true" />
                             </button>
                         </div>
-                        <dl className="supplier-detail-grid employee-detail-grid">
-                            <div className="span-2"><dt>Nome</dt><dd>{employeeToView.name}</dd></div>
-                            <div><dt>CPF</dt><dd>{employeeToView.cpf || "-"}</dd></div>
-                            <div><dt>Telefone</dt><dd>{phoneLabel(employeeToView.phone)}</dd></div>
-                            <div className="span-2"><dt>Email</dt><dd>{employeeToView.email}</dd></div>
-                            <div><dt>Perfil</dt><dd><span className={`employee-role-badge ${roleTone(employeeToView.roleName)}`}>{roleLabel(employeeToView.roleName)}</span></dd></div>
-                            <div><dt>Status</dt><dd><StatusBadge label={employeeStatus(employeeToView).label} tone={employeeStatus(employeeToView).tone} /></dd></div>
-                            <div><dt>Data de cadastro</dt><dd>{formatDateTime(employeeToView.createdAt)}</dd></div>
-                            <div><dt>Ultimo login</dt><dd>Nao disponivel</dd></div>
-                            <div><dt>Ultima alteracao</dt><dd>{formatDateTime(employeeToView.updatedAt)}</dd></div>
-                            <div className="span-2"><dt>Acessos</dt><dd>Definidos automaticamente pelo perfil {roleLabel(employeeToView.roleName)}.</dd></div>
-                        </dl>
+                        <section className="supplier-detail-section">
+                            <h3>Dados pessoais</h3>
+                            <dl className="supplier-detail-grid employee-detail-grid">
+                                <div className="span-2"><dt>Nome</dt><dd>{displayValue(employeeToView.name)}</dd></div>
+                                <div><dt>CPF</dt><dd>{formatCpf(employeeToView.cpf)}</dd></div>
+                                <div><dt>Telefone</dt><dd>{formatPhone(employeeToView.phone)}</dd></div>
+                                <div className="span-2"><dt>Email</dt><dd>{displayValue(employeeToView.email)}</dd></div>
+                            </dl>
+                        </section>
+
+                        <section className="supplier-detail-section">
+                            <h3>Acesso</h3>
+                            <dl className="supplier-detail-grid employee-detail-grid">
+                                <div><dt>Perfil</dt><dd><span className={`employee-role-badge ${roleTone(employeeToView.roleName)}`}>{roleLabel(employeeToView.roleName)}</span></dd></div>
+                                <div><dt>Status</dt><dd><StatusBadge label={employeeStatus(employeeToView).label} tone={employeeStatus(employeeToView).tone} /></dd></div>
+                                <div><dt>Ultimo acesso</dt><dd>Nao disponivel</dd></div>
+                                <div><dt>Data de criacao</dt><dd>{formatDateTime(employeeToView.createdAt)}</dd></div>
+                                <div><dt>Ultima alteracao</dt><dd>{formatDateTime(employeeToView.updatedAt)}</dd></div>
+                                <div className="span-2"><dt>Acessos</dt><dd>Definidos automaticamente pelo perfil {roleLabel(employeeToView.roleName)}.</dd></div>
+                            </dl>
+                        </section>
                     </aside>
                 </div>
             )}

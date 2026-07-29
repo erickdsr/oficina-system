@@ -88,16 +88,23 @@ function toForm(client?: Client | null): ClientDraft {
         clientType: client.clientType || "PF",
         email: client.email ?? "",
         phone: formatPhone(client.phone),
+        mobile: formatPhone(client.secondaryPhone),
         address: client.address ?? "",
+        zipCode: formatZipCode(client.zipCode),
+        street: client.street ?? "",
+        number: client.number ?? "",
+        complement: client.complement ?? "",
+        district: client.district ?? "",
         city: client.city ?? "",
         state: client.state ?? "",
+        notes: client.notes ?? "",
         status: client.status,
     };
 }
 
 function buildAddress(form: ClientDraft) {
     const detailedAddress = [form.street, form.number, form.complement, form.district].filter(Boolean).join(", ");
-    return detailedAddress || form.address;
+    return detailedAddress || form.address || "";
 }
 
 function RequiredAsterisk() {
@@ -233,10 +240,17 @@ export function ClientForm({ client, clients = [], loading = false, error, onCan
             cpfCnpj: onlyDigits(form.cpfCnpj),
             clientType: form.clientType,
             email: form.email.trim(),
-            phone: onlyDigits(form.mobile) || onlyDigits(form.phone),
+            phone: onlyDigits(form.phone),
+            secondaryPhone: onlyDigits(form.mobile),
             address: buildAddress(form).trim(),
+            zipCode: onlyDigits(form.zipCode),
+            street: form.street.trim(),
+            number: form.number.trim(),
+            complement: form.complement.trim(),
+            district: form.district.trim(),
             city: form.city.trim(),
             state: form.state.trim().toUpperCase(),
+            notes: form.notes.trim(),
             status: form.status,
         });
     }
@@ -250,9 +264,10 @@ export function ClientForm({ client, clients = [], loading = false, error, onCan
                 </div>
             </div>
 
-            <div className="client-inline-section">
-                <h4>Dados principais</h4>
-                <div className="form-grid client-inline-grid">
+            <fieldset className="client-form-fieldset" disabled={loading}>
+                <div className="client-inline-section">
+                    <h4>Dados principais</h4>
+                    <div className="form-grid client-inline-grid">
                     <label className="form-field">
                         <span>{nameLabel} <RequiredAsterisk /></span>
                         <input value={form.name} onChange={(event) => updateField("name", event.target.value)} aria-invalid={Boolean(fieldErrors.name)} autoFocus />
@@ -289,12 +304,12 @@ export function ClientForm({ client, clients = [], loading = false, error, onCan
                         <input type="checkbox" checked={form.status} onChange={(event) => updateField("status", event.target.checked)} />
                         Status ativo <RequiredAsterisk />
                     </label>
+                    </div>
                 </div>
-            </div>
 
-            <div className="client-inline-section">
-                <h4>Endereco</h4>
-                <div className="form-grid client-inline-grid">
+                <div className="client-inline-section">
+                    <h4>Endereco</h4>
+                    <div className="form-grid client-inline-grid">
                     <label className="form-field client-cep-field">
                         <span>CEP</span>
                         <div className="client-cep-control">
@@ -336,16 +351,17 @@ export function ClientForm({ client, clients = [], loading = false, error, onCan
                         </select>
                         {fieldErrors.state && <small>{fieldErrors.state}</small>}
                     </label>
+                    </div>
                 </div>
-            </div>
 
-            <div className="client-inline-section">
-                <h4>Observacoes</h4>
-                <label className="form-field">
-                    <span>Observacoes</span>
-                    <textarea value={form.notes} onChange={(event) => updateField("notes", event.target.value)} />
-                </label>
-            </div>
+                <div className="client-inline-section">
+                    <h4>Observacoes</h4>
+                    <label className="form-field">
+                        <span>Observacoes</span>
+                        <textarea value={form.notes} onChange={(event) => updateField("notes", event.target.value)} />
+                    </label>
+                </div>
+            </fieldset>
 
             {error && <div className="form-error">{error}</div>}
             <div className="form-actions client-inline-actions">
