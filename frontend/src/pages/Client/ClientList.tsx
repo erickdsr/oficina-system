@@ -2,9 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
     Ban,
     ChevronDown,
-    Download,
     Eye,
-    FileSpreadsheet,
     History,
     ListFilter,
     Loader2,
@@ -148,20 +146,6 @@ function paymentSummary(sale: SaleResponse) {
     }
 
     return sale.payments.length === 1 ? "Pagamento unico" : `${sale.payments.length} pagamentos`;
-}
-
-function downloadFile(filename: string, content: string, type: string) {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
-}
-
-function escapeCsv(value: string | number | boolean | null | undefined) {
-    return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
 
 const ClientTableRow = memo(function ClientTableRow({
@@ -565,37 +549,6 @@ export function ClientList() {
         setDeletionReport(null);
     }
 
-    function exportCsv() {
-        const headers = ["Nome", "CPF/CNPJ", "Telefone", "Cidade", "Estado", "Status", "Ultima compra", "Total comprado"];
-        const rows = filteredClients.map((client) => {
-            const metrics = clientMetrics[client.id] ?? emptyMetrics;
-            return [
-                client.name,
-                formatClientDocument(client),
-                formatPhone(client.phone),
-                client.city,
-                client.state,
-                statusInfo(client).label,
-                metrics.lastPurchaseAt ? formatDateTime(metrics.lastPurchaseAt) : "Nunca comprou",
-                metrics.totalPurchased,
-            ].map(escapeCsv).join(",");
-        });
-
-        downloadFile("clientes.csv", [headers.map(escapeCsv).join(","), ...rows].join("\n"), "text/csv;charset=utf-8");
-        toast.success("CSV de clientes exportado.");
-    }
-
-    function exportExcel() {
-        const rows = filteredClients.map((client) => {
-            const metrics = clientMetrics[client.id] ?? emptyMetrics;
-            return `<tr><td>${client.name}</td><td>${formatClientDocument(client)}</td><td>${formatPhone(client.phone)}</td><td>${client.email}</td><td>${cityState(client)}</td><td>${statusInfo(client).label}</td><td>${metrics.lastPurchaseAt ? formatDateTime(metrics.lastPurchaseAt) : "Nunca comprou"}</td><td>${formatCurrency(metrics.totalPurchased)}</td></tr>`;
-        }).join("");
-        const table = `<table><thead><tr><th>Nome</th><th>CPF/CNPJ</th><th>Telefone</th><th>Email</th><th>Cidade</th><th>Status</th><th>Ultima compra</th><th>Total comprado</th></tr></thead><tbody>${rows}</tbody></table>`;
-
-        downloadFile("clientes.xls", table, "application/vnd.ms-excel;charset=utf-8");
-        toast.success("Excel de clientes exportado.");
-    }
-
     return (
         <section className="page-section client-page">
             <div className="client-header-row">
@@ -635,14 +588,6 @@ export function ClientList() {
                         <ListFilter size={18} aria-hidden="true" />
                         Filtros
                         <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
-                    </button>
-                    <button type="button" className="secondary-button" onClick={exportCsv}>
-                        <Download size={18} aria-hidden="true" />
-                        CSV
-                    </button>
-                    <button type="button" className="secondary-button" onClick={exportExcel}>
-                        <FileSpreadsheet size={18} aria-hidden="true" />
-                        Excel
                     </button>
                     {canEditClient && (
                         <button type="button" className="primary-button" onClick={() => { setClientDetailsError(null); setEditingClient(null); setShowForm(true); }}>

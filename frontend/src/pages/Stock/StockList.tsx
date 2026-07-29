@@ -7,7 +7,6 @@ import {
     Coins,
     Download,
     Eye,
-    FileSpreadsheet,
     History,
     ListFilter,
     Package,
@@ -133,16 +132,6 @@ function stockPercent(stock: StockResponse) {
 
     const reference = Math.max(stock.minQuantity * 2, stock.quantity, 1);
     return Math.min(100, Math.round((stock.quantity / reference) * 100));
-}
-
-function downloadFile(filename: string, content: string, type: string) {
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(url);
 }
 
 function buildAdjustmentNote(form: AdjustmentDraft) {
@@ -543,15 +532,6 @@ export function StockList() {
         navigate("/purchases/new");
     }
 
-    function exportExcel() {
-        const rows = filteredRows.map((row) => (
-            `<tr><td>${row.product?.name ?? ""}</td><td>${internalCode(row.product, row.stock)}</td><td>${row.product?.categoryName ?? ""}</td><td>${row.product?.supplierName ?? ""}</td><td>${row.stock.quantity}</td><td>${row.stock.minQuantity}</td><td>${stockStatusMeta(row.status).label}</td><td>${row.stock.location ?? ""}</td><td>${formatDateTime(row.stock.updatedAt)}</td><td>${formatCurrency(row.inventoryValue)}</td></tr>`
-        )).join("");
-        const table = `<table><thead><tr><th>Produto</th><th>Codigo</th><th>Categoria</th><th>Fornecedor</th><th>Quantidade</th><th>Minimo</th><th>Status</th><th>Local</th><th>Ultima Atualizacao</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>`;
-        downloadFile("estoque.xls", table, "application/vnd.ms-excel;charset=utf-8");
-        toast.success("Excel de estoque exportado.");
-    }
-
     function exportPdf() {
         const headers = ["Produto", "Codigo", "Categoria", "Fornecedor", "Qtd.", "Minimo", "Status", "Local", "Valor"];
         const rows = filteredRows.map((row) => [
@@ -685,10 +665,6 @@ export function StockList() {
                         <button type="button" className="secondary-button" onClick={resetFilters}>
                             <ListFilter size={18} aria-hidden="true" />
                             Limpar filtros
-                        </button>
-                        <button type="button" className="secondary-button" onClick={exportExcel}>
-                            <FileSpreadsheet size={18} aria-hidden="true" />
-                            Excel
                         </button>
                         <button type="button" className="secondary-button" onClick={exportPdf}>
                             <Download size={18} aria-hidden="true" />

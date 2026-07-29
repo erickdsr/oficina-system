@@ -3843,8 +3843,8 @@
 }
 
 .stock-page {
-  max-width: 1500px;
-  margin: 0 auto;
+  width: 100%;
+  gap: 12px;
 }
 
 .stock-header-actions,
@@ -3890,13 +3890,14 @@
 
 .stock-filter-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(150px, 1fr)) auto;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
   align-items: end;
   width: 100%;
 }
 
 .stock-filter-actions {
+  grid-column: 1 / -1;
   justify-content: flex-end;
 }
 
@@ -3905,7 +3906,7 @@
 }
 
 .stock-table {
-  min-width: 1320px;
+  min-width: 0;
   table-layout: fixed;
 }
 
@@ -3915,11 +3916,11 @@
 }
 
 .stock-table th:nth-child(1) {
-  width: 28%;
+  width: 34%;
 }
 
 .stock-table th:nth-child(2) {
-  width: 13%;
+  width: 12%;
 }
 
 .stock-table th:nth-child(3) {
@@ -3927,15 +3928,15 @@
 }
 
 .stock-table th:nth-child(4) {
-  width: 11%;
+  width: 10%;
 }
 
 .stock-table th:nth-child(5) {
-  width: 12%;
+  width: 11%;
 }
 
 .stock-table th:nth-child(6) {
-  width: 12%;
+  width: 11%;
 }
 
 .stock-table th:nth-child(7) {
@@ -3944,7 +3945,7 @@
 
 .stock-table th:nth-child(8),
 .stock-table td:nth-child(8) {
-  width: 16%;
+  width: 14%;
   text-align: center;
 }
 
@@ -4122,7 +4123,7 @@
 }
 
 .stock-pagination {
-  min-width: 1320px;
+  min-width: 0;
 }
 
 .stock-card-list {
@@ -4845,11 +4846,20 @@
   }
 
   .stock-table {
-    min-width: 1120px;
+    min-width: 0;
   }
 
   .stock-pagination {
-    min-width: 1120px;
+    min-width: 0;
+  }
+
+  .stock-table-wrap {
+    display: none;
+  }
+
+  .stock-card-list {
+    display: grid;
+    gap: 12px;
   }
 
   .home-metric-grid,
