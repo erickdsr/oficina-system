@@ -4,9 +4,11 @@ export interface ProductResponse {
     
     id: ApiId;
     name: string;
+    internalCode: string;
     description: string;
     partNumber: string;
     barCode: string;
+    brand: string;
     categoryId: ApiId;
     categoryName: string;
     supplierId: Nullable<ApiId>;
@@ -25,12 +27,14 @@ export interface ProductRequest{
     description: string;
     partNumber: string;
     barCode: string;
+    brand: string;
     categoryId: ApiId;
     supplierId: Nullable<ApiId>;
     costPrice: Decimal;
     salePrice: Decimal;
     unit: Unit;
     status: boolean;
+    allowSaleBelowCost?: boolean;
 }
 
 export type Unit =

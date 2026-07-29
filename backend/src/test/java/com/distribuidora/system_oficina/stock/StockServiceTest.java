@@ -17,6 +17,7 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -63,7 +64,10 @@ class StockServiceTest {
         // Assert
         assertThat(stock.getQuantity()).isEqualTo(13);
         verify(stockRepository).save(stock);
-        verify(stockMovementRepository).save(any(StockMovement.class));
+        ArgumentCaptor<StockMovement> movementCaptor = ArgumentCaptor.forClass(StockMovement.class);
+        verify(stockMovementRepository).save(movementCaptor.capture());
+        assertThat(movementCaptor.getValue().getPreviousBalance()).isEqualTo(10);
+        assertThat(movementCaptor.getValue().getCurrentBalance()).isEqualTo(13);
     }
 
     @Test

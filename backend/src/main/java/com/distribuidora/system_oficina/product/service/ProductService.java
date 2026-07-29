@@ -1,6 +1,9 @@
 package com.distribuidora.system_oficina.product.service;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
@@ -34,6 +37,7 @@ public class ProductService {
 
     private Product toEntity(ProductRequestDTO dto) {
         Product entity = new Product();
+        entity.setInternalCode(generateTemporaryInternalCode());
         updateEntityFromDto(entity, dto);
         return entity;
     }
@@ -42,16 +46,20 @@ public class ProductService {
         Category category = categoryRepository.findById(dto.getCategoryId())
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Category not found with id: " + dto.getCategoryId()));
-        Supplier supplier = dto.getSupplierId() == null
-                ? null
-                : supplierRepository.findById(dto.getSupplierId())
-                        .orElseThrow(() -> new ResponseStatusException(
-                                HttpStatus.NOT_FOUND, "Supplier not found with id: " + dto.getSupplierId()));
+        Supplier supplier = supplierRepository.findById(dto.getSupplierId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Supplier not found with id: " + dto.getSupplierId()));
 
-        entity.setName(dto.getName());
-        entity.setDescription(dto.getDescription());
-        entity.setPartNumber(dto.getPartNumber());
-        entity.setBarCode(dto.getBarCode());
+        String partNumber = normalizeRequired(dto.getPartNumber(), "O numero da peca e obrigatorio");
+        String barCode = normalizeOptional(dto.getBarCode());
+        String brand = normalizeRequired(dto.getBrand(), "A marca e obrigatoria");
+        validateBusinessRules(entity.getId(), partNumber, barCode, dto);
+
+        entity.setName(normalizeRequired(dto.getName(), "O nome e obrigatorio"));
+        entity.setDescription(normalizeOptional(dto.getDescription()));
+        entity.setPartNumber(partNumber);
+        entity.setBarCode(barCode);
+        entity.setBrand(brand);
         entity.setSupplier(supplier);
         entity.setCategory(category);
         entity.setCostPrice(dto.getCostPrice());
@@ -79,7 +87,9 @@ public class ProductService {
     }
 
     public ProductResponseDTO createProduct(ProductRequestDTO dto) {
-        return toResponseDTO(productRepository.save(toEntity(dto)));
+        Product saved = productRepository.save(toEntity(dto));
+        saved.setInternalCode(generateInternalCode(saved.getId()));
+        return toResponseDTO(productRepository.save(saved));
     }
 
     public ProductResponseDTO updateProduct(Integer id, ProductRequestDTO dto) {
@@ -87,6 +97,73 @@ public class ProductService {
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Product not found with id: " + id));
         updateEntityFromDto(entity, dto);
         return toResponseDTO(productRepository.save(entity));
+    }
+
+    private void validateBusinessRules(Integer currentProductId, String partNumber, String barCode, ProductRequestDTO dto) {
+        ensureUniquePartNumber(currentProductId, partNumber);
+        ensureUniqueBarCode(currentProductId, barCode);
+
+        if (dto.getCostPrice() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O preco de custo e obrigatorio.");
+        }
+
+        if (dto.getSalePrice() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O preco de venda e obrigatorio.");
+        }
+
+        if (dto.getCostPrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O preco de custo nao pode ser negativo.");
+        }
+
+        if (dto.getSalePrice().compareTo(BigDecimal.ZERO) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "O preco de venda nao pode ser negativo.");
+        }
+
+        if (dto.getSalePrice().compareTo(dto.getCostPrice()) < 0 && !Boolean.TRUE.equals(dto.getAllowSaleBelowCost())) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "O preco de venda esta abaixo do custo. Confirme a autorizacao para salvar.");
+        }
+    }
+
+    private void ensureUniquePartNumber(Integer currentProductId, String partNumber) {
+        productRepository.findByPartNumberIgnoreCase(partNumber)
+                .filter(product -> !product.getId().equals(currentProductId))
+                .ifPresent(product -> {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Numero da peca ja cadastrado.");
+                });
+    }
+
+    private void ensureUniqueBarCode(Integer currentProductId, String barCode) {
+        Optional.ofNullable(barCode)
+                .flatMap(productRepository::findByBarCode)
+                .filter(product -> !product.getId().equals(currentProductId))
+                .ifPresent(product -> {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Codigo de barras ja cadastrado.");
+                });
+    }
+
+    private String normalizeRequired(String value, String message) {
+        String normalized = normalizeOptional(value);
+        if (normalized == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+        }
+        return normalized;
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private String generateInternalCode(Integer id) {
+        return "PROD-%06d".formatted(id);
+    }
+
+    private String generateTemporaryInternalCode() {
+        return "TMP-" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase();
     }
 
     @Transactional

@@ -12,6 +12,22 @@ export interface ProductFormPayload extends ProductRequest {
     brand: string;
 }
 
+const DEFAULT_BRANDS = [
+    "Bosch",
+    "Cofap",
+    "Continental",
+    "Delphi",
+    "Fras-le",
+    "Lubrax",
+    "Mahle",
+    "Marelli",
+    "Monroe",
+    "NGK",
+    "SKF",
+    "TRW",
+    "Valeo",
+];
+
 interface ProductFormProps {
     product?: ProductResponse | null;
     stock?: StockResponse | null;
@@ -34,6 +50,7 @@ const initialForm: ProductFormPayload = {
     salePrice: 0,
     unit: "UN",
     status: true,
+    allowSaleBelowCost: false,
     margin: 0,
     quantity: 0,
     minQuantity: 0,
@@ -54,7 +71,7 @@ function calculateSalePrice(costPrice: number, margin: number) {
 }
 
 function generatedCode(product?: ProductResponse | null) {
-    return product?.id ? `PROD-${String(product.id).padStart(6, "0")}` : "Gerado automaticamente";
+    return product?.internalCode || (product?.id ? `PROD-${String(product.id).padStart(6, "0")}` : "Gerado automaticamente");
 }
 
 export function ProductForm({ product, stock, categories, suppliers, loading = false, error, onCancel, onSubmit }: ProductFormProps) {
@@ -74,11 +91,12 @@ export function ProductForm({ product, stock, categories, suppliers, loading = f
                 salePrice: product.salePrice,
                 unit: product.unit,
                 status: product.status,
+                allowSaleBelowCost: false,
                 margin: calculateMargin(product.costPrice, product.salePrice),
                 quantity: stock?.quantity ?? 0,
                 minQuantity: stock?.minQuantity ?? 0,
                 location: stock?.location ?? "",
-                brand: product.name.trim().split(/\s+/)[0] ?? "",
+                brand: product.brand,
             });
         } else {
             setForm({
@@ -91,6 +109,12 @@ export function ProductForm({ product, stock, categories, suppliers, loading = f
     }, [categories, product, stock, suppliers]);
 
     const grossProfit = useMemo(() => Math.max(0, form.salePrice - form.costPrice), [form.costPrice, form.salePrice]);
+    const brandOptions = useMemo(() => {
+        return Array.from(new Set([...DEFAULT_BRANDS, form.brand].filter(Boolean))).sort((left, right) =>
+            left.localeCompare(right, "pt-BR", { sensitivity: "base" }),
+        );
+    }, [form.brand]);
+    const selectedSupplier = useMemo(() => suppliers.find((supplier) => supplier.id === form.supplierId), [form.supplierId, suppliers]);
 
     function updateField<K extends keyof ProductFormPayload>(field: K, value: ProductFormPayload[K]) {
         setForm((current) => ({ ...current, [field]: value }));
@@ -101,6 +125,7 @@ export function ProductForm({ product, stock, categories, suppliers, loading = f
             ...current,
             costPrice: value,
             salePrice: current.margin > 0 ? calculateSalePrice(value, current.margin) : current.salePrice,
+            allowSaleBelowCost: current.salePrice < value ? current.allowSaleBelowCost : false,
         }));
     }
 
@@ -109,6 +134,7 @@ export function ProductForm({ product, stock, categories, suppliers, loading = f
             ...current,
             margin: value,
             salePrice: calculateSalePrice(current.costPrice, value),
+            allowSaleBelowCost: false,
         }));
     }
 
@@ -117,18 +143,34 @@ export function ProductForm({ product, stock, categories, suppliers, loading = f
             ...current,
             salePrice: value,
             margin: calculateMargin(current.costPrice, value),
+            allowSaleBelowCost: value < current.costPrice ? current.allowSaleBelowCost : false,
         }));
     }
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        if (!form.name.trim() || !form.partNumber.trim() || form.categoryId <= 0) {
-            setValidationError("Informe nome, numero da peca e categoria.");
+        if (!form.name.trim() || !form.partNumber.trim() || !form.brand.trim() || form.categoryId <= 0 || !form.supplierId) {
+            setValidationError("Informe numero da peca, nome, marca, categoria e fornecedor.");
+            return;
+        }
+
+        if (form.barCode.trim() && !/^\d+$/.test(form.barCode.trim())) {
+            setValidationError("O codigo de barras deve conter apenas numeros.");
+            return;
+        }
+
+        if (form.costPrice < 0 || form.margin < 0) {
+            setValidationError("Custo e margem nao podem ser negativos.");
             return;
         }
 
         if (form.salePrice <= 0) {
             setValidationError("Informe um preco de venda valido.");
+            return;
+        }
+
+        if (form.salePrice < form.costPrice && !form.allowSaleBelowCost) {
+            setValidationError("Autorize a venda abaixo do custo para salvar este produto.");
             return;
         }
 
@@ -139,6 +181,7 @@ export function ProductForm({ product, stock, categories, suppliers, loading = f
             description: form.description.trim(),
             partNumber: form.partNumber.trim(),
             barCode: form.barCode.trim(),
+            brand: form.brand.trim(),
             location: form.location.trim(),
         });
     }
@@ -166,15 +209,18 @@ export function ProductForm({ product, stock, categories, suppliers, loading = f
                     </label>
                     <label className="form-field">
                         <span>Codigo de barras (EAN)</span>
-                        <input inputMode="numeric" value={form.barCode} onChange={(event) => updateField("barCode", event.target.value)} />
-                    </label>
-                    <label className="form-field">
-                        <span>Marca</span>
-                        <input value={form.brand} onChange={(event) => updateField("brand", event.target.value)} />
+                        <input inputMode="numeric" value={form.barCode} onChange={(event) => updateField("barCode", event.target.value.replace(/\D/g, ""))} />
                     </label>
                     <label className="form-field span-2">
                         <span>Nome</span>
                         <input value={form.name} onChange={(event) => updateField("name", event.target.value)} />
+                    </label>
+                    <label className="form-field">
+                        <span>Marca</span>
+                        <select value={form.brand} onChange={(event) => updateField("brand", event.target.value)}>
+                            <option value="">Selecione</option>
+                            {brandOptions.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
+                        </select>
                     </label>
                     <label className="form-field">
                         <span>Categoria</span>
@@ -186,9 +232,10 @@ export function ProductForm({ product, stock, categories, suppliers, loading = f
                     <label className="form-field">
                         <span>Fornecedor</span>
                         <select value={form.supplierId ?? ""} onChange={(event) => updateField("supplierId", event.target.value ? Number(event.target.value) : null)}>
-                            <option value="">Sem fornecedor</option>
-                            {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.tradeName || supplier.name}</option>)}
+                            <option value="">Selecione</option>
+                            {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.tradeName || supplier.name} - {supplier.legalName || supplier.name}</option>)}
                         </select>
+                        {selectedSupplier?.legalName && <small>{selectedSupplier.legalName}</small>}
                     </label>
                     <label className="form-field span-2">
                         <span>Descricao</span>
@@ -220,6 +267,12 @@ export function ProductForm({ product, stock, categories, suppliers, loading = f
                         <span>Preco de venda</span>
                         <input type="number" min="0" step="0.01" value={form.salePrice} onChange={(event) => updateSalePrice(Number(event.target.value))} />
                     </label>
+                    {form.salePrice < form.costPrice && (
+                        <label className="checkbox-field supplier-status-field">
+                            <input type="checkbox" checked={Boolean(form.allowSaleBelowCost)} onChange={(event) => updateField("allowSaleBelowCost", event.target.checked)} />
+                            Autorizar venda abaixo do custo
+                        </label>
+                    )}
                     <div className="product-margin-preview">
                         <span>Lucro bruto unitario</span>
                         <strong>{grossProfit.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong>

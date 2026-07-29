@@ -50,12 +50,11 @@ interface ProductTableRowProps {
 }
 
 function internalCode(product: ProductResponse) {
-    return `PROD-${String(product.id).padStart(6, "0")}`;
+    return product.internalCode || `PROD-${String(product.id).padStart(6, "0")}`;
 }
 
 function productBrand(product: ProductResponse) {
-    const firstToken = product.name.trim().split(/\s+/)[0];
-    return firstToken && firstToken.length > 2 ? firstToken : "-";
+    return product.brand?.trim() || "-";
 }
 
 function productStatus(product: ProductResponse) {
@@ -421,12 +420,14 @@ export function ProductList() {
                 description: payload.description,
                 partNumber: payload.partNumber,
                 barCode: payload.barCode,
+                brand: payload.brand,
                 categoryId: payload.categoryId,
                 supplierId: payload.supplierId,
                 costPrice: payload.costPrice,
                 salePrice: payload.salePrice,
                 unit: payload.unit,
                 status: payload.status,
+                allowSaleBelowCost: payload.allowSaleBelowCost,
             };
 
             const savedProduct = editingProduct

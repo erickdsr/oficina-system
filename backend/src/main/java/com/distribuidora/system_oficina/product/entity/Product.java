@@ -34,17 +34,23 @@ public class Product {
     @Column(name = "name", nullable = false, length = 150)
     private String name;
 
+    @Column(name = "internal_code", length = 20)
+    private String internalCode;
+
     @Column(name = "description")
     private String description;
 
-    @Column(name = "barcode", length = 50)
+    @Column(name = "barcode", length = 14)
     private String barCode; 
 
     @Column(name = "part_number", length = 50)
     private String partNumber;  
 
+    @Column(name = "brand", length = 80)
+    private String brand;
+
     @ManyToOne
-    @JoinColumn(name = "supplier_id", nullable = true)
+    @JoinColumn(name = "supplier_id")
     private Supplier supplier;
     
     @ManyToOne

@@ -55,7 +55,7 @@ public class PurchaseService {
 
         entity.setSupplier(supplier);
         entity.setEmployee(employee);
-        entity.setNotes(dto.getNotes());
+        entity.setNotes(normalizeNotes(dto.getNotes()));
         entity.setStatus(Status.PENDENTE);
         entity.setTotal(BigDecimal.ZERO);
         return entity;
@@ -194,5 +194,12 @@ public class PurchaseService {
 
     private String receivedMovementReason(Integer id) {
         return "Compra #" + id + " recebida";
+    }
+
+    private String normalizeNotes(String notes) {
+        if (notes == null || notes.trim().isEmpty()) {
+            return null;
+        }
+        return notes.trim();
     }
 }

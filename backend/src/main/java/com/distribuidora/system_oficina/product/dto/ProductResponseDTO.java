@@ -22,6 +22,9 @@ public class ProductResponseDTO {
     @Schema(description = "Nome do product")
     private String name;
 
+    @Schema(description = "Codigo interno gerado pelo ERP")
+    private String internalCode;
+
     @Schema(description = "description do product")
     private String description;
     
@@ -30,6 +33,9 @@ public class ProductResponseDTO {
    
     @Schema(description = "barcode do product")
     private String barCode;
+
+    @Schema(description = "Marca/fabricante do produto")
+    private String brand;
   
     @Schema(description = "category the product")
     private Integer categoryId;
@@ -65,9 +71,11 @@ public class ProductResponseDTO {
         return ProductResponseDTO.builder()
                 .id(product.getId())
                 .name(product.getName())
+                .internalCode(product.getInternalCode())
                 .description(product.getDescription())
                 .partNumber(product.getPartNumber())
                 .barCode(product.getBarCode())
+                .brand(product.getBrand())
                 .categoryId(product.getCategory().getId())
                 .categoryName(product.getCategory().getName())
                 .supplierId(product.getSupplier() != null ? product.getSupplier().getId() : null)

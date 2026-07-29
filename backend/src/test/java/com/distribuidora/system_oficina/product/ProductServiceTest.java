@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -61,7 +62,8 @@ class ProductServiceTest {
                 .name("Filtro de Óleo")
                 .description("Filtro automotivo")
                 .partNumber("PN-001")
-                .barCode("ABC123")
+                .barCode("7891234567890")
+                .brand("Mahle")
                 .categoryId(1)
                 .supplierId(2)
                 .costPrice(new BigDecimal("10.00"))
@@ -72,7 +74,15 @@ class ProductServiceTest {
 
         when(categoryRepository.findById(1)).thenReturn(Optional.of(category));
         when(supplierRepository.findById(2)).thenReturn(Optional.of(supplier));
-        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(productRepository.findByPartNumberIgnoreCase("PN-001")).thenReturn(Optional.empty());
+        when(productRepository.findByBarCode("7891234567890")).thenReturn(Optional.empty());
+        when(productRepository.save(any(Product.class))).thenAnswer(invocation -> {
+            Product savedProduct = invocation.getArgument(0);
+            if (savedProduct.getId() == null) {
+                savedProduct.setId(1);
+            }
+            return savedProduct;
+        });
 
         // Act
         ProductResponseDTO result = productService.createProduct(request);
@@ -81,7 +91,9 @@ class ProductServiceTest {
         assertThat(result.getName()).isEqualTo("Filtro de Óleo");
         assertThat(result.getCategoryName()).isEqualTo("Peças");
         assertThat(result.getSupplierName()).isEqualTo("Fornecedor A");
-        verify(productRepository).save(any(Product.class));
+        assertThat(result.getInternalCode()).isEqualTo("PROD-000001");
+        assertThat(result.getBrand()).isEqualTo("Mahle");
+        verify(productRepository, times(2)).save(any(Product.class));
     }
 
     @Test

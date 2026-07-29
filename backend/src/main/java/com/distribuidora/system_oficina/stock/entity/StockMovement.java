@@ -46,6 +46,12 @@ public class StockMovement {
 
     @Column(name = "quantity", nullable = false)
     private Integer quantity;
+
+    @Column(name = "previous_balance")
+    private Integer previousBalance;
+
+    @Column(name = "current_balance")
+    private Integer currentBalance;
     
     @CreationTimestamp
     @Column(name = "created_at")

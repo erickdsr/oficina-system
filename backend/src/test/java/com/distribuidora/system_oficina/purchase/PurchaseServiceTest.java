@@ -103,6 +103,7 @@ class PurchaseServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getStatus()).isEqualTo(Status.PENDENTE);
         assertThat(result.getTotal()).isEqualByComparingTo("20.00");
+        assertThat(result.getNotes()).isEqualTo("Compra teste");
     }
 
     @Test

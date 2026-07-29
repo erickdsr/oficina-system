@@ -18,6 +18,9 @@ import lombok.NoArgsConstructor;
 @Builder
 public class StockMovementDTO {
 
+    @Schema(description = "id da movimentacao", example = "1")
+    private Integer id;
+
     @NotNull(message = "O product é obrigatório")
     @Positive
     @Schema(description = "id do product", example = "1")
@@ -39,16 +42,25 @@ public class StockMovementDTO {
     @Schema(description = "quantidade de movimento", example = "3 vendas")
     private Integer quantity;
 
+    @Schema(description = "saldo anterior do produto", example = "120")
+    private Integer previousBalance;
+
+    @Schema(description = "saldo atual do produto", example = "170")
+    private Integer currentBalance;
+
     @Schema(description = "data de criacao da movimentacao", example = "2026-07-28T16:05:00")
     private Timestamp createdAt;
      
     public static StockMovementDTO fromEntity(StockMovement stock) {
         return StockMovementDTO.builder()
+                .id(stock.getId())
                 .product(stock.getProduct() != null ? stock.getProduct().getId() : null)
                 .employee(stock.getEmployee() != null ? stock.getEmployee().getId() : null)
                 .type(stock.getType())
                 .reason(stock.getReason())
                 .quantity(stock.getQuantity())
+                .previousBalance(stock.getPreviousBalance())
+                .currentBalance(stock.getCurrentBalance())
                 .createdAt(stock.getCreatedAt())
                 .build();
     }

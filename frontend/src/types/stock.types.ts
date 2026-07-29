@@ -20,11 +20,14 @@ export interface StockRequest{
 
 export interface StockMovementDTO{
 
+    id?: ApiId;
     product: Nullable<ApiId>;
     employee: Nullable<ApiId>;
     type: StockMovementType;
     reason: string;
     quantity: number;
+    previousBalance?: Nullable<number>;
+    currentBalance?: Nullable<number>;
     createdAt?: ApiDateTime;
 }
 

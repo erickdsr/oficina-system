@@ -68,6 +68,7 @@ export function PurchaseDetail() {
                 <div><span>Status</span><strong><StatusBadge label={purchase.status} /></strong></div>
                 <div><span>Total</span><strong>{formatCurrency(purchase.total)}</strong></div>
                 <div><span>Atualizada</span><strong>{formatDateTime(purchase.updatedAt)}</strong></div>
+                <div className="span-2"><span>Observacoes</span><strong>{purchase.notes?.trim() || "-"}</strong></div>
             </div>
             <div className="table-wrap">
                 <table className="data-table">

@@ -99,6 +99,8 @@ public class StockService {
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Stock not found for product id: " + product.getId()));
 
+        int previousBalance = stock.getQuantity();
+
         if (type == StockMovementType.ENTRADA) {
             stock.setQuantity(stock.getQuantity() + quantity);
         } else if (type == StockMovementType.SAIDA) {
@@ -111,6 +113,7 @@ public class StockService {
             stock.setQuantity(quantity);
         }
 
+        int currentBalance = stock.getQuantity();
         stockRepository.save(stock);
 
         StockMovement movement = new StockMovement();
@@ -119,6 +122,8 @@ public class StockService {
         movement.setType(type);
         movement.setQuantity(quantity);
         movement.setReason(reason);
+        movement.setPreviousBalance(previousBalance);
+        movement.setCurrentBalance(currentBalance);
         stockMovementRepository.save(movement);
     }
 }

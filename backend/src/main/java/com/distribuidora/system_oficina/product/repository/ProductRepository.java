@@ -8,8 +8,10 @@ import com.distribuidora.system_oficina.product.entity.Product;
 public interface ProductRepository extends JpaRepository<Product, Integer> {
 
     List<Product> findByName(String name);
+    Optional<Product> findByInternalCode(String internalCode);
     Optional<Product> findByBarCode(String barCode);
     Optional<Product> findByPartNumber(String partNumber);
+    Optional<Product> findByPartNumberIgnoreCase(String partNumber);
     Optional<Product> findByStatus(Boolean status);
     List<Product> findAllByStatus(Boolean status);
     long countByCategoryId(Integer categoryId);
