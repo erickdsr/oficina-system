@@ -1,12 +1,15 @@
 package com.distribuidora.system_oficina.client.service;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Arrays;
 import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import com.distribuidora.system_oficina.client.dto.ClientDetailsResponseDTO;
+import com.distribuidora.system_oficina.client.dto.ClientCityFilterOptionDTO;
 import com.distribuidora.system_oficina.client.dto.ClientListResponseDTO;
 import com.distribuidora.system_oficina.client.dto.ClientSummaryResponseDTO;
 import org.springframework.web.server.ResponseStatusException;
@@ -74,6 +77,30 @@ public class ClientService {
                 .build();
     }
 
+    public List<ClientCityFilterOptionDTO> listCityFilterOptions(String states, String statusFilter) {
+        List<String> normalizedStates = !StringUtils.hasText(states) ? List.of() : Arrays.stream(states.split(","))
+                .filter(StringUtils::hasText)
+                .map(state -> state.trim().toUpperCase(Locale.ROOT))
+                .distinct()
+                .collect(Collectors.toList());
+        Boolean status = switch (statusFilter == null ? "all" : statusFilter.trim().toLowerCase(Locale.ROOT)) {
+            case "active" -> true;
+            case "inactive" -> false;
+            default -> null;
+        };
+
+        boolean statesEmpty = normalizedStates.isEmpty();
+        List<String> queryStates = statesEmpty ? List.of("__NONE__") : normalizedStates;
+
+        return clientRepository.findCityFilterOptions(queryStates, statesEmpty, status).stream()
+                .map(option -> ClientCityFilterOptionDTO.builder()
+                        .estado(option.getState())
+                        .cidade(toDisplayCity(option.getCity()))
+                        .quantidadeClientes(option.getClientCount())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
     public ClientDetailsResponseDTO getClientById(Integer id) {
         return toDetailsResponseDTO(clientRepository.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Client not found with id: " + id)));
@@ -132,6 +159,16 @@ public class ClientService {
 
     private String digits(String value) {
         return value == null ? null : value.replaceAll("\\D", "");
+    }
+
+    private String toDisplayCity(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "";
+        }
+        String[] words = value.trim().toLowerCase(Locale.forLanguageTag("pt-BR")).split("\\s+");
+        return java.util.Arrays.stream(words)
+                .map(word -> word.length() <= 2 ? word : word.substring(0, 1).toUpperCase(Locale.forLanguageTag("pt-BR")) + word.substring(1))
+                .collect(Collectors.joining(" "));
     }
 
     @Transactional

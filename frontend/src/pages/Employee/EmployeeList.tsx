@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, Pencil, Plus, ShieldCheck, Trash2, UserCheck, UserRoundX, Users, X } from "lucide-react";
+import { ChevronDown, Eye, ListFilter, Pencil, Plus, ShieldCheck, Trash2, UserCheck, UserRoundX, Users, X } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
 import LoadingState from "../../components/common/LoadingState";
@@ -174,6 +174,7 @@ export function EmployeeList() {
     const { employees, loading, error, setError, fetchAll, create, update, remove, forceDelete } = useEmployee();
     const [search, setSearch] = useState("");
     const [showInactive, setShowInactive] = useState(false);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [roleFilter, setRoleFilter] = useState("all");
     const [statusFilter, setStatusFilter] = useState("all");
     const [sortKey, setSortKey] = useState<EmployeeSortKey>("name");
@@ -393,6 +394,15 @@ export function EmployeeList() {
         return sortDirection === "asc" ? " ^" : " v";
     }
 
+    function resetFilters() {
+        setSearch("");
+        setShowInactive(false);
+        setRoleFilter("all");
+        setStatusFilter("all");
+        setSortKey("name");
+        setSortDirection("asc");
+    }
+
     return (
         <section className="page-section employee-page">
             <PageHeader
@@ -434,6 +444,22 @@ export function EmployeeList() {
                     <span>Mostrando {filteredEmployees.length.toLocaleString("pt-BR")} funcionarios</span>
                 </div>
                 <div className="supplier-filter-panel__actions employee-filter-panel__actions">
+                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
+                        <ListFilter size={18} aria-hidden="true" />
+                        Filtros
+                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
+                    </button>
+                    {canEditEmployee && (
+                        <button type="button" className="primary-button" onClick={() => { setEditingEmployee(null); setShowForm(true); }}>
+                            <Plus size={20} aria-hidden="true" />
+                            Novo funcionario
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {filtersOpen && (
+                <div className="product-filter-grid employee-filter-grid">
                     <label className="employee-filter-field">
                         Perfil
                         <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
@@ -457,14 +483,12 @@ export function EmployeeList() {
                         <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
                         Mostrar desativados
                     </label>
-                    {canEditEmployee && (
-                        <button type="button" className="primary-button" onClick={() => { setEditingEmployee(null); setShowForm(true); }}>
-                            <Plus size={20} aria-hidden="true" />
-                            Novo funcionario
-                        </button>
-                    )}
+                    <button type="button" className="secondary-button product-filter-reset" onClick={resetFilters}>
+                        <ListFilter size={18} aria-hidden="true" />
+                        Limpar filtros
+                    </button>
                 </div>
-            </div>
+            )}
 
             {showForm && (
                 <EmployeeForm

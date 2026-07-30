@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { CircleCheck, Eye, Layers3, PackageCheck, PackageX, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, CircleCheck, Eye, Layers3, ListFilter, PackageCheck, PackageX, Pencil, Plus, Trash2, X } from "lucide-react";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
@@ -147,6 +147,7 @@ export function CategoryList() {
     const [products, setProducts] = useState<ProductResponse[]>([]);
     const [search, setSearch] = useState("");
     const [showInactive, setShowInactive] = useState(false);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -381,6 +382,13 @@ export function CategoryList() {
         return sortDirection === "asc" ? " ^" : " v";
     }
 
+    function resetFilters() {
+        setSearch("");
+        setShowInactive(false);
+        setSortKey("name");
+        setSortDirection("asc");
+    }
+
     return (
         <section className="page-section category-page">
             <PageHeader
@@ -428,10 +436,11 @@ export function CategoryList() {
                     <span>Mostrando {filteredCategories.length} categorias</span>
                 </div>
                 <div className="supplier-filter-panel__actions">
-                    <label className="checkbox-field supplier-filter-panel__toggle">
-                        <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
-                        Mostrar registros desativados
-                    </label>
+                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
+                        <ListFilter size={18} aria-hidden="true" />
+                        Filtros
+                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
+                    </button>
                     {canEditCategory && (
                         <button type="button" className="primary-button" onClick={() => setShowForm(true)}>
                             <Plus size={20} aria-hidden="true" />
@@ -440,6 +449,20 @@ export function CategoryList() {
                     )}
                 </div>
             </div>
+            {filtersOpen && (
+                <div className="product-filter-grid category-filter-grid">
+                    <label className="client-switch-field">
+                        Mostrar registros desativados
+                        <button type="button" className={`client-switch${showInactive ? " active" : ""}`} aria-pressed={showInactive} onClick={() => setShowInactive((current) => !current)}>
+                            <span />
+                        </button>
+                    </label>
+                    <button type="button" className="secondary-button product-filter-reset" onClick={resetFilters}>
+                        <ListFilter size={18} aria-hidden="true" />
+                        Limpar filtros
+                    </button>
+                </div>
+            )}
             {showForm && (
                 <CategoryForm
                     category={editingCategory}

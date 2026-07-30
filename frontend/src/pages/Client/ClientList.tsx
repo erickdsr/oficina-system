@@ -1,4 +1,6 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { autoUpdate, flip, FloatingPortal, offset, shift, size, useFloating } from "@floating-ui/react";
+import { createPortal } from "react-dom";
 import {
     Ban,
     ChevronDown,
@@ -8,6 +10,7 @@ import {
     Loader2,
     Pencil,
     Plus,
+    RotateCcw,
     Search,
     Trash2,
     UserCheck,
@@ -19,7 +22,6 @@ import { toast } from "sonner";
 import EmptyState from "../../components/common/EmptyState";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
 import PageHeader from "../../components/common/PageHeader";
-import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
@@ -27,7 +29,7 @@ import clientService from "../../services/client.service";
 import saleService from "../../services/sale.service";
 import useClient from "../../hooks/useClient";
 import type { DeletionReport } from "../../types/api.types";
-import type { Client, ClientRequest, ClientSummary } from "../../types/client.types";
+import type { Client, ClientCityFilterOption, ClientRequest, ClientSummary } from "../../types/client.types";
 import type { SaleResponse } from "../../types/sale.types";
 import { canDelete, canManage, normalizeRole } from "../../utils/permissions";
 import { displayValue, formatCpfCnpj, formatCurrency, formatDateTime, formatPhone, onlyDigits } from "../../utils/formatters";
@@ -39,7 +41,126 @@ type ClientSortKey = "name" | "createdAt" | "lastPurchase" | "totalPurchased";
 type SortDirection = "asc" | "desc";
 type StatusFilter = "all" | "active" | "inactive";
 type TypeFilter = "all" | "PF" | "PJ";
+type OrderPreset = "default" | "name" | "recent" | "oldest" | "custom";
 type DeleteMode = "deactivate" | "force";
+type PopoverPosition = { top: number; left: number; width: number; maxHeight: number };
+
+interface ClientFilters {
+    search: string;
+    statusFilter: StatusFilter;
+    typeFilter: TypeFilter;
+    cityFilters: string[];
+    stateFilters: string[];
+    orderPreset: OrderPreset;
+    sortKey: ClientSortKey;
+    sortDirection: SortDirection;
+}
+
+const CLIENT_FILTERS_STORAGE_KEY = "system_oficina.client.filters";
+
+const stateNames: Record<string, string> = {
+    AC: "Acre",
+    AL: "Alagoas",
+    AP: "Amapa",
+    AM: "Amazonas",
+    BA: "Bahia",
+    CE: "Ceara",
+    DF: "Distrito Federal",
+    ES: "Espirito Santo",
+    GO: "Goias",
+    MA: "Maranhao",
+    MT: "Mato Grosso",
+    MS: "Mato Grosso do Sul",
+    MG: "Minas Gerais",
+    PA: "Para",
+    PB: "Paraiba",
+    PR: "Parana",
+    PE: "Pernambuco",
+    PI: "Piaui",
+    RJ: "Rio de Janeiro",
+    RN: "Rio Grande do Norte",
+    RS: "Rio Grande do Sul",
+    RO: "Rondonia",
+    RR: "Roraima",
+    SC: "Santa Catarina",
+    SP: "Sao Paulo",
+    SE: "Sergipe",
+    TO: "Tocantins",
+};
+
+const defaultClientFilters: ClientFilters = {
+    search: "",
+    statusFilter: "all",
+    typeFilter: "all",
+    cityFilters: [],
+    stateFilters: [],
+    orderPreset: "default",
+    sortKey: "name",
+    sortDirection: "asc",
+};
+
+function loadStoredClientFilters(): ClientFilters {
+    if (typeof window === "undefined") {
+        return defaultClientFilters;
+    }
+
+    try {
+        const stored = window.localStorage.getItem(CLIENT_FILTERS_STORAGE_KEY);
+        if (!stored) {
+            return defaultClientFilters;
+        }
+        const parsed = JSON.parse(stored) as Partial<ClientFilters> & { cityFilter?: string; stateFilter?: string };
+        const availableStates = new Set<string>(brazilianStates);
+        const storedStates = Array.isArray(parsed.stateFilters)
+            ? parsed.stateFilters
+            : parsed.stateFilter
+                ? [parsed.stateFilter]
+                : [];
+        const storedCities = Array.isArray(parsed.cityFilters)
+            ? parsed.cityFilters
+            : parsed.cityFilter
+                ? [parsed.cityFilter]
+                : [];
+        const orderPreset = parsed.orderPreset
+            ?? (parsed.sortKey === "createdAt" && parsed.sortDirection === "desc"
+                ? "recent"
+                : parsed.sortKey === "createdAt" && parsed.sortDirection === "asc"
+                    ? "oldest"
+                    : parsed.sortKey === "name"
+                        ? "name"
+                        : "default");
+        return {
+            ...defaultClientFilters,
+            ...parsed,
+            orderPreset,
+            cityFilters: storedCities.filter(Boolean),
+            stateFilters: storedStates.filter((state) => availableStates.has(state)),
+        };
+    } catch {
+        return defaultClientFilters;
+    }
+}
+
+function saveClientFilters(filters: ClientFilters) {
+    if (typeof window !== "undefined") {
+        window.localStorage.setItem(CLIENT_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+    }
+}
+
+function countActiveClientFilters(filters: ClientFilters) {
+    return [
+        filters.search.trim(),
+        filters.statusFilter !== defaultClientFilters.statusFilter,
+        filters.typeFilter !== defaultClientFilters.typeFilter,
+        filters.cityFilters.length > 0,
+        filters.stateFilters.length > 0,
+        filters.orderPreset !== defaultClientFilters.orderPreset || filters.sortKey !== defaultClientFilters.sortKey || filters.sortDirection !== defaultClientFilters.sortDirection,
+    ].filter(Boolean).length;
+}
+
+function areStringListsEqual(left: string[], right: string[]) {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+}
 
 interface ClientTableRowProps {
     client: Client;
@@ -249,18 +370,21 @@ export function ClientList() {
     const [sales, setSales] = useState<SaleResponse[]>([]);
     const [clientSummary, setClientSummary] = useState<ClientSummary>({ activeCount: 0, inactiveCount: 0, totalCount: 0 });
     const [salesLoading, setSalesLoading] = useState(false);
-    const [search, setSearch] = useState("");
-    const [showInactive, setShowInactive] = useState(false);
+    const [cityFilterOptions, setCityFilterOptions] = useState<ClientCityFilterOption[]>([]);
+    const [cityOptionsLoading, setCityOptionsLoading] = useState(false);
+    const [cityOptionsError, setCityOptionsError] = useState<string | null>(null);
+    const [appliedFilters, setAppliedFilters] = useState<ClientFilters>(() => loadStoredClientFilters());
+    const [draftFilters, setDraftFilters] = useState<ClientFilters>(() => loadStoredClientFilters());
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-    const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-    const [cityFilter, setCityFilter] = useState("");
-    const [stateFilter, setStateFilter] = useState("");
-    const [clientSinceFilter, setClientSinceFilter] = useState("");
-    const [sortKey, setSortKey] = useState<ClientSortKey>("name");
-    const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+    const [stateSearch, setStateSearch] = useState("");
+    const [citySearch, setCitySearch] = useState("");
+    const [orderDropdownOpen, setOrderDropdownOpen] = useState(false);
+    const [statesDropdownOpen, setStatesDropdownOpen] = useState(false);
+    const [citiesDropdownOpen, setCitiesDropdownOpen] = useState(false);
+    const [orderPopoverPosition, setOrderPopoverPosition] = useState<PopoverPosition | null>(null);
+    const [citiesPopoverPosition, setCitiesPopoverPosition] = useState<PopoverPosition | null>(null);
+    const [isApplyingFilters, setIsApplyingFilters] = useState(false);
     const [page, setPage] = useState(1);
-    const [pageSize, setPageSize] = useState(10);
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -275,15 +399,48 @@ export function ClientList() {
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [deletionReport, setDeletionReport] = useState<DeletionReport | null>(null);
     const [showForm, setShowForm] = useState(false);
+    const orderDropdownRef = useRef<HTMLDivElement | null>(null);
+    const statesDropdownRef = useRef<HTMLDivElement | null>(null);
+    const citiesDropdownRef = useRef<HTMLDivElement | null>(null);
+    const stateTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const orderPopoverRef = useRef<HTMLDivElement | null>(null);
+    const statesPopoverRef = useRef<HTMLDivElement | null>(null);
+    const citiesPopoverRef = useRef<HTMLDivElement | null>(null);
+    const statesPopoverSnapshotRef = useRef<Pick<ClientFilters, "stateFilters" | "cityFilters">>({ stateFilters: [], cityFilters: [] });
+    const citiesPopoverSnapshotRef = useRef<string[]>([]);
+    const statesDropdownOpenRef = useRef(false);
+
+    const stateFloating = useFloating({
+        open: statesDropdownOpen,
+        placement: "bottom-start",
+        strategy: "fixed",
+        whileElementsMounted: autoUpdate,
+        middleware: [
+            offset(6),
+            flip({ padding: 12 }),
+            shift({ padding: 12 }),
+            size({
+                padding: 12,
+                apply({ availableHeight, elements }) {
+                    elements.floating.style.maxHeight = `${Math.min(420, Math.max(180, availableHeight))}px`;
+                },
+            }),
+        ],
+    });
 
     const canEditClient = canManage(user?.role, ["ADMIN", "MANAGER", "SALESPERSON"]);
     const canDeactivateClient = canDelete(user?.role, ["ADMIN", "MANAGER", "SALESPERSON"]);
     const canHardDeleteClient = normalizeRole(user?.role) === "ADMIN";
+    const activeFilterCount = useMemo(() => countActiveClientFilters(appliedFilters), [appliedFilters]);
+    const hasActiveFilters = activeFilterCount > 0;
+    const pageSize = 10;
+    const allStatesSelected = draftFilters.stateFilters.length === brazilianStates.length;
+    const someStatesSelected = draftFilters.stateFilters.length > 0 && !allStatesSelected;
 
     const loadData = useCallback(async () => {
         setError(null);
         const [, summary] = await Promise.all([
-            fetchAll(showInactive),
+            fetchAll(appliedFilters.statusFilter !== "active"),
             clientService.summary(),
         ]);
         setClientSummary(summary);
@@ -295,7 +452,7 @@ export function ClientList() {
         } finally {
             setSalesLoading(false);
         }
-    }, [fetchAll, setError, showInactive]);
+    }, [appliedFilters.statusFilter, fetchAll, setError]);
 
     useEffect(() => {
         void loadData().catch(() => undefined);
@@ -320,10 +477,31 @@ export function ClientList() {
         }, {});
     }, [clients, sales]);
 
+    const visibleStateOptions = useMemo(() => {
+        const term = normalizeSearch(stateSearch);
+        return brazilianStates.filter((state) => {
+            if (!term) {
+                return true;
+            }
+            return normalizeSearch(state).includes(term) || normalizeSearch(stateNames[state]).includes(term);
+        });
+    }, [stateSearch]);
+
+    const visibleCityGroups = useMemo(() => {
+        const term = normalizeSearch(citySearch);
+        const groups = new Map<string, ClientCityFilterOption[]>();
+        cityFilterOptions
+            .filter((option) => !term || normalizeSearch(option.cidade).includes(term) || normalizeSearch(option.estado).includes(term))
+            .forEach((option) => {
+                const state = option.estado || "UF";
+                groups.set(state, [...(groups.get(state) ?? []), option]);
+            });
+        return Array.from(groups.entries()).map(([state, cities]) => ({ state, cities }));
+    }, [cityFilterOptions, citySearch]);
+
     const filteredClients = useMemo(() => {
-        const term = normalizeSearch(search);
-        const numericTerm = onlyDigits(search);
-        const sinceTime = clientSinceFilter ? new Date(`${clientSinceFilter}T00:00:00`).getTime() : null;
+        const term = normalizeSearch(appliedFilters.search);
+        const numericTerm = onlyDigits(appliedFilters.search);
 
         return [...clients]
             .filter((client) => {
@@ -334,27 +512,23 @@ export function ClientList() {
                     return false;
                 }
 
-                if (statusFilter === "active" && !client.status) {
+                if (appliedFilters.statusFilter === "active" && !client.status) {
                     return false;
                 }
 
-                if (statusFilter === "inactive" && client.status) {
+                if (appliedFilters.statusFilter === "inactive" && client.status) {
                     return false;
                 }
 
-                if (typeFilter !== "all" && client.clientType !== typeFilter) {
+                if (appliedFilters.typeFilter !== "all" && client.clientType !== appliedFilters.typeFilter) {
                     return false;
                 }
 
-                if (cityFilter && !normalizeSearch(client.city).includes(normalizeSearch(cityFilter))) {
+                if (appliedFilters.stateFilters.length > 0 && !appliedFilters.stateFilters.some((state) => normalizeSearch(client.state) === normalizeSearch(state))) {
                     return false;
                 }
 
-                if (stateFilter && normalizeSearch(client.state) !== normalizeSearch(stateFilter)) {
-                    return false;
-                }
-
-                if (sinceTime !== null && new Date(client.createdAt).getTime() < sinceTime) {
+                if (appliedFilters.cityFilters.length > 0 && !appliedFilters.cityFilters.some((city) => normalizeSearch(client.city) === normalizeSearch(city))) {
                     return false;
                 }
 
@@ -365,23 +539,23 @@ export function ClientList() {
                 const leftMetrics = clientMetrics[left.id] ?? emptyMetrics;
                 const rightMetrics = clientMetrics[right.id] ?? emptyMetrics;
 
-                if (sortKey === "createdAt") {
+                if (appliedFilters.sortKey === "createdAt") {
                     comparison = new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
-                } else if (sortKey === "lastPurchase") {
+                } else if (appliedFilters.sortKey === "lastPurchase") {
                     comparison = new Date(leftMetrics.lastPurchaseAt ?? 0).getTime() - new Date(rightMetrics.lastPurchaseAt ?? 0).getTime();
-                } else if (sortKey === "totalPurchased") {
+                } else if (appliedFilters.sortKey === "totalPurchased") {
                     comparison = leftMetrics.totalPurchased - rightMetrics.totalPurchased;
                 } else {
                     comparison = left.name.localeCompare(right.name, "pt-BR", { sensitivity: "base" });
                 }
 
-                return sortDirection === "asc" ? comparison : -comparison;
+                return appliedFilters.sortDirection === "asc" ? comparison : -comparison;
             });
-    }, [cityFilter, clientMetrics, clientSinceFilter, clients, search, sortDirection, sortKey, stateFilter, statusFilter, typeFilter]);
+    }, [appliedFilters, clientMetrics, clients]);
 
     useEffect(() => {
         setPage(1);
-    }, [cityFilter, clientSinceFilter, pageSize, search, showInactive, sortDirection, sortKey, stateFilter, statusFilter, typeFilter]);
+    }, [appliedFilters]);
 
     const totalPages = Math.max(1, Math.ceil(filteredClients.length / pageSize));
     const currentPage = Math.min(page, totalPages);
@@ -400,34 +574,300 @@ export function ClientList() {
     const viewedMetrics = clientToView ? clientMetrics[clientToView.id] ?? emptyMetrics : emptyMetrics;
     const historyMetrics = historyClient ? clientMetrics[historyClient.id] ?? emptyMetrics : emptyMetrics;
 
-    function handleSort(nextSortKey: ClientSortKey) {
-        if (sortKey === nextSortKey) {
-            setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
-            return;
+    const calculatePopoverPosition = useCallback((anchor: HTMLElement | null, options: { width?: number; estimatedHeight?: number } = {}): PopoverPosition | null => {
+        if (!anchor || typeof window === "undefined") {
+            return null;
+        }
+        const rect = anchor.getBoundingClientRect();
+        const width = Math.min(options.width ?? 420, window.innerWidth - 32);
+        const left = Math.min(Math.max(16, rect.left), Math.max(16, window.innerWidth - width - 16));
+        const estimatedHeight = options.estimatedHeight ?? 330;
+        const spaceBelow = window.innerHeight - rect.bottom - 16;
+        const spaceAbove = rect.top - 16;
+        const opensAbove = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+        const maxHeight = Math.max(160, Math.min(estimatedHeight, opensAbove ? spaceAbove - 8 : spaceBelow - 8));
+        return {
+            top: opensAbove ? Math.max(16, rect.top - maxHeight - 8) : rect.bottom + 8,
+            left,
+            width,
+            maxHeight,
+        };
+    }, []);
+
+    const updatePopoverPositions = useCallback(() => {
+        if (orderDropdownOpen) {
+            const width = orderDropdownRef.current?.getBoundingClientRect().width;
+            setOrderPopoverPosition(calculatePopoverPosition(orderDropdownRef.current, { width, estimatedHeight: 188 }));
+        }
+        if (citiesDropdownOpen) {
+            setCitiesPopoverPosition(calculatePopoverPosition(citiesDropdownRef.current, { estimatedHeight: 300 }));
+        }
+    }, [calculatePopoverPosition, citiesDropdownOpen, orderDropdownOpen]);
+
+    useEffect(() => {
+        statesDropdownOpenRef.current = statesDropdownOpen;
+    }, [statesDropdownOpen]);
+
+    useEffect(() => {
+        function handlePointerDown(event: MouseEvent) {
+            const target = event.target as Node;
+            if (
+                orderDropdownRef.current
+                && !orderDropdownRef.current.contains(target)
+                && !orderPopoverRef.current?.contains(target)
+            ) {
+                setOrderDropdownOpen(false);
+            }
+            if (
+                statesDropdownOpenRef.current
+                && statesDropdownRef.current
+                && !statesDropdownRef.current.contains(target)
+                && !statesPopoverRef.current?.contains(target)
+            ) {
+                cancelStatesPopover();
+                return;
+            }
+            if (
+                statesDropdownRef.current
+                && !statesDropdownRef.current.contains(target)
+                && !statesPopoverRef.current?.contains(target)
+            ) {
+                setStatesDropdownOpen(false);
+            }
+            if (
+                citiesDropdownRef.current
+                && !citiesDropdownRef.current.contains(target)
+                && !citiesPopoverRef.current?.contains(target)
+            ) {
+                setCitiesDropdownOpen(false);
+            }
         }
 
-        setSortKey(nextSortKey);
-        setSortDirection("asc");
+        function handleKeyDown(event: KeyboardEvent) {
+            if (event.key === "Escape") {
+                setOrderDropdownOpen(false);
+                if (statesDropdownOpenRef.current) {
+                    cancelStatesPopover();
+                }
+                setCitiesDropdownOpen(false);
+            }
+        }
+
+        document.addEventListener("mousedown", handlePointerDown);
+        document.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", handlePointerDown);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, []);
+
+    useEffect(() => {
+        updatePopoverPositions();
+        if (!orderDropdownOpen && !statesDropdownOpen && !citiesDropdownOpen) {
+            return undefined;
+        }
+
+        window.addEventListener("resize", updatePopoverPositions);
+        window.addEventListener("scroll", updatePopoverPositions, true);
+        return () => {
+            window.removeEventListener("resize", updatePopoverPositions);
+            window.removeEventListener("scroll", updatePopoverPositions, true);
+        };
+    }, [citiesDropdownOpen, orderDropdownOpen, statesDropdownOpen, updatePopoverPositions]);
+
+    const stateSummary = useMemo(() => {
+        if (draftFilters.stateFilters.length === 0) {
+            return { text: "Selecionar estados", count: "" };
+        }
+        const [first, second, ...rest] = draftFilters.stateFilters;
+        return {
+            text: [first, second].filter(Boolean).join(", ") + (rest.length > 0 ? ` +${rest.length}` : ""),
+            count: `${draftFilters.stateFilters.length} selecionados`,
+        };
+    }, [draftFilters.stateFilters]);
+
+    const citySummary = useMemo(() => {
+        if (draftFilters.cityFilters.length === 0) {
+            return "Selecionar cidades";
+        }
+        const [first, second, ...rest] = draftFilters.cityFilters;
+        return [first, second].filter(Boolean).join(", ") + (rest.length > 0 ? ` +${rest.length}` : "");
+    }, [draftFilters.cityFilters]);
+
+    const loadCityFilterOptions = useCallback(async () => {
+        setCityOptionsLoading(true);
+        setCityOptionsError(null);
+        try {
+            setCityFilterOptions(await clientService.cityFilterOptions({
+                states: draftFilters.stateFilters,
+                status: draftFilters.statusFilter,
+            }));
+        } catch (cityLoadError) {
+            setCityFilterOptions([]);
+            setCityOptionsError(getApiErrorMessage(cityLoadError, "Nao foi possivel carregar cidades."));
+        } finally {
+            setCityOptionsLoading(false);
+        }
+    }, [draftFilters.stateFilters, draftFilters.statusFilter]);
+
+    function updateDraftFilter<K extends keyof ClientFilters>(key: K, value: ClientFilters[K]) {
+        setDraftFilters((current) => ({ ...current, [key]: value }));
+    }
+
+    function applyFilters(nextFilters = draftFilters) {
+        const selectedStates = new Set(nextFilters.stateFilters.map((state) => normalizeSearch(state)));
+        const validCities = nextFilters.stateFilters.length === 0
+            ? nextFilters.cityFilters
+            : nextFilters.cityFilters.filter((city) => clients.some((client) => normalizeSearch(client.city) === normalizeSearch(city) && selectedStates.has(normalizeSearch(client.state))));
+        const normalizedFilters = { ...nextFilters, cityFilters: validCities };
+        setIsApplyingFilters(true);
+        setAppliedFilters(normalizedFilters);
+        setDraftFilters(normalizedFilters);
+        saveClientFilters(normalizedFilters);
+        setPage(1);
+        window.setTimeout(() => setIsApplyingFilters(false), 180);
+    }
+
+    function handleSort(nextSortKey: ClientSortKey) {
+        const nextFilters: ClientFilters = {
+            ...appliedFilters,
+            orderPreset: "custom",
+            sortKey: nextSortKey,
+            sortDirection: appliedFilters.sortKey === nextSortKey && appliedFilters.sortDirection === "asc" ? "desc" : "asc",
+        };
+        setDraftFilters(nextFilters);
+        applyFilters(nextFilters);
     }
 
     function sortIndicator(targetSortKey: ClientSortKey) {
-        if (sortKey !== targetSortKey) {
+        if (appliedFilters.sortKey !== targetSortKey) {
             return "";
         }
 
-        return sortDirection === "asc" ? " ^" : " v";
+        return appliedFilters.sortDirection === "asc" ? " ^" : " v";
     }
 
     function resetFilters() {
-        setSearch("");
-        setStatusFilter("all");
-        setTypeFilter("all");
-        setCityFilter("");
-        setStateFilter("");
-        setClientSinceFilter("");
-        setShowInactive(false);
-        setSortKey("name");
-        setSortDirection("asc");
+        setDraftFilters(defaultClientFilters);
+        applyFilters(defaultClientFilters);
+    }
+
+    function clearDraftFilter<K extends keyof ClientFilters>(key: K) {
+        updateDraftFilter(key, defaultClientFilters[key]);
+    }
+
+    function updateDraftOrderPreset(orderPreset: OrderPreset) {
+        setDraftFilters((current) => {
+            if (orderPreset === "recent") {
+                return { ...current, orderPreset, sortKey: "createdAt", sortDirection: "desc" };
+            }
+            if (orderPreset === "oldest") {
+                return { ...current, orderPreset, sortKey: "createdAt", sortDirection: "asc" };
+            }
+            return { ...current, orderPreset, sortKey: "name", sortDirection: "asc" };
+        });
+    }
+
+    function toggleDraftStateFilter(state: string) {
+        setDraftFilters((current) => {
+            const selected = current.stateFilters.includes(state);
+            const nextStates = selected
+                ? current.stateFilters.filter((currentState) => currentState !== state)
+                : [...current.stateFilters, state];
+            return {
+                ...current,
+                stateFilters: nextStates,
+                cityFilters: nextStates.length === 0
+                    ? current.cityFilters
+                    : current.cityFilters.filter((city) => clients.some((client) => normalizeSearch(client.city) === normalizeSearch(city) && nextStates.some((selectedState) => normalizeSearch(client.state) === normalizeSearch(selectedState)))),
+            };
+        });
+    }
+
+    function toggleAllDraftStates() {
+        setDraftFilters((current) => ({
+            ...current,
+            stateFilters: current.stateFilters.length === brazilianStates.length ? [] : [...brazilianStates],
+            cityFilters: current.cityFilters,
+        }));
+    }
+
+    function toggleDraftCityFilter(city: string) {
+        setDraftFilters((current) => {
+            const selected = current.cityFilters.includes(city);
+            return {
+                ...current,
+                cityFilters: selected
+                    ? current.cityFilters.filter((currentCity) => currentCity !== city)
+                    : [...current.cityFilters, city],
+            };
+        });
+    }
+
+    function toggleOrderPopover() {
+        setOrderDropdownOpen((current) => {
+            const nextOpen = !current;
+            if (nextOpen) {
+                const width = orderDropdownRef.current?.getBoundingClientRect().width;
+                setOrderPopoverPosition(calculatePopoverPosition(orderDropdownRef.current, { width, estimatedHeight: 188 }));
+                setStatesDropdownOpen(false);
+                setCitiesDropdownOpen(false);
+            }
+            return nextOpen;
+        });
+    }
+
+    function selectOrderPreset(orderPreset: OrderPreset) {
+        updateDraftOrderPreset(orderPreset);
+        setOrderDropdownOpen(false);
+    }
+
+    function toggleStatesPopover() {
+        if (statesDropdownOpen) {
+            cancelStatesPopover();
+            return;
+        }
+        statesPopoverSnapshotRef.current = {
+            stateFilters: [...draftFilters.stateFilters],
+            cityFilters: [...draftFilters.cityFilters],
+        };
+        setOrderDropdownOpen(false);
+        setCitiesDropdownOpen(false);
+        setStatesDropdownOpen(true);
+    }
+
+    function toggleCitiesPopover() {
+        setCitiesDropdownOpen((current) => {
+            const nextOpen = !current;
+            if (nextOpen) {
+                citiesPopoverSnapshotRef.current = [...draftFilters.cityFilters];
+                setCitiesPopoverPosition(calculatePopoverPosition(citiesDropdownRef.current, { estimatedHeight: 300 }));
+                setOrderDropdownOpen(false);
+                setStatesDropdownOpen(false);
+                void loadCityFilterOptions();
+            }
+            return nextOpen;
+        });
+    }
+
+    function cancelStatesPopover() {
+        setDraftFilters((current) => ({
+            ...current,
+            stateFilters: [...statesPopoverSnapshotRef.current.stateFilters],
+            cityFilters: [...statesPopoverSnapshotRef.current.cityFilters],
+        }));
+        setStatesDropdownOpen(false);
+        stateTriggerRef.current?.focus();
+    }
+
+    function applyStatesPopover() {
+        setStatesDropdownOpen(false);
+        stateTriggerRef.current?.focus();
+    }
+
+    function cancelCitiesPopover() {
+        setDraftFilters((current) => ({ ...current, cityFilters: [...citiesPopoverSnapshotRef.current] }));
+        setCitiesDropdownOpen(false);
     }
 
     const handleViewClick = useCallback(async (client: Client) => {
@@ -549,6 +989,187 @@ export function ClientList() {
         setDeletionReport(null);
     }
 
+    const activeFilterChips: Array<{ key: string; label: string; onClear: () => void }> = [];
+    draftFilters.stateFilters.forEach((state) => {
+        activeFilterChips.push({
+            key: `state-${state}`,
+            label: state,
+            onClear: () => toggleDraftStateFilter(state),
+        });
+    });
+    draftFilters.cityFilters.forEach((city) => {
+        activeFilterChips.push({
+            key: `city-${city}`,
+            label: city,
+            onClear: () => toggleDraftCityFilter(city),
+        });
+    });
+    if (draftFilters.orderPreset !== defaultClientFilters.orderPreset || draftFilters.sortKey !== defaultClientFilters.sortKey || draftFilters.sortDirection !== defaultClientFilters.sortDirection) {
+        const orderLabels: Record<OrderPreset, string> = {
+            default: "Padrao",
+            name: "Nome",
+            recent: "Mais recentes",
+            oldest: "Mais antigos",
+            custom: "Ordenacao",
+        };
+        activeFilterChips.push({
+            key: "order",
+            label: orderLabels[draftFilters.orderPreset],
+            onClear: () => updateDraftOrderPreset("default"),
+        });
+    }
+    if (draftFilters.statusFilter !== "all") {
+        activeFilterChips.push({
+            key: "status",
+            label: draftFilters.statusFilter === "active" ? "Ativos" : "Inativos",
+            onClear: () => updateDraftFilter("statusFilter", "all"),
+        });
+    }
+    if (draftFilters.typeFilter !== "all") {
+        activeFilterChips.push({
+            key: "type",
+            label: draftFilters.typeFilter === "PF" ? "Pessoa fisica" : "Pessoa juridica",
+            onClear: () => updateDraftFilter("typeFilter", "all"),
+        });
+    }
+    if (draftFilters.search) {
+        activeFilterChips.push({
+            key: "search",
+            label: "Busca",
+            onClear: () => clearDraftFilter("search"),
+        });
+    }
+    const visibleFilterChips = activeFilterChips.slice(0, 3);
+    const hiddenFilterChipCount = Math.max(0, activeFilterChips.length - visibleFilterChips.length);
+    const orderOptions: Array<{ value: OrderPreset; label: string }> = [
+        { value: "default", label: "Padrao" },
+        { value: "name", label: "Nome" },
+        { value: "recent", label: "Mais recentes" },
+        { value: "oldest", label: "Mais antigos" },
+    ];
+    const selectedOrderLabel = orderOptions.find((option) => option.value === draftFilters.orderPreset)?.label ?? "Padrao";
+    const hasPendingStateChanges = statesDropdownOpen && (
+        !areStringListsEqual(draftFilters.stateFilters, statesPopoverSnapshotRef.current.stateFilters)
+        || !areStringListsEqual(draftFilters.cityFilters, statesPopoverSnapshotRef.current.cityFilters)
+    );
+    const canRenderPortal = typeof document !== "undefined";
+    const orderPopover = orderDropdownOpen && orderPopoverPosition && canRenderPortal
+        ? createPortal(
+            <div
+                ref={orderPopoverRef}
+                className="client-filter-popover client-order-popover"
+                style={{ top: orderPopoverPosition.top, left: orderPopoverPosition.left, width: orderPopoverPosition.width, maxHeight: orderPopoverPosition.maxHeight }}
+            >
+                {orderOptions.map((option) => (
+                    <button
+                        type="button"
+                        key={option.value}
+                        className={draftFilters.orderPreset === option.value ? "active" : undefined}
+                        onClick={() => selectOrderPreset(option.value)}
+                    >
+                        {option.label}
+                    </button>
+                ))}
+            </div>,
+            document.body,
+        )
+        : null;
+    const statesPopover = statesDropdownOpen
+        ? (
+            <FloatingPortal>
+            <div
+                ref={(node) => {
+                    statesPopoverRef.current = node;
+                    stateFloating.refs.setFloating(node);
+                }}
+                className="client-filter-popover client-state-popover"
+                style={stateFloating.floatingStyles}
+            >
+                <div className="client-state-popover__header">
+                    <span className="client-input-wrap client-state-search">
+                        <Search size={15} aria-hidden="true" />
+                        <input value={stateSearch} onChange={(event) => setStateSearch(event.target.value)} placeholder="Buscar estado ou UF..." />
+                        {stateSearch && <button type="button" aria-label="Limpar busca de estados" onClick={() => setStateSearch("")}><X size={14} /></button>}
+                    </span>
+                </div>
+                <div className="client-state-popover__body">
+                    <label className={`client-state-checkbox client-state-checkbox--all${allStatesSelected ? " active" : ""}${someStatesSelected ? " indeterminate" : ""}`}>
+                        <input
+                            type="checkbox"
+                            checked={allStatesSelected}
+                            ref={(input) => {
+                                if (input) {
+                                    input.indeterminate = someStatesSelected;
+                                }
+                            }}
+                            onChange={toggleAllDraftStates}
+                        />
+                        <span title="Todos os estados">Todos os estados</span>
+                    </label>
+                    <div className="client-state-checkbox-grid">
+                        {visibleStateOptions.map((state) => (
+                            <label key={state} className={`client-state-checkbox${draftFilters.stateFilters.includes(state) ? " active" : ""}`}>
+                                <input type="checkbox" checked={draftFilters.stateFilters.includes(state)} onChange={() => toggleDraftStateFilter(state)} />
+                                <strong title={stateNames[state]}>{state}</strong>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+                <div className="client-popover-footer">
+                    <span>{draftFilters.stateFilters.length.toLocaleString("pt-BR")} selecionados</span>
+                    <button type="button" className="ghost-button" onClick={cancelStatesPopover}>Cancelar</button>
+                    <button type="button" className="primary-button" onClick={applyStatesPopover} disabled={!hasPendingStateChanges}>Aplicar</button>
+                </div>
+            </div>
+            </FloatingPortal>
+        )
+        : null;
+    const citiesPopover = citiesDropdownOpen && citiesPopoverPosition && canRenderPortal
+        ? createPortal(
+            <div
+                ref={citiesPopoverRef}
+                className="client-filter-popover client-city-popover"
+                style={{ top: citiesPopoverPosition.top, left: citiesPopoverPosition.left, width: citiesPopoverPosition.width, maxHeight: citiesPopoverPosition.maxHeight }}
+            >
+                <span className="client-input-wrap client-state-search">
+                    <Search size={15} aria-hidden="true" />
+                    <input value={citySearch} onChange={(event) => setCitySearch(event.target.value)} placeholder="Buscar cidade..." />
+                    {citySearch && <button type="button" aria-label="Limpar busca de cidades" onClick={() => setCitySearch("")}><X size={14} /></button>}
+                </span>
+                <div className="client-city-checkbox-list">
+                    {cityOptionsLoading ? (
+                        <span className="client-city-empty">Carregando cidades...</span>
+                    ) : cityOptionsError ? (
+                        <span className="client-city-empty">{cityOptionsError}</span>
+                    ) : visibleCityGroups.length === 0 ? (
+                        <span className="client-city-empty">
+                            {draftFilters.stateFilters.length > 0 ? "Nenhuma cidade cadastrada para os estados selecionados." : "Nenhuma cidade encontrada."}
+                        </span>
+                    ) : (
+                        visibleCityGroups.map((group) => (
+                            <div key={group.state} className="client-city-group">
+                                <strong>{group.state}</strong>
+                                {group.cities.map((option) => (
+                                    <label key={`${option.estado}-${option.cidade}`} className={`client-state-checkbox${draftFilters.cityFilters.includes(option.cidade) ? " active" : ""}`}>
+                                        <input type="checkbox" checked={draftFilters.cityFilters.includes(option.cidade)} onChange={() => toggleDraftCityFilter(option.cidade)} />
+                                        <span>{option.cidade}</span>
+                                        <small>{option.quantidadeClientes.toLocaleString("pt-BR")} {option.quantidadeClientes === 1 ? "cliente" : "clientes"}</small>
+                                    </label>
+                                ))}
+                            </div>
+                        ))
+                    )}
+                </div>
+                <div className="client-popover-footer">
+                    <span>{draftFilters.cityFilters.length.toLocaleString("pt-BR")} selecionadas</span>
+                    <button type="button" className="ghost-button" onClick={cancelCitiesPopover}>Cancelar</button>
+                    <button type="button" className="primary-button" onClick={() => setCitiesDropdownOpen(false)}>Aplicar</button>
+                </div>
+            </div>,
+            document.body,
+        )
+        : null;
+
     return (
         <section className="page-section client-page">
             <div className="client-header-row">
@@ -575,18 +1196,33 @@ export function ClientList() {
                 </div>
             </div>
 
-            <div className="supplier-filter-panel client-search-panel">
-                <div className="supplier-filter-panel__search client-search-panel__search">
-                    <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar por nome, CPF/CNPJ, telefone ou email..." />
-                    <div className="client-search-hints" aria-label="Campos pesquisaveis">
-                        <Search size={14} aria-hidden="true" />
-                        <span>Pesquisar por: Nome, CPF/CNPJ, Telefone, Email</span>
-                    </div>
+            <div className={`client-filter-shell${hasActiveFilters ? " has-active-filters" : ""}`}>
+            <div className="client-filter-topbar">
+                <div className="client-search-control">
+                    <Search size={18} aria-hidden="true" />
+                    <input
+                        type="search"
+                        value={draftFilters.search}
+                        onChange={(event) => updateDraftFilter("search", event.target.value)}
+                        onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                                applyFilters();
+                            }
+                        }}
+                        placeholder="Pesquisar por nome, CPF/CNPJ, telefone ou email..."
+                        aria-label="Pesquisar clientes"
+                    />
+                    {draftFilters.search && (
+                        <button type="button" aria-label="Limpar pesquisa" onClick={() => clearDraftFilter("search")}>
+                            <X size={15} aria-hidden="true" />
+                        </button>
+                    )}
                 </div>
-                <div className="supplier-filter-panel__actions client-search-panel__actions">
-                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
+                <div className="client-filter-topbar__actions">
+                    <button type="button" className="secondary-button client-filter-toggle" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
                         <ListFilter size={18} aria-hidden="true" />
-                        Filtros
+                        <span>Filtros</span>
+                        {activeFilterCount > 0 && <strong>{activeFilterCount}</strong>}
                         <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
                     </button>
                     {canEditClient && (
@@ -599,61 +1235,124 @@ export function ClientList() {
             </div>
 
             {filtersOpen && (
-                <div className="product-filter-grid client-filter-grid">
-                    <label>
-                        Status
-                        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
-                            <option value="all">Todos</option>
-                            <option value="active">Ativos</option>
-                            <option value="inactive">Inativos</option>
-                        </select>
-                    </label>
-                    <label>
-                        Tipo
-                        <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as TypeFilter)}>
-                            <option value="all">Todos</option>
-                            <option value="PF">Pessoa Fisica</option>
-                            <option value="PJ">Pessoa Juridica</option>
-                        </select>
-                    </label>
-                    <label>
-                        Cidade
-                        <input value={cityFilter} onChange={(event) => setCityFilter(event.target.value)} placeholder="Todas" />
-                    </label>
-                    <label>
-                        Estado
-                        <select value={stateFilter} onChange={(event) => setStateFilter(event.target.value)}>
-                            <option value="">Todos</option>
-                            {brazilianStates.map((state) => (
-                                <option key={state} value={state}>{state}</option>
+                <div className="client-filter-panel">
+                    <div className="client-filter-grid client-filter-grid--clean">
+                    <section className="client-filter-group client-filter-group--order">
+                        <h3>Ordenacao</h3>
+                        <div className="client-popover-field client-popover-field--order" ref={orderDropdownRef}>
+                            <button type="button" className={`client-select-trigger${orderDropdownOpen ? " active" : ""}`} onClick={toggleOrderPopover} aria-expanded={orderDropdownOpen}>
+                                <span>{selectedOrderLabel}</span>
+                                <ChevronDown size={16} aria-hidden="true" />
+                            </button>
+                        </div>
+                    </section>
+                    <section className="client-filter-group client-filter-group--status">
+                        <h3>Status</h3>
+                        <div className="client-segmented-control" role="radiogroup" aria-label="Status dos clientes">
+                            {[
+                                { value: "all", label: "Todos" },
+                                { value: "active", label: "Ativos" },
+                                { value: "inactive", label: "Inativos" },
+                            ].map((option) => (
+                                <button
+                                    type="button"
+                                    key={option.value}
+                                    className={draftFilters.statusFilter === option.value ? "active" : undefined}
+                                    aria-pressed={draftFilters.statusFilter === option.value}
+                                    onClick={() => updateDraftFilter("statusFilter", option.value as StatusFilter)}
+                                >
+                                    {option.label}
+                                </button>
                             ))}
-                        </select>
-                    </label>
-                    <label>
-                        Cliente desde
-                        <input type="date" value={clientSinceFilter} onChange={(event) => setClientSinceFilter(event.target.value)} />
-                    </label>
-                    <label>
-                        Ordenacao
-                        <select value={sortKey} onChange={(event) => setSortKey(event.target.value as ClientSortKey)}>
-                            <option value="name">Nome</option>
-                            <option value="createdAt">Data de cadastro</option>
-                            <option value="lastPurchase">Ultima compra</option>
-                            <option value="totalPurchased">Valor comprado</option>
-                        </select>
-                    </label>
-                    <label className="client-switch-field">
-                        Mostrar registros desativados
-                        <button type="button" className={`client-switch${showInactive ? " active" : ""}`} aria-pressed={showInactive} onClick={() => setShowInactive((current) => !current)}>
-                            <span />
-                        </button>
-                    </label>
-                    <button type="button" className="secondary-button product-filter-reset" onClick={resetFilters}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Limpar filtros
-                    </button>
+                        </div>
+                    </section>
+                    <section className="client-filter-group client-filter-group--type">
+                        <h3>Tipo de cliente</h3>
+                        <div className="client-segmented-control client-segmented-control--type" role="radiogroup" aria-label="Tipo de cliente">
+                            {[
+                                { value: "all", label: "Todos" },
+                                { value: "PF", label: "Pessoa fisica" },
+                                { value: "PJ", label: "Pessoa juridica" },
+                            ].map((option) => (
+                                <button
+                                    type="button"
+                                    key={option.value}
+                                    className={draftFilters.typeFilter === option.value ? "active" : undefined}
+                                    aria-pressed={draftFilters.typeFilter === option.value}
+                                    onClick={() => updateDraftFilter("typeFilter", option.value as TypeFilter)}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
+                    </section>
+                    <section className="client-filter-group client-filter-group--state">
+                            <div className="client-popover-field client-popover-field--state" ref={statesDropdownRef}>
+                                <h3>Estado</h3>
+                                <button
+                                    type="button"
+                                    ref={(node) => {
+                                        stateTriggerRef.current = node;
+                                        stateFloating.refs.setReference(node);
+                                    }}
+                                    className={`client-multiselect-trigger${statesDropdownOpen ? " active" : ""}`}
+                                    onClick={toggleStatesPopover}
+                                    aria-expanded={statesDropdownOpen}
+                                >
+                                    <span>{stateSummary.text}</span>
+                                    {draftFilters.stateFilters.length > 0 && (
+                                        <span className="client-trigger-clear" aria-label="Limpar estados" onClick={(event) => { event.stopPropagation(); updateDraftFilter("stateFilters", []); }}>
+                                            <X size={14} aria-hidden="true" />
+                                        </span>
+                                    )}
+                                    <ChevronDown size={16} aria-hidden="true" />
+                                </button>
+                            </div>
+                    </section>
+                    <section className="client-filter-group client-filter-group--city">
+                            <div className="client-popover-field client-popover-field--city" ref={citiesDropdownRef}>
+                                <h3>Cidade</h3>
+                                <button type="button" className={`client-multiselect-trigger${citiesDropdownOpen ? " active" : ""}`} onClick={toggleCitiesPopover}>
+                                    <span>{citySummary}</span>
+                                    {draftFilters.cityFilters.length > 0 && (
+                                        <span className="client-trigger-clear" aria-label="Limpar cidades" onClick={(event) => { event.stopPropagation(); updateDraftFilter("cityFilters", []); }}>
+                                            <X size={14} aria-hidden="true" />
+                                        </span>
+                                    )}
+                                    <ChevronDown size={16} aria-hidden="true" />
+                                </button>
+                            </div>
+                    </section>
+                    </div>
+                    <div className="client-filter-footer">
+                        {visibleFilterChips.length > 0 && (
+                            <div className="client-active-filter-chips" aria-label="Filtros selecionados">
+                                {visibleFilterChips.map((chip) => (
+                                    <button type="button" key={chip.key} onClick={chip.onClear}>
+                                        {chip.label}
+                                        <X size={13} aria-hidden="true" />
+                                    </button>
+                                ))}
+                                {hiddenFilterChipCount > 0 && <span>+{hiddenFilterChipCount}</span>}
+                            </div>
+                        )}
+                        <div className="client-filter-actions">
+                            <button type="button" className="secondary-button client-filter-clear-button" onClick={resetFilters} disabled={countActiveClientFilters(draftFilters) === 0 && activeFilterCount === 0}>
+                                <RotateCcw size={17} aria-hidden="true" />
+                                Limpar filtros
+                            </button>
+                            <button type="button" className="primary-button" onClick={() => applyFilters()} disabled={isApplyingFilters}>
+                                <Search size={17} aria-hidden="true" />
+                                {isApplyingFilters ? "Aplicando..." : "Aplicar filtros"}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
+            </div>
+            {orderPopover}
+            {statesPopover}
+            {citiesPopover}
 
             {showForm && (
                 <ClientForm
@@ -681,14 +1380,33 @@ export function ClientList() {
             {loading ? (
                 <ClientSkeleton />
             ) : filteredClients.length === 0 ? (
+                hasActiveFilters ? (
+                <div className="empty-state client-filter-empty-state">
+                    <div className="empty-state__icon" aria-hidden="true">
+                        <Search size={24} />
+                    </div>
+                    <strong>Nenhum cliente encontrado com os filtros atuais.</strong>
+                    <span>Ajuste os campos ou limpe os filtros para ampliar a busca.</span>
+                    <button type="button" className="secondary-button" onClick={resetFilters}>
+                        <RotateCcw size={18} aria-hidden="true" />
+                        Limpar filtros
+                    </button>
+                </div>
+                ) : (
                 <EmptyState
                     message="Nenhum cliente cadastrado."
                     description="Cadastre o primeiro cliente para iniciar suas vendas."
                     actionLabel={canEditClient ? "Cadastrar Cliente" : undefined}
                     onAction={canEditClient ? () => { setClientDetailsError(null); setEditingClient(null); setShowForm(true); } : undefined}
                 />
+                )
             ) : (
                 <>
+                    {hasActiveFilters && (
+                        <div className="client-filter-result-note">
+                            Exibindo {filteredClients.length.toLocaleString("pt-BR")} clientes com os filtros aplicados.
+                        </div>
+                    )}
                     <div className="table-wrap client-table-wrap">
                         <table className="data-table client-table">
                             <thead>
@@ -724,14 +1442,6 @@ export function ClientList() {
                         </table>
                         <div className="supplier-pagination client-pagination">
                             <span>Mostrando {pageStart}-{pageEnd} de {filteredClients.length.toLocaleString("pt-BR")} clientes</span>
-                            <label>
-                                Registros por pagina
-                                <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
-                                    {[10, 20, 50, 100].map((size) => (
-                                        <option key={size} value={size}>{size}</option>
-                                    ))}
-                                </select>
-                            </label>
                             <div className="supplier-pagination__pages" aria-label="Paginacao de clientes">
                                 <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={currentPage === 1}>
                                     &lt;
@@ -784,14 +1494,6 @@ export function ClientList() {
                         })}
                         <div className="supplier-pagination client-card-pagination">
                             <span>Mostrando {pageStart}-{pageEnd} de {filteredClients.length.toLocaleString("pt-BR")} clientes</span>
-                            <label>
-                                Registros por pagina
-                                <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
-                                    {[10, 20, 50, 100].map((size) => (
-                                        <option key={size} value={size}>{size}</option>
-                                    ))}
-                                </select>
-                            </label>
                             <div className="supplier-pagination__pages" aria-label="Paginacao de clientes em cards">
                                 <button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={currentPage === 1}>
                                     &lt;

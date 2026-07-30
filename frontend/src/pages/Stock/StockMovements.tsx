@@ -3,12 +3,13 @@ import { useNavigate } from "react-router-dom";
 import {
     ArrowDownCircle,
     ArrowUpCircle,
+    ChevronDown,
     Clock,
     Download,
     Eye,
     FileSpreadsheet,
     FileText,
-    Filter,
+    ListFilter,
     Package,
     PackageSearch,
     Plus,
@@ -553,11 +554,17 @@ export function StockMovements() {
                     <SearchInput value={search} onChange={setSearch} placeholder="Buscar movimentacao..." />
                     <span>{filteredRows.length.toLocaleString("pt-BR")} movimentacoes encontradas</span>
                 </div>
-                <button type="button" className="secondary-button movements-mobile-filter-toggle" onClick={() => setFiltersOpen((current) => !current)}>
-                    <Filter size={18} aria-hidden="true" />
-                    Filtros
-                </button>
-                <div className={`product-filter-grid movements-filter-grid${filtersOpen ? " is-open" : ""}`}>
+                <div className="supplier-filter-panel__actions">
+                    <button type="button" className="secondary-button movements-mobile-filter-toggle" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
+                        <ListFilter size={18} aria-hidden="true" />
+                        Filtros
+                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
+
+            {filtersOpen && (
+                <div className="product-filter-grid movements-filter-grid is-open">
                     <label>
                         Tipo
                         <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as MovementTypeFilter)}>
@@ -630,7 +637,7 @@ export function StockMovements() {
                         Imprimir relatorio
                     </button>
                 </div>
-            </div>
+            )}
 
             {error && <div className="form-error">{error}</div>}
 

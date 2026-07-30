@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
+import com.distribuidora.system_oficina.client.dto.ClientCityFilterOptionDTO;
 import com.distribuidora.system_oficina.client.dto.ClientDetailsResponseDTO;
 import com.distribuidora.system_oficina.client.dto.ClientListResponseDTO;
 import com.distribuidora.system_oficina.client.dto.ClientRequestDTO;
@@ -44,6 +45,14 @@ public class ClientController {
     @Operation(summary = "Get client summary", description = "Returns client totals grouped by status")
     public ResponseEntity<ClientSummaryResponseDTO> getClientSummary() {
         return ResponseEntity.ok(clientService.getClientSummary());
+    }
+
+    @GetMapping("/filter-options/cities")
+    @Operation(summary = "List client city filter options", description = "Returns distinct cities that have registered clients")
+    public ResponseEntity<List<ClientCityFilterOptionDTO>> listCityFilterOptions(
+            @RequestParam(required = false) String states,
+            @RequestParam(defaultValue = "all") String status) {
+        return ResponseEntity.ok(clientService.listCityFilterOptions(states, status));
     }
 
     @GetMapping("/{id}")

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import {
     AlertTriangle,
     BarChart3,
+    ChevronDown,
     ClipboardList,
     Coins,
     Download,
@@ -234,6 +235,7 @@ export function StockList() {
     const [products, setProducts] = useState<ProductResponse[]>([]);
     const [sales, setSales] = useState<SaleResponse[]>([]);
     const [search, setSearch] = useState("");
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [supplierFilter, setSupplierFilter] = useState("all");
     const [statusFilter, setStatusFilter] = useState<StockStatusFilter>("all");
@@ -617,6 +619,16 @@ export function StockList() {
                     <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar produto, codigo ou fabricante..." />
                     <span>Exibindo {pageStart}-{pageEnd} de {filteredRows.length.toLocaleString("pt-BR")} registros</span>
                 </div>
+                <div className="supplier-filter-panel__actions">
+                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
+                        <ListFilter size={18} aria-hidden="true" />
+                        Filtros
+                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
+
+            {filtersOpen && (
                 <div className="stock-filter-grid">
                     <label className="employee-filter-field">
                         Categoria
@@ -676,7 +688,7 @@ export function StockList() {
                         </button>
                     </div>
                 </div>
-            </div>
+            )}
 
             {error && (
                 <div className="form-error stock-error">

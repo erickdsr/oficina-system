@@ -2,12 +2,14 @@ import { memo, useCallback, useEffect, useMemo, useState, type Dispatch, type Se
 import { Link, useNavigate } from "react-router-dom";
 import {
     Ban,
+    CheckCircle2,
+    ChevronDown,
     Clock,
     Copy,
     DollarSign,
     Eye,
     FileText,
-    Filter,
+    ListFilter,
     Pencil,
     Plus,
     Printer,
@@ -53,6 +55,7 @@ interface SaleTableRowProps {
     onView: (sale: SaleResponse) => void;
     onEdit: (sale: SaleResponse) => void;
     onReceipt: (sale: SaleResponse) => void;
+    onFinalize: (sale: SaleResponse) => void;
     onCancel: (sale: SaleResponse) => void;
     onDuplicate: (sale: SaleResponse) => void;
 }
@@ -185,6 +188,7 @@ const SaleTableRow = memo(function SaleTableRow({
     onView,
     onEdit,
     onReceipt,
+    onFinalize,
     onCancel,
     onDuplicate,
 }: SaleTableRowProps) {
@@ -236,6 +240,11 @@ const SaleTableRow = memo(function SaleTableRow({
                     <button type="button" className="table-action-button tooltip-button" data-tooltip="Comprovante" title="Emitir comprovante" aria-label={`Emitir comprovante da venda ${saleNumber(sale)}`} onClick={(event) => { event.stopPropagation(); onReceipt(sale); }}>
                         <ReceiptText size={22} strokeWidth={2.3} aria-hidden="true" />
                     </button>
+                    {canChangeSale && (
+                        <button type="button" className="table-action-button tooltip-button" data-tooltip="Finalizar venda" title="Finalizar venda" aria-label={`Finalizar venda ${saleNumber(sale)}`} disabled={isActionLoading} onClick={(event) => { event.stopPropagation(); onFinalize(sale); }}>
+                            <CheckCircle2 size={22} strokeWidth={2.3} aria-hidden="true" />
+                        </button>
+                    )}
                     {canChangeSale && (
                         <button type="button" className="table-action-button tooltip-button" data-tooltip="Cancelar" title="Cancelar venda" aria-label={`Cancelar venda ${saleNumber(sale)}`} disabled={isActionLoading} onClick={(event) => { event.stopPropagation(); onCancel(sale); }}>
                             <Ban size={22} strokeWidth={2.3} aria-hidden="true" />
@@ -471,11 +480,17 @@ export function SaleList() {
                     <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar numero da venda, cliente ou funcionario..." />
                     <span>{filteredRows.length.toLocaleString("pt-BR")} vendas encontradas</span>
                 </div>
-                <button type="button" className="secondary-button sale-mobile-filter-toggle" onClick={() => setFiltersOpen((current) => !current)}>
-                    <Filter size={18} aria-hidden="true" />
-                    Filtros
-                </button>
-                <div className={`product-filter-grid sale-filter-grid${filtersOpen ? " is-open" : ""}`}>
+                <div className="supplier-filter-panel__actions">
+                    <button type="button" className="secondary-button sale-mobile-filter-toggle" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
+                        <ListFilter size={18} aria-hidden="true" />
+                        Filtros
+                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
+
+            {filtersOpen && (
+                <div className="product-filter-grid sale-filter-grid is-open">
                     <label>
                         Status
                         <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as SaleStatusFilter)}>
@@ -522,7 +537,7 @@ export function SaleList() {
                         Limpar filtros
                     </button>
                 </div>
-            </div>
+            )}
 
             {(error || actionError) && <div className="form-error">{error ?? actionError}</div>}
 
@@ -567,6 +582,7 @@ export function SaleList() {
                                         onView={setSelectedSale}
                                         onEdit={(sale) => navigate(`/sales/${sale.id}`)}
                                         onReceipt={(sale) => { setSelectedSale(sale); window.setTimeout(printReceipt, 80); }}
+                                        onFinalize={(sale) => void runSaleAction(sale, "finalize")}
                                         onCancel={(sale) => void runSaleAction(sale, "cancel")}
                                         onDuplicate={(sale) => void runSaleAction(sale, "duplicate")}
                                     />
@@ -608,6 +624,7 @@ export function SaleList() {
                                     <button type="button" className="table-action-button tooltip-button" data-tooltip="Visualizar" aria-label="Visualizar venda" onClick={() => setSelectedSale(row.sale)}><Eye size={22} aria-hidden="true" /></button>
                                     {canEditSale && row.sale.status === "PENDENTE" && <button type="button" className="table-action-button table-action-button--edit tooltip-button" data-tooltip="Editar" aria-label="Editar venda" onClick={() => navigate(`/sales/${row.sale.id}`)}><Pencil size={22} aria-hidden="true" /></button>}
                                     <button type="button" className="table-action-button tooltip-button" data-tooltip="Comprovante" aria-label="Emitir comprovante" onClick={() => { setSelectedSale(row.sale); window.setTimeout(printReceipt, 80); }}><ReceiptText size={22} aria-hidden="true" /></button>
+                                    {canEditSale && row.sale.status === "PENDENTE" && <button type="button" className="table-action-button tooltip-button" data-tooltip="Finalizar venda" aria-label="Finalizar venda" onClick={() => void runSaleAction(row.sale, "finalize")}><CheckCircle2 size={22} aria-hidden="true" /></button>}
                                     {canEditSale && row.sale.status === "PENDENTE" && <button type="button" className="table-action-button tooltip-button" data-tooltip="Cancelar" aria-label="Cancelar venda" onClick={() => void runSaleAction(row.sale, "cancel")}><Ban size={22} aria-hidden="true" /></button>}
                                     {canEditSale && <button type="button" className="table-action-button tooltip-button" data-tooltip="Duplicar" aria-label="Duplicar venda" onClick={() => void runSaleAction(row.sale, "duplicate")}><Copy size={22} aria-hidden="true" /></button>}
                                 </div>

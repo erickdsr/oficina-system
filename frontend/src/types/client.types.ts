@@ -51,3 +51,9 @@ export interface ClientSummary {
     inactiveCount: number;
     totalCount: number;
 }
+
+export interface ClientCityFilterOption {
+    estado: string;
+    cidade: string;
+    quantidadeClientes: number;
+}

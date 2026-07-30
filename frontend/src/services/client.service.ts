@@ -1,6 +1,6 @@
 import api from "./api";
 import type { ApiId, DeletionReport, DeletionResult } from "../types/api.types";
-import type { Client, ClientListItem, ClientRequest, ClientSummary } from "../types/client.types";
+import type { Client, ClientCityFilterOption, ClientListItem, ClientRequest, ClientSummary } from "../types/client.types";
 
 const RESOURCE = "/clients";
 
@@ -17,6 +17,16 @@ export const clientService = {
 
     async summary() {
         const { data } = await api.get<ClientSummary>(`${RESOURCE}/summary`);
+        return data;
+    },
+
+    async cityFilterOptions(params?: { states?: string[]; status?: string }) {
+        const { data } = await api.get<ClientCityFilterOption[]>(`${RESOURCE}/filter-options/cities`, {
+            params: {
+                states: params?.states?.join(","),
+                status: params?.status,
+            },
+        });
         return data;
     },
 

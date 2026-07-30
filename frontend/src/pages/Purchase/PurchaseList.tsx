@@ -3,11 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import {
     Ban,
     CheckCircle2,
+    ChevronDown,
     ClipboardList,
     Copy,
     CreditCard,
     Eye,
     FileText,
+    ListFilter,
     PackageCheck,
     Pencil,
     Plus,
@@ -250,6 +252,7 @@ export function PurchaseList() {
     const [metadataLoading, setMetadataLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [showInactive, setShowInactive] = useState(false);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [supplierFilter, setSupplierFilter] = useState("all");
     const [statusFilter, setStatusFilter] = useState<PurchaseStatusFilter>("all");
     const [periodFilter, setPeriodFilter] = useState<PurchasePeriodFilter>("all");
@@ -503,6 +506,16 @@ export function PurchaseList() {
                         <span>Busca em tempo real por numero, fornecedor, CNPJ, produto e responsavel</span>
                     </div>
                 </div>
+                <div className="supplier-filter-panel__actions">
+                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
+                        <ListFilter size={18} aria-hidden="true" />
+                        Filtros
+                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
+                    </button>
+                </div>
+            </div>
+
+            {filtersOpen && (
                 <div className="stock-filter-grid purchase-filter-grid">
                     <label className="employee-filter-field">
                         Fornecedor
@@ -576,7 +589,7 @@ export function PurchaseList() {
                         </button>
                     </div>
                 </div>
-            </div>
+            )}
 
             {error && <div className="form-error">{error}</div>}
             {deleteError && !purchaseToDelete && <div className="form-error">{deleteError}</div>}

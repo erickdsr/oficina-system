@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
     Boxes,
+    ChevronDown,
     Eye,
     Layers3,
     ListFilter,
@@ -218,6 +219,7 @@ export function ProductList() {
     const [stocks, setStocks] = useState<StockResponse[]>([]);
     const [search, setSearch] = useState("");
     const [showInactive, setShowInactive] = useState(false);
+    const [filtersOpen, setFiltersOpen] = useState(false);
     const [categoryFilter, setCategoryFilter] = useState("all");
     const [supplierFilter, setSupplierFilter] = useState("all");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -569,10 +571,11 @@ export function ProductList() {
                     <span>{filteredProducts.length.toLocaleString("pt-BR")} produtos encontrados</span>
                 </div>
                 <div className="supplier-filter-panel__actions product-filter-panel__actions">
-                    <label className="checkbox-field supplier-filter-panel__toggle">
-                        <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
-                        Mostrar registros desativados
-                    </label>
+                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
+                        <ListFilter size={18} aria-hidden="true" />
+                        Filtros
+                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
+                    </button>
                     {canEditProduct && (
                         <button type="button" className="primary-button" onClick={() => { setEditingProduct(null); setShowForm(true); }}>
                             <Plus size={20} aria-hidden="true" />
@@ -582,6 +585,7 @@ export function ProductList() {
                 </div>
             </div>
 
+            {filtersOpen && (
             <div className="product-filter-grid">
                 <label>
                     Categoria
@@ -640,11 +644,18 @@ export function ProductList() {
                         <option value="sold">Mais vendidos</option>
                     </select>
                 </label>
+                <label className="client-switch-field">
+                    Mostrar registros desativados
+                    <button type="button" className={`client-switch${showInactive ? " active" : ""}`} aria-pressed={showInactive} onClick={() => setShowInactive((current) => !current)}>
+                        <span />
+                    </button>
+                </label>
                 <button type="button" className="secondary-button product-filter-reset" onClick={resetFilters}>
                     <ListFilter size={18} aria-hidden="true" />
                     Limpar filtros
                 </button>
             </div>
+            )}
 
             {showForm && (
                 <ProductForm
