@@ -1,4 +1,4 @@
-import { ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Zap } from "lucide-react";
+import { Bell, ChevronDown, Home, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, RefreshCcw, Shuffle } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/auth.context";
@@ -34,6 +34,11 @@ const routeLabels: Record<string, string> = {
     "/sales/new": "Nova venda",
 };
 
+const routeSubtitles: Record<string, string> = {
+    "/": "Visao geral do sistema",
+    "/home": "Visao geral do sistema",
+};
+
 function getRouteLabel(pathname: string) {
     if (routeLabels[pathname]) {
         return routeLabels[pathname];
@@ -50,11 +55,42 @@ function getRouteLabel(pathname: string) {
     return "GarageOS";
 }
 
+function getRouteSubtitle(pathname: string) {
+    return routeSubtitles[pathname] ?? "";
+}
+
+function getBreadcrumbItems(pathname: string, currentLabel: string) {
+    if (pathname === "/" || pathname === "/home") {
+        return [];
+    }
+
+    if (pathname === "/sales/new") {
+        return ["Vendas", currentLabel];
+    }
+
+    if (pathname === "/purchases/new") {
+        return ["Compras", currentLabel];
+    }
+
+    if (pathname.startsWith("/sales/")) {
+        return ["Vendas", currentLabel];
+    }
+
+    if (pathname.startsWith("/purchases/")) {
+        return ["Compras", currentLabel];
+    }
+
+    return [];
+}
+
 export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar }: HeaderProps) {
     const { user, logout } = useAuth();
     const location = useLocation();
     const [menuOpen, setMenuOpen] = useState(false);
     const currentLabel = getRouteLabel(location.pathname);
+    const currentSubtitle = getRouteSubtitle(location.pathname);
+    const breadcrumbItems = getBreadcrumbItems(location.pathname, currentLabel);
+    const isHome = location.pathname === "/" || location.pathname === "/home";
     const canCreateSales = canManage(user?.role, ["ADMIN", "MANAGER", "SALESPERSON"]);
     const canViewStockMovements = canManage(user?.role, ["ADMIN", "MANAGER", "STOCK", "BUYER"]);
     const initials = (user?.name ?? "Usuario")
@@ -73,13 +109,24 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar 
                 <button type="button" className="header-icon-button header-icon-button--desktop" aria-label="Recolher menu" onClick={onToggleSidebar}>
                     {sidebarCollapsed ? <PanelLeftOpen size={21} aria-hidden="true" /> : <PanelLeftClose size={21} aria-hidden="true" />}
                 </button>
+                {isHome && (
+                    <span className="app-header__page-icon" aria-hidden="true">
+                        <Home size={19} />
+                    </span>
+                )}
                 <div className="app-header__title">
-                    <nav className="breadcrumb" aria-label="Breadcrumb">
-                        <span>GarageOS</span>
-                        <span>/</span>
-                        <strong>{currentLabel}</strong>
-                    </nav>
+                    {breadcrumbItems.length > 0 && (
+                        <nav className="breadcrumb" aria-label="Breadcrumb">
+                            {breadcrumbItems.map((item, index) => (
+                                <span key={`${item}-${index}`}>
+                                    {index > 0 && <i aria-hidden="true">/</i>}
+                                    {index === breadcrumbItems.length - 1 ? <strong>{item}</strong> : item}
+                                </span>
+                            ))}
+                        </nav>
+                    )}
                     <h1>{currentLabel}</h1>
+                    {currentSubtitle && <p>{currentSubtitle}</p>}
                 </div>
             </div>
 
@@ -93,10 +140,21 @@ export function Header({ sidebarCollapsed, onToggleSidebar, onOpenMobileSidebar 
 
                 {canViewStockMovements && (
                     <Link className="quick-action quick-action--ghost" to="/stock/movements">
-                        <Zap size={18} aria-hidden="true" />
+                        <Shuffle size={18} aria-hidden="true" />
                         <span>Movimentos</span>
                     </Link>
                 )}
+
+                {isHome && (
+                    <button type="button" className="quick-action quick-action--ghost" onClick={() => window.dispatchEvent(new CustomEvent("garageos:refresh-dashboard"))}>
+                        <RefreshCcw size={18} aria-hidden="true" />
+                        <span>Atualizar dados</span>
+                    </button>
+                )}
+
+                <button type="button" className="header-icon-button header-icon-button--notification" aria-label="Notificacoes">
+                    <Bell size={19} aria-hidden="true" />
+                </button>
 
                 <div className="user-menu">
                     <button

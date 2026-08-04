@@ -55,7 +55,9 @@ api.interceptors.response.use(
                 originalError: error,
             };
 
-            console.error("[HTTP ERROR]", normalizedError);
+            if (import.meta.env.DEV) {
+                console.error("[HTTP ERROR]", normalizedError);
+            }
 
             if (shouldClearAuthenticationForStatus(normalizedError.status) && normalizedError.url !== "/auth/login") {
                 clearAuthSession();

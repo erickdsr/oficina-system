@@ -1,10 +1,8 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import {
     Boxes,
-    ChevronDown,
     Eye,
     Layers3,
-    ListFilter,
     PackageCheck,
     PackageX,
     Pencil,
@@ -14,9 +12,9 @@ import {
 } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
+import { ActiveFilterChips, FilterPanel, FilterResultSummary, FilterSegmentedControl, FilterSelect } from "../../components/common/FilterPanel";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
-import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
@@ -38,6 +36,31 @@ import ProductForm, { type ProductFormPayload } from "./ProductForm";
 type ProductSortKey = "name" | "code" | "price" | "stockDesc" | "stockAsc" | "sold";
 type StockFilter = "all" | "with" | "without" | "low";
 type SortDirection = "asc" | "desc";
+type ProductStatusFilter = "all" | "active" | "inactive";
+
+interface ProductFilters {
+    search: string;
+    categoryFilter: string;
+    supplierFilter: string;
+    statusFilter: ProductStatusFilter;
+    brandFilter: string;
+    unitFilter: string;
+    stockFilter: StockFilter;
+    sortKey: ProductSortKey;
+    sortDirection: SortDirection;
+}
+
+const defaultProductFilters: ProductFilters = {
+    search: "",
+    categoryFilter: "all",
+    supplierFilter: "all",
+    statusFilter: "all",
+    brandFilter: "all",
+    unitFilter: "all",
+    stockFilter: "all",
+    sortKey: "name",
+    sortDirection: "asc",
+};
 
 interface ProductTableRowProps {
     product: ProductResponse;
@@ -217,17 +240,12 @@ export function ProductList() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [stocks, setStocks] = useState<StockResponse[]>([]);
-    const [search, setSearch] = useState("");
-    const [showInactive, setShowInactive] = useState(false);
+    const [appliedFilters, setAppliedFilters] = useState<ProductFilters>(defaultProductFilters);
+    const [draftFilters, setDraftFilters] = useState<ProductFilters>(defaultProductFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [categoryFilter, setCategoryFilter] = useState("all");
-    const [supplierFilter, setSupplierFilter] = useState("all");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const [brandFilter, setBrandFilter] = useState("all");
-    const [unitFilter, setUnitFilter] = useState("all");
-    const [stockFilter, setStockFilter] = useState<StockFilter>("all");
-    const [sortKey, setSortKey] = useState<ProductSortKey>("name");
-    const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+    const [isApplyingFilters, setIsApplyingFilters] = useState(false);
+    const sortKey = appliedFilters.sortKey;
+    const sortDirection = appliedFilters.sortDirection;
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
     const [submitting, setSubmitting] = useState(false);
@@ -252,14 +270,14 @@ export function ProductList() {
                 supplierService.list(),
                 stockService.list(),
             ]);
-            await loadProducts(showInactive);
+            await loadProducts(appliedFilters.statusFilter !== "active");
             setCategories(categoryData);
             setSuppliers(supplierData);
             setStocks(stockData);
         } catch (loadError) {
             setError(getApiErrorMessage(loadError, "Nao foi possivel carregar produtos."));
         }
-    }, [loadProducts, setError, showInactive]);
+    }, [appliedFilters.statusFilter, loadProducts, setError]);
 
     useEffect(() => {
         void loadData().catch(() => undefined);
@@ -298,7 +316,7 @@ export function ProductList() {
     }, [products, stockByProduct]);
 
     const filteredProducts = useMemo(() => {
-        const term = normalizeSearch(search);
+        const term = normalizeSearch(appliedFilters.search);
 
         return [...products]
             .filter((product) => {
@@ -318,39 +336,39 @@ export function ProductList() {
                     return false;
                 }
 
-                if (categoryFilter !== "all" && String(product.categoryId) !== categoryFilter) {
+                if (appliedFilters.categoryFilter !== "all" && String(product.categoryId) !== appliedFilters.categoryFilter) {
                     return false;
                 }
 
-                if (supplierFilter !== "all" && String(product.supplierId ?? "none") !== supplierFilter) {
+                if (appliedFilters.supplierFilter !== "all" && String(product.supplierId ?? "none") !== appliedFilters.supplierFilter) {
                     return false;
                 }
 
-                if (statusFilter === "active" && !product.status) {
+                if (appliedFilters.statusFilter === "active" && !product.status) {
                     return false;
                 }
 
-                if (statusFilter === "inactive" && product.status) {
+                if (appliedFilters.statusFilter === "inactive" && product.status) {
                     return false;
                 }
 
-                if (brandFilter !== "all" && productBrand(product) !== brandFilter) {
+                if (appliedFilters.brandFilter !== "all" && productBrand(product) !== appliedFilters.brandFilter) {
                     return false;
                 }
 
-                if (unitFilter !== "all" && product.unit !== unitFilter) {
+                if (appliedFilters.unitFilter !== "all" && product.unit !== appliedFilters.unitFilter) {
                     return false;
                 }
 
-                if (stockFilter === "with" && (stock?.quantity ?? 0) <= 0) {
+                if (appliedFilters.stockFilter === "with" && (stock?.quantity ?? 0) <= 0) {
                     return false;
                 }
 
-                if (stockFilter === "without" && (stock?.quantity ?? 0) > 0) {
+                if (appliedFilters.stockFilter === "without" && (stock?.quantity ?? 0) > 0) {
                     return false;
                 }
 
-                if (stockFilter === "low" && stockStatus(stock) !== "low") {
+                if (appliedFilters.stockFilter === "low" && stockStatus(stock) !== "low") {
                     return false;
                 }
 
@@ -374,11 +392,11 @@ export function ProductList() {
 
                 return sortDirection === "asc" ? comparison : -comparison;
             });
-    }, [brandFilter, categoryFilter, products, search, sortDirection, sortKey, statusFilter, stockByProduct, stockFilter, supplierFilter, unitFilter]);
+    }, [appliedFilters.brandFilter, appliedFilters.categoryFilter, appliedFilters.search, appliedFilters.statusFilter, appliedFilters.stockFilter, appliedFilters.supplierFilter, appliedFilters.unitFilter, products, sortDirection, sortKey, stockByProduct]);
 
     useEffect(() => {
         setPage(1);
-    }, [brandFilter, categoryFilter, pageSize, search, showInactive, sortDirection, sortKey, statusFilter, stockFilter, supplierFilter, unitFilter]);
+    }, [appliedFilters, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
     const currentPage = Math.min(page, totalPages);
@@ -523,16 +541,45 @@ export function ProductList() {
     }
 
     function resetFilters() {
-        setSearch("");
-        setCategoryFilter("all");
-        setSupplierFilter("all");
-        setStatusFilter("all");
-        setBrandFilter("all");
-        setUnitFilter("all");
-        setStockFilter("all");
-        setSortKey("name");
-        setSortDirection("asc");
+        setDraftFilters(defaultProductFilters);
+        setAppliedFilters(defaultProductFilters);
+        setIsApplyingFilters(false);
     }
+
+    function applyFilters() {
+        setIsApplyingFilters(true);
+        setAppliedFilters(draftFilters);
+        setPage(1);
+        window.setTimeout(() => setIsApplyingFilters(false), 180);
+    }
+
+    const activeFilterCount = useMemo(() => {
+        return [
+            appliedFilters.search.trim() !== "",
+            appliedFilters.categoryFilter !== defaultProductFilters.categoryFilter,
+            appliedFilters.supplierFilter !== defaultProductFilters.supplierFilter,
+            appliedFilters.statusFilter !== defaultProductFilters.statusFilter,
+            appliedFilters.brandFilter !== defaultProductFilters.brandFilter,
+            appliedFilters.unitFilter !== defaultProductFilters.unitFilter,
+            appliedFilters.stockFilter !== defaultProductFilters.stockFilter,
+            appliedFilters.sortKey !== defaultProductFilters.sortKey || appliedFilters.sortDirection !== defaultProductFilters.sortDirection,
+        ].filter(Boolean).length;
+    }, [appliedFilters]);
+
+    const draftActiveFilterCount = useMemo(() => {
+        return [
+            draftFilters.search.trim() !== "",
+            draftFilters.categoryFilter !== defaultProductFilters.categoryFilter,
+            draftFilters.supplierFilter !== defaultProductFilters.supplierFilter,
+            draftFilters.statusFilter !== defaultProductFilters.statusFilter,
+            draftFilters.brandFilter !== defaultProductFilters.brandFilter,
+            draftFilters.unitFilter !== defaultProductFilters.unitFilter,
+            draftFilters.stockFilter !== defaultProductFilters.stockFilter,
+            draftFilters.sortKey !== defaultProductFilters.sortKey || draftFilters.sortDirection !== defaultProductFilters.sortDirection,
+        ].filter(Boolean).length;
+    }, [draftFilters]);
+
+    const hasActiveFilters = activeFilterCount > 0;
 
     return (
         <section className="page-section product-page">
@@ -565,97 +612,70 @@ export function ProductList() {
                 </div>
             </div>
 
-            <div className="supplier-filter-panel product-filter-panel">
-                <div className="supplier-filter-panel__search product-filter-panel__search">
-                    <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar produto, codigo, peca, barras ou marca..." />
-                    <span>{filteredProducts.length.toLocaleString("pt-BR")} produtos encontrados</span>
-                </div>
-                <div className="supplier-filter-panel__actions product-filter-panel__actions">
-                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Filtros
-                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
-                    </button>
-                    {canEditProduct && (
+            <FilterPanel
+                search={draftFilters.search}
+                searchPlaceholder="Pesquisar por nome, codigo, numero da peca ou fornecedor..."
+                filtersOpen={filtersOpen}
+                activeFilterCount={activeFilterCount}
+                isApplying={isApplyingFilters}
+                hasActiveFilters={hasActiveFilters}
+                onSearchChange={(search) => setDraftFilters((current) => ({ ...current, search }))}
+                onSearchSubmit={applyFilters}
+                onToggleFilters={() => setFiltersOpen((current) => !current)}
+                onClearFilters={resetFilters}
+                onApplyFilters={applyFilters}
+                chips={draftActiveFilterCount > 0 && (
+                    <ActiveFilterChips>
+                        {draftFilters.statusFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, statusFilter: "all" }))}>{draftFilters.statusFilter === "active" ? "Ativos" : "Inativos"} <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.stockFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, stockFilter: "all" }))}>Estoque <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.categoryFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, categoryFilter: "all" }))}>Categoria <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.supplierFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, supplierFilter: "all" }))}>Fornecedor <X size={13} aria-hidden="true" /></button>}
+                    </ActiveFilterChips>
+                )}
+                primaryAction={canEditProduct && (
                         <button type="button" className="primary-button" onClick={() => { setEditingProduct(null); setShowForm(true); }}>
                             <Plus size={20} aria-hidden="true" />
                             Novo produto
                         </button>
-                    )}
-                </div>
-            </div>
-
-            {filtersOpen && (
-            <div className="product-filter-grid">
-                <label>
-                    Categoria
-                    <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-                        <option value="all">Todas</option>
-                        {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                    </select>
-                </label>
-                <label>
-                    Fornecedor
-                    <select value={supplierFilter} onChange={(event) => setSupplierFilter(event.target.value)}>
-                        <option value="all">Todos</option>
-                        <option value="none">Sem fornecedor</option>
-                        {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.tradeName || supplier.name}</option>)}
-                    </select>
-                </label>
-                <label>
-                    Status
-                    <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                        <option value="all">Todos</option>
-                        <option value="active">Ativos</option>
-                        <option value="inactive">Inativos</option>
-                    </select>
-                </label>
-                <label>
-                    Marca
-                    <select value={brandFilter} onChange={(event) => setBrandFilter(event.target.value)}>
-                        <option value="all">Todas</option>
-                        {brands.map((brand) => <option key={brand} value={brand}>{brand}</option>)}
-                    </select>
-                </label>
-                <label>
-                    Unidade
-                    <select value={unitFilter} onChange={(event) => setUnitFilter(event.target.value)}>
-                        <option value="all">Todas</option>
-                        {(["UN", "CX", "KT"] satisfies Unit[]).map((unit) => <option key={unit} value={unit}>{unit}</option>)}
-                    </select>
-                </label>
-                <label>
-                    Estoque
-                    <select value={stockFilter} onChange={(event) => setStockFilter(event.target.value as StockFilter)}>
-                        <option value="all">Todos</option>
-                        <option value="with">Com estoque</option>
-                        <option value="without">Sem estoque</option>
-                        <option value="low">Estoque baixo</option>
-                    </select>
-                </label>
-                <label>
-                    Ordenacao
-                    <select value={sortKey} onChange={(event) => setSortKey(event.target.value as ProductSortKey)}>
-                        <option value="name">Nome</option>
-                        <option value="code">Codigo</option>
-                        <option value="price">Preco</option>
-                        <option value="stockDesc">Maior estoque</option>
-                        <option value="stockAsc">Menor estoque</option>
-                        <option value="sold">Mais vendidos</option>
-                    </select>
-                </label>
-                <label className="client-switch-field">
-                    Mostrar registros desativados
-                    <button type="button" className={`client-switch${showInactive ? " active" : ""}`} aria-pressed={showInactive} onClick={() => setShowInactive((current) => !current)}>
-                        <span />
-                    </button>
-                </label>
-                <button type="button" className="secondary-button product-filter-reset" onClick={resetFilters}>
-                    <ListFilter size={18} aria-hidden="true" />
-                    Limpar filtros
-                </button>
-            </div>
-            )}
+                )}
+            >
+                <FilterSelect label="Ordenacao" value={draftFilters.sortKey} onChange={(sortKey) => setDraftFilters((current) => ({ ...current, sortKey }))} options={[
+                    { value: "name", label: "Nome" },
+                    { value: "code", label: "Codigo" },
+                    { value: "price", label: "Preco" },
+                    { value: "stockDesc", label: "Maior estoque" },
+                    { value: "stockAsc", label: "Menor estoque" },
+                    { value: "sold", label: "Mais vendidos" },
+                ]} />
+                <FilterSegmentedControl label="Status" value={draftFilters.statusFilter} onChange={(statusFilter) => setDraftFilters((current) => ({ ...current, statusFilter }))} options={[
+                    { value: "all", label: "Todos" },
+                    { value: "active", label: "Ativos" },
+                    { value: "inactive", label: "Inativos" },
+                ]} />
+                <FilterSelect label="Categoria" value={draftFilters.categoryFilter} onChange={(categoryFilter) => setDraftFilters((current) => ({ ...current, categoryFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    ...categories.map((category) => ({ value: String(category.id), label: category.name })),
+                ]} />
+                <FilterSelect label="Fornecedor" value={draftFilters.supplierFilter} onChange={(supplierFilter) => setDraftFilters((current) => ({ ...current, supplierFilter }))} options={[
+                    { value: "all", label: "Todos" },
+                    { value: "none", label: "Sem fornecedor" },
+                    ...suppliers.map((supplier) => ({ value: String(supplier.id), label: supplier.tradeName || supplier.name })),
+                ]} />
+                <FilterSelect label="Estoque" value={draftFilters.stockFilter} onChange={(stockFilter) => setDraftFilters((current) => ({ ...current, stockFilter }))} options={[
+                    { value: "all", label: "Todos" },
+                    { value: "with", label: "Disponivel" },
+                    { value: "without", label: "Sem estoque" },
+                    { value: "low", label: "Baixo" },
+                ]} />
+                <FilterSelect label="Marca" value={draftFilters.brandFilter} onChange={(brandFilter) => setDraftFilters((current) => ({ ...current, brandFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    ...brands.map((brand) => ({ value: brand, label: brand })),
+                ]} />
+                <FilterSelect label="Unidade" value={draftFilters.unitFilter} onChange={(unitFilter) => setDraftFilters((current) => ({ ...current, unitFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    ...(["UN", "CX", "KT"] satisfies Unit[]).map((unit) => ({ value: unit, label: unit })),
+                ]} />
+            </FilterPanel>
 
             {showForm && (
                 <ProductForm
@@ -672,12 +692,14 @@ export function ProductList() {
             {error && <div className="form-error">{error}</div>}
             {loading ? <LoadingState /> : filteredProducts.length === 0 ? (
                 <EmptyState
-                    message={search ? "Nenhum produto encontrado." : "Nenhum produto cadastrado."}
-                    description={search ? "Ajuste a pesquisa ou os filtros para localizar um item do catalogo." : "Cadastre produtos para compor o catalogo comercial."}
-                    actionLabel={canEditProduct ? "Novo produto" : undefined}
-                    onAction={canEditProduct ? () => setShowForm(true) : undefined}
+                    message={hasActiveFilters ? "Nenhum produto encontrado com os filtros atuais." : "Nenhum produto cadastrado."}
+                    description={hasActiveFilters ? "Ajuste a pesquisa ou os filtros para localizar um item do catalogo." : "Cadastre produtos para compor o catalogo comercial."}
+                    actionLabel={hasActiveFilters ? "Limpar filtros" : canEditProduct ? "Novo produto" : undefined}
+                    onAction={hasActiveFilters ? resetFilters : canEditProduct ? () => setShowForm(true) : undefined}
                 />
             ) : (
+                <>
+                <FilterResultSummary total={filteredProducts.length} noun="produtos" hasActiveFilters={hasActiveFilters} />
                 <div className="table-wrap product-table-wrap">
                     <table className="data-table product-table">
                         <thead>
@@ -713,8 +735,7 @@ export function ProductList() {
                     <div className="supplier-pagination product-pagination">
                         <span>Mostrando {pageStart}-{pageEnd} de {filteredProducts.length.toLocaleString("pt-BR")} produtos</span>
                         <label>
-                            Registros por pagina
-                            <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+                            <select aria-label="Registros por pagina" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
                                 {[10, 20, 50, 100].map((size) => (
                                     <option key={size} value={size}>{size}</option>
                                 ))}
@@ -740,6 +761,7 @@ export function ProductList() {
                         </div>
                     </div>
                 </div>
+                </>
             )}
 
             <ConfirmDeleteModal

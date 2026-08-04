@@ -26,8 +26,6 @@ import com.distribuidora.system_oficina.sale.entity.Sale;
 import com.distribuidora.system_oficina.sale.entity.SaleItem;
 import com.distribuidora.system_oficina.sale.entity.SalePayments;
 import com.distribuidora.system_oficina.sale.entity.SaleStatus;
-import com.distribuidora.system_oficina.sale.repository.SaleItemRepository;
-import com.distribuidora.system_oficina.sale.repository.SalePaymentsRepository;
 import com.distribuidora.system_oficina.sale.repository.SaleRepository;
 import com.distribuidora.system_oficina.stock.entity.StockMovementType;
 import com.distribuidora.system_oficina.stock.service.StockService;
@@ -39,8 +37,6 @@ import lombok.RequiredArgsConstructor;
 public class SaleService {
 
     private final SaleRepository saleRepository;
-    private final SaleItemRepository saleItemRepository;
-    private final SalePaymentsRepository salePaymentsRepository;
     private final ClientRepository clientRepository;
     private final EmployeeRepository employeeRepository;
     private final ProductRepository productRepository;
@@ -73,7 +69,7 @@ public class SaleService {
 
     @Transactional
     public SaleResponseDTO createSale(SaleRequestDTO dto) {
-        Sale savedSale = saleRepository.save(toEntity(dto));
+        Sale sale = toEntity(dto);
 
         List<SaleItem> saleItems = new ArrayList<>();
         List<SalePayments> salePayments = new ArrayList<>();
@@ -90,7 +86,7 @@ public class SaleService {
                     .subtract(discount);
 
             SaleItem item = new SaleItem();
-            item.setSale(savedSale);
+            item.setSale(sale);
             item.setProduct(product);
             item.setQuantity(itemDTO.getQuantity());
             item.setUnitPrice(product.getSalePrice());
@@ -98,7 +94,6 @@ public class SaleService {
             item.setSubtotal(subtotal);
 
             saleItems.add(item);
-            saleItemRepository.save(item);
             total = total.add(subtotal);
         }
 
@@ -108,17 +103,16 @@ public class SaleService {
                             "Payment method not found with id: " + paymentDTO.getPaymentMethodId()));
 
             SalePayments payment = new SalePayments();
-            payment.setSale(savedSale);
+            payment.setSale(sale);
             payment.setPaymentMethod(paymentMethod);
             payment.setAmount(paymentDTO.getAmount());
 
             salePayments.add(payment);
-            salePaymentsRepository.save(payment);
         }
 
-        savedSale.setItems(saleItems);
-        savedSale.setPayments(salePayments);
-        BigDecimal finalTotal = total.subtract(savedSale.getDiscount());
+        sale.setItems(saleItems);
+        sale.setPayments(salePayments);
+        BigDecimal finalTotal = total.subtract(sale.getDiscount());
         if (finalTotal.compareTo(BigDecimal.ZERO) < 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Sale discount cannot exceed item total");
         }
@@ -130,8 +124,8 @@ public class SaleService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Payments do not cover sale total");
         }
 
-        savedSale.setTotal(finalTotal);
-        return toResponseDTO(saleRepository.save(savedSale));
+        sale.setTotal(finalTotal);
+        return toResponseDTO(saleRepository.save(sale));
     }
 
     @Transactional(readOnly = true)

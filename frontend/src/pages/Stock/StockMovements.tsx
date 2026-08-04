@@ -3,21 +3,18 @@ import { useNavigate } from "react-router-dom";
 import {
     ArrowDownCircle,
     ArrowUpCircle,
-    ChevronDown,
     Clock,
     Download,
     Eye,
     FileSpreadsheet,
-    FileText,
-    ListFilter,
     Package,
     PackageSearch,
     Plus,
     Printer,
     X,
 } from "lucide-react";
+import { ActiveFilterChips, FilterPanel, FilterResultSummary, FilterSegmentedControl, FilterSelect } from "../../components/common/FilterPanel";
 import PageHeader from "../../components/common/PageHeader";
-import SearchInput from "../../components/common/SearchInput";
 import { getApiErrorMessage } from "../../services/api";
 import employeeService from "../../services/employee.service";
 import productService from "../../services/product.service";
@@ -28,10 +25,59 @@ import type { StockMovementDTO, StockMovementType } from "../../types/stock.type
 import { normalizeSearch } from "../../utils/text";
 
 type MovementTypeFilter = "all" | StockMovementType | "TRANSFERENCIA" | "PERDA" | "DEVOLUCAO";
-type MovementPeriodFilter = "today" | "week" | "month" | "custom";
+type MovementPeriodFilter = "all" | "today" | "week" | "month" | "custom";
 type MovementOriginFilter = "all" | "COMPRA" | "VENDA" | "AJUSTE" | "DEVOLUCAO" | "TRANSFERENCIA" | "INVENTARIO";
 type MovementSortKey = "date" | "product" | "type" | "quantity" | "previousBalance" | "currentBalance" | "origin" | "employee" | "reason";
 type SortDirection = "asc" | "desc";
+
+interface MovementFilters {
+    search: string;
+    typeFilter: MovementTypeFilter;
+    productFilter: string;
+    employeeFilter: string;
+    periodFilter: MovementPeriodFilter;
+    originFilter: MovementOriginFilter;
+    customStart: string;
+    customEnd: string;
+    sortKey: MovementSortKey;
+    sortDirection: SortDirection;
+}
+
+const defaultMovementFilters: MovementFilters = {
+    search: "",
+    typeFilter: "all",
+    productFilter: "all",
+    employeeFilter: "all",
+    periodFilter: "all",
+    originFilter: "all",
+    customStart: "",
+    customEnd: "",
+    sortKey: "date",
+    sortDirection: "desc",
+};
+
+function loadStoredMovementFilters(): MovementFilters {
+    const storedPeriod = localStorage.getItem("garageos.movements.period") as MovementPeriodFilter | null;
+    const migratedPeriodDefault = localStorage.getItem("garageos.movements.periodDefaultMigrated") === "true";
+    const periodFilter: MovementPeriodFilter = !migratedPeriodDefault && storedPeriod === "today"
+        ? defaultMovementFilters.periodFilter
+        : storedPeriod && ["all", "today", "week", "month", "custom"].includes(storedPeriod)
+        ? storedPeriod
+        : defaultMovementFilters.periodFilter;
+    localStorage.setItem("garageos.movements.periodDefaultMigrated", "true");
+
+    return {
+        ...defaultMovementFilters,
+        search: localStorage.getItem("garageos.movements.search") ?? "",
+        typeFilter: (localStorage.getItem("garageos.movements.type") as MovementTypeFilter | null) ?? "all",
+        productFilter: localStorage.getItem("garageos.movements.product") ?? "all",
+        employeeFilter: localStorage.getItem("garageos.movements.employee") ?? "all",
+        periodFilter,
+        originFilter: (localStorage.getItem("garageos.movements.origin") as MovementOriginFilter | null) ?? "all",
+        customStart: localStorage.getItem("garageos.movements.start") ?? "",
+        customEnd: localStorage.getItem("garageos.movements.end") ?? "",
+    };
+}
 
 interface MovementRow {
     movement: StockMovementDTO;
@@ -81,6 +127,9 @@ function dateKey(value?: string | null) {
 function isWithinPeriod(value: string | undefined, period: MovementPeriodFilter, start: string, end: string) {
     if (!value) {
         return false;
+    }
+    if (period === "all") {
+        return true;
     }
 
     const date = new Date(value);
@@ -289,16 +338,9 @@ export function StockMovements() {
     const [products, setProducts] = useState<ProductResponse[]>([]);
     const [employees, setEmployees] = useState<Employee[]>([]);
     const [metadataLoading, setMetadataLoading] = useState(false);
-    const [search, setSearch] = useState(() => localStorage.getItem("garageos.movements.search") ?? "");
-    const [typeFilter, setTypeFilter] = useState<MovementTypeFilter>(() => (localStorage.getItem("garageos.movements.type") as MovementTypeFilter | null) ?? "all");
-    const [productFilter, setProductFilter] = useState(() => localStorage.getItem("garageos.movements.product") ?? "all");
-    const [employeeFilter, setEmployeeFilter] = useState(() => localStorage.getItem("garageos.movements.employee") ?? "all");
-    const [periodFilter, setPeriodFilter] = useState<MovementPeriodFilter>(() => (localStorage.getItem("garageos.movements.period") as MovementPeriodFilter | null) ?? "today");
-    const [originFilter, setOriginFilter] = useState<MovementOriginFilter>(() => (localStorage.getItem("garageos.movements.origin") as MovementOriginFilter | null) ?? "all");
-    const [customStart, setCustomStart] = useState(() => localStorage.getItem("garageos.movements.start") ?? "");
-    const [customEnd, setCustomEnd] = useState(() => localStorage.getItem("garageos.movements.end") ?? "");
-    const [sortKey, setSortKey] = useState<MovementSortKey>("date");
-    const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+    const [appliedFilters, setAppliedFilters] = useState<MovementFilters>(() => loadStoredMovementFilters());
+    const [draftFilters, setDraftFilters] = useState<MovementFilters>(() => loadStoredMovementFilters());
+    const [isApplyingFilters, setIsApplyingFilters] = useState(false);
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
@@ -327,15 +369,15 @@ export function StockMovements() {
     }, [loadData]);
 
     useEffect(() => {
-        localStorage.setItem("garageos.movements.search", search);
-        localStorage.setItem("garageos.movements.type", typeFilter);
-        localStorage.setItem("garageos.movements.product", productFilter);
-        localStorage.setItem("garageos.movements.employee", employeeFilter);
-        localStorage.setItem("garageos.movements.period", periodFilter);
-        localStorage.setItem("garageos.movements.origin", originFilter);
-        localStorage.setItem("garageos.movements.start", customStart);
-        localStorage.setItem("garageos.movements.end", customEnd);
-    }, [customEnd, customStart, employeeFilter, originFilter, periodFilter, productFilter, search, typeFilter]);
+        localStorage.setItem("garageos.movements.search", appliedFilters.search);
+        localStorage.setItem("garageos.movements.type", appliedFilters.typeFilter);
+        localStorage.setItem("garageos.movements.product", appliedFilters.productFilter);
+        localStorage.setItem("garageos.movements.employee", appliedFilters.employeeFilter);
+        localStorage.setItem("garageos.movements.period", appliedFilters.periodFilter);
+        localStorage.setItem("garageos.movements.origin", appliedFilters.originFilter);
+        localStorage.setItem("garageos.movements.start", appliedFilters.customStart);
+        localStorage.setItem("garageos.movements.end", appliedFilters.customEnd);
+    }, [appliedFilters]);
 
     const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products]);
     const employeeById = useMemo(() => new Map(employees.map((employee) => [employee.id, employee])), [employees]);
@@ -360,7 +402,7 @@ export function StockMovements() {
     }, [rows, todayKey]);
 
     const filteredRows = useMemo(() => {
-        const term = normalizeSearch(search);
+        const term = normalizeSearch(appliedFilters.search);
         return [...rows]
             .filter((row) => {
                 const { movement, product, employee } = row;
@@ -381,49 +423,49 @@ export function StockMovements() {
                 if (term && !searchable.some((value) => value.includes(term))) {
                     return false;
                 }
-                if (typeFilter !== "all" && movement.type !== typeFilter) {
+                if (appliedFilters.typeFilter !== "all" && movement.type !== appliedFilters.typeFilter) {
                     return false;
                 }
-                if (productFilter !== "all" && String(movement.product ?? "") !== productFilter) {
+                if (appliedFilters.productFilter !== "all" && String(movement.product ?? "") !== appliedFilters.productFilter) {
                     return false;
                 }
-                if (employeeFilter !== "all" && String(movement.employee ?? "") !== employeeFilter) {
+                if (appliedFilters.employeeFilter !== "all" && String(movement.employee ?? "") !== appliedFilters.employeeFilter) {
                     return false;
                 }
-                if (originFilter !== "all" && row.origin !== originFilter) {
+                if (appliedFilters.originFilter !== "all" && row.origin !== appliedFilters.originFilter) {
                     return false;
                 }
-                return isWithinPeriod(movement.createdAt, periodFilter, customStart, customEnd);
+                return isWithinPeriod(movement.createdAt, appliedFilters.periodFilter, appliedFilters.customStart, appliedFilters.customEnd);
             })
             .sort((left, right) => {
-                const direction = sortDirection === "asc" ? 1 : -1;
-                let comparison = 0;
-                if (sortKey === "date") {
+                const direction = appliedFilters.sortDirection === "asc" ? 1 : -1;
+                let comparison: number;
+                if (appliedFilters.sortKey === "date") {
                     comparison = new Date(left.movement.createdAt ?? 0).getTime() - new Date(right.movement.createdAt ?? 0).getTime();
-                } else if (sortKey === "product") {
+                } else if (appliedFilters.sortKey === "product") {
                     comparison = (left.product?.name ?? "").localeCompare(right.product?.name ?? "", "pt-BR", { sensitivity: "base" });
-                } else if (sortKey === "type") {
+                } else if (appliedFilters.sortKey === "type") {
                     comparison = left.movement.type.localeCompare(right.movement.type);
-                } else if (sortKey === "quantity") {
+                } else if (appliedFilters.sortKey === "quantity") {
                     comparison = left.movement.quantity - right.movement.quantity;
-                } else if (sortKey === "previousBalance") {
+                } else if (appliedFilters.sortKey === "previousBalance") {
                     comparison = (left.previousBalance ?? -1) - (right.previousBalance ?? -1);
-                } else if (sortKey === "currentBalance") {
+                } else if (appliedFilters.sortKey === "currentBalance") {
                     comparison = (left.currentBalance ?? -1) - (right.currentBalance ?? -1);
-                } else if (sortKey === "origin") {
+                } else if (appliedFilters.sortKey === "origin") {
                     comparison = left.originLabel.localeCompare(right.originLabel, "pt-BR", { sensitivity: "base" });
-                } else if (sortKey === "employee") {
+                } else if (appliedFilters.sortKey === "employee") {
                     comparison = (left.employee?.name ?? "").localeCompare(right.employee?.name ?? "", "pt-BR", { sensitivity: "base" });
                 } else {
                     comparison = left.displayReason.localeCompare(right.displayReason, "pt-BR", { sensitivity: "base" });
                 }
                 return comparison * direction;
             });
-    }, [customEnd, customStart, employeeFilter, originFilter, periodFilter, productFilter, rows, search, sortDirection, sortKey, typeFilter]);
+    }, [appliedFilters.customEnd, appliedFilters.customStart, appliedFilters.employeeFilter, appliedFilters.originFilter, appliedFilters.periodFilter, appliedFilters.productFilter, appliedFilters.search, appliedFilters.sortDirection, appliedFilters.sortKey, appliedFilters.typeFilter, rows]);
 
     useEffect(() => {
         setPage(1);
-    }, [customEnd, customStart, employeeFilter, originFilter, pageSize, periodFilter, productFilter, search, sortDirection, sortKey, typeFilter]);
+    }, [appliedFilters, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
     const currentPage = Math.min(page, totalPages);
@@ -437,31 +479,65 @@ export function StockMovements() {
     }, [currentPage, totalPages]);
 
     function toggleSort(key: MovementSortKey) {
-        if (sortKey === key) {
-            setSortDirection((current) => current === "asc" ? "desc" : "asc");
+        if (appliedFilters.sortKey === key) {
+            const sortDirection = appliedFilters.sortDirection === "asc" ? "desc" : "asc";
+            setAppliedFilters((current) => ({ ...current, sortDirection }));
+            setDraftFilters((current) => ({ ...current, sortDirection }));
             return;
         }
-        setSortKey(key);
-        setSortDirection(key === "date" ? "desc" : "asc");
+        const sortDirection = key === "date" ? "desc" : "asc";
+        setAppliedFilters((current) => ({ ...current, sortKey: key, sortDirection }));
+        setDraftFilters((current) => ({ ...current, sortKey: key, sortDirection }));
     }
 
     function sortIndicator(key: MovementSortKey) {
-        if (sortKey !== key) {
+        if (appliedFilters.sortKey !== key) {
             return "";
         }
+        const sortDirection = appliedFilters.sortDirection;
         return sortDirection === "asc" ? " ↑" : " ↓";
     }
 
     function resetFilters() {
-        setSearch("");
-        setTypeFilter("all");
-        setProductFilter("all");
-        setEmployeeFilter("all");
-        setPeriodFilter("today");
-        setOriginFilter("all");
-        setCustomStart("");
-        setCustomEnd("");
+        setDraftFilters(defaultMovementFilters);
+        setAppliedFilters(defaultMovementFilters);
+        setIsApplyingFilters(false);
     }
+
+    function applyFilters() {
+        setIsApplyingFilters(true);
+        setAppliedFilters(draftFilters);
+        setPage(1);
+        window.setTimeout(() => setIsApplyingFilters(false), 180);
+    }
+
+    const activeFilterCount = useMemo(() => {
+        return [
+            appliedFilters.search.trim() !== "",
+            appliedFilters.typeFilter !== defaultMovementFilters.typeFilter,
+            appliedFilters.productFilter !== defaultMovementFilters.productFilter,
+            appliedFilters.employeeFilter !== defaultMovementFilters.employeeFilter,
+            appliedFilters.periodFilter !== defaultMovementFilters.periodFilter,
+            appliedFilters.originFilter !== defaultMovementFilters.originFilter,
+            appliedFilters.customStart !== "" || appliedFilters.customEnd !== "",
+            appliedFilters.sortKey !== defaultMovementFilters.sortKey || appliedFilters.sortDirection !== defaultMovementFilters.sortDirection,
+        ].filter(Boolean).length;
+    }, [appliedFilters]);
+
+    const draftActiveFilterCount = useMemo(() => {
+        return [
+            draftFilters.search.trim() !== "",
+            draftFilters.typeFilter !== defaultMovementFilters.typeFilter,
+            draftFilters.productFilter !== defaultMovementFilters.productFilter,
+            draftFilters.employeeFilter !== defaultMovementFilters.employeeFilter,
+            draftFilters.periodFilter !== defaultMovementFilters.periodFilter,
+            draftFilters.originFilter !== defaultMovementFilters.originFilter,
+            draftFilters.customStart !== "" || draftFilters.customEnd !== "",
+            draftFilters.sortKey !== defaultMovementFilters.sortKey || draftFilters.sortDirection !== defaultMovementFilters.sortDirection,
+        ].filter(Boolean).length;
+    }, [draftFilters]);
+
+    const hasActiveFilters = activeFilterCount > 0;
 
     function toExportRows(exportRows: MovementRow[]) {
         return exportRows.map((row) => ({
@@ -549,95 +625,78 @@ export function StockMovements() {
                 </div>
             </div>
 
-            <div className="supplier-filter-panel movements-filter-panel">
-                <div className="supplier-filter-panel__search movements-filter-panel__search">
-                    <SearchInput value={search} onChange={setSearch} placeholder="Buscar movimentacao..." />
-                    <span>{filteredRows.length.toLocaleString("pt-BR")} movimentacoes encontradas</span>
-                </div>
-                <div className="supplier-filter-panel__actions">
-                    <button type="button" className="secondary-button movements-mobile-filter-toggle" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Filtros
-                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
-                    </button>
-                </div>
-            </div>
-
-            {filtersOpen && (
-                <div className="product-filter-grid movements-filter-grid is-open">
-                    <label>
-                        Tipo
-                        <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value as MovementTypeFilter)}>
-                            <option value="all">Todos</option>
-                            <option value="ENTRADA">Entrada</option>
-                            <option value="SAIDA">Saida</option>
-                            <option value="AJUSTE">Ajuste</option>
-                            <option value="TRANSFERENCIA">Transferencia</option>
-                            <option value="PERDA">Perda</option>
-                            <option value="DEVOLUCAO">Devolucao</option>
-                        </select>
-                    </label>
-                    <label>
-                        Produto
-                        <select value={productFilter} onChange={(event) => setProductFilter(event.target.value)}>
-                            <option value="all">Todos</option>
-                            {products.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
-                        </select>
-                    </label>
-                    <label>
-                        Funcionario
-                        <select value={employeeFilter} onChange={(event) => setEmployeeFilter(event.target.value)}>
-                            <option value="all">Todos</option>
-                            {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
-                        </select>
-                    </label>
-                    <label>
-                        Periodo
-                        <select value={periodFilter} onChange={(event) => setPeriodFilter(event.target.value as MovementPeriodFilter)}>
-                            <option value="today">Hoje</option>
-                            <option value="week">Ultimos 7 dias</option>
-                            <option value="month">30 dias</option>
-                            <option value="custom">Personalizado</option>
-                        </select>
-                    </label>
-                    <label>
-                        Origem
-                        <select value={originFilter} onChange={(event) => setOriginFilter(event.target.value as MovementOriginFilter)}>
-                            <option value="all">Todas</option>
-                            <option value="COMPRA">Compra</option>
-                            <option value="VENDA">Venda</option>
-                            <option value="AJUSTE">Ajuste Manual</option>
-                            <option value="DEVOLUCAO">Devolucao</option>
-                            <option value="TRANSFERENCIA">Transferencia</option>
-                            <option value="INVENTARIO">Inventario</option>
-                        </select>
-                    </label>
-                    {periodFilter === "custom" && (
-                        <>
-                            <label>
-                                Inicio
-                                <input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} />
-                            </label>
-                            <label>
-                                Fim
-                                <input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} />
-                            </label>
-                        </>
-                    )}
-                    <button type="button" className="secondary-button product-filter-reset" onClick={resetFilters}>
-                        <FileText size={18} aria-hidden="true" />
-                        Limpar filtros
-                    </button>
-                    <button type="button" className="secondary-button product-filter-reset" onClick={exportExcel}>
-                        <FileSpreadsheet size={18} aria-hidden="true" />
-                        Exportar Excel
-                    </button>
-                    <button type="button" className="secondary-button product-filter-reset" onClick={() => window.print()}>
-                        <Printer size={18} aria-hidden="true" />
-                        Imprimir relatorio
-                    </button>
-                </div>
-            )}
+            <FilterPanel
+                search={draftFilters.search}
+                searchPlaceholder="Pesquisar por produto, documento ou responsavel..."
+                filtersOpen={filtersOpen}
+                activeFilterCount={activeFilterCount}
+                isApplying={isApplyingFilters}
+                hasActiveFilters={hasActiveFilters}
+                onSearchChange={(search) => setDraftFilters((current) => ({ ...current, search }))}
+                onSearchSubmit={applyFilters}
+                onToggleFilters={() => setFiltersOpen((current) => !current)}
+                onClearFilters={resetFilters}
+                onApplyFilters={applyFilters}
+                chips={draftActiveFilterCount > 0 && (
+                    <ActiveFilterChips>
+                        {draftFilters.typeFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, typeFilter: "all" }))}>Tipo <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.originFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, originFilter: "all" }))}>Origem <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.productFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, productFilter: "all" }))}>Produto <X size={13} aria-hidden="true" /></button>}
+                    </ActiveFilterChips>
+                )}
+            >
+                <FilterSelect label="Ordenacao" value={draftFilters.sortKey} onChange={(sortKey) => setDraftFilters((current) => ({ ...current, sortKey }))} options={[
+                    { value: "date", label: "Data" },
+                    { value: "product", label: "Produto" },
+                    { value: "type", label: "Tipo" },
+                    { value: "quantity", label: "Quantidade" },
+                    { value: "origin", label: "Origem" },
+                    { value: "employee", label: "Responsavel" },
+                ]} />
+                <FilterSegmentedControl label="Tipo" value={draftFilters.typeFilter} onChange={(typeFilter) => setDraftFilters((current) => ({ ...current, typeFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    { value: "ENTRADA", label: "Entrada" },
+                    { value: "SAIDA", label: "Saida" },
+                    { value: "AJUSTE", label: "Ajuste" },
+                ]} />
+                <FilterSelect label="Origem" value={draftFilters.originFilter} onChange={(originFilter) => setDraftFilters((current) => ({ ...current, originFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    { value: "COMPRA", label: "Compra" },
+                    { value: "VENDA", label: "Venda" },
+                    { value: "AJUSTE", label: "Ajuste manual" },
+                    { value: "DEVOLUCAO", label: "Devolucao" },
+                    { value: "TRANSFERENCIA", label: "Transferencia" },
+                    { value: "INVENTARIO", label: "Inventario" },
+                ]} />
+                <FilterSelect label="Produto" value={draftFilters.productFilter} onChange={(productFilter) => setDraftFilters((current) => ({ ...current, productFilter }))} options={[
+                    { value: "all", label: "Todos" },
+                    ...products.map((product) => ({ value: String(product.id), label: product.name })),
+                ]} />
+                <FilterSelect label="Responsavel" value={draftFilters.employeeFilter} onChange={(employeeFilter) => setDraftFilters((current) => ({ ...current, employeeFilter }))} options={[
+                    { value: "all", label: "Todos" },
+                    ...employees.map((employee) => ({ value: String(employee.id), label: employee.name })),
+                ]} />
+                <FilterSelect label="Periodo" value={draftFilters.periodFilter} onChange={(periodFilter) => setDraftFilters((current) => ({ ...current, periodFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    { value: "today", label: "Hoje" },
+                    { value: "week", label: "Ultimos 7 dias" },
+                    { value: "month", label: "30 dias" },
+                    { value: "custom", label: "Personalizado" },
+                ]} />
+                {draftFilters.periodFilter === "custom" && (
+                    <>
+                        <section className="client-filter-group garage-filter-field"><h3>Inicio</h3><div className="client-input-wrap"><input type="date" value={draftFilters.customStart} onChange={(event) => setDraftFilters((current) => ({ ...current, customStart: event.target.value }))} /></div></section>
+                        <section className="client-filter-group garage-filter-field"><h3>Fim</h3><div className="client-input-wrap"><input type="date" value={draftFilters.customEnd} onChange={(event) => setDraftFilters((current) => ({ ...current, customEnd: event.target.value }))} /></div></section>
+                    </>
+                )}
+                <section className="client-filter-group garage-filter-field">
+                    <h3>Acoes</h3>
+                    <div className="stock-filter-actions">
+                        <button type="button" className="secondary-button" onClick={exportExcel}><FileSpreadsheet size={18} aria-hidden="true" />Excel</button>
+                        <button type="button" className="secondary-button" onClick={() => window.print()}><Printer size={18} aria-hidden="true" />Imprimir</button>
+                    </div>
+                </section>
+            </FilterPanel>
 
             {error && <div className="form-error">{error}</div>}
 
@@ -646,15 +705,20 @@ export function StockMovements() {
                     <div className="empty-state__icon" aria-hidden="true">
                         <PackageSearch size={24} />
                     </div>
-                    <strong>Nenhuma movimentacao encontrada.</strong>
-                    <span>As entradas e saidas de estoque aparecerao aqui.</span>
-                    <button type="button" className="primary-button" onClick={() => navigate("/stock")}>
-                        <Plus size={20} aria-hidden="true" />
-                        Nova movimentacao
-                    </button>
+                    <strong>{hasActiveFilters ? "Nenhuma movimentacao encontrada com os filtros atuais." : "Nenhuma movimentacao encontrada."}</strong>
+                    <span>{hasActiveFilters ? "Ajuste os campos ou limpe os filtros para ampliar a busca." : "As entradas e saidas de estoque aparecerao aqui."}</span>
+                    {hasActiveFilters ? (
+                        <button type="button" className="secondary-button" onClick={resetFilters}>Limpar filtros</button>
+                    ) : (
+                        <button type="button" className="primary-button" onClick={() => navigate("/stock")}>
+                            <Plus size={20} aria-hidden="true" />
+                            Nova movimentacao
+                        </button>
+                    )}
                 </div>
             ) : (
                 <>
+                    <FilterResultSummary total={filteredRows.length} noun="movimentacoes" hasActiveFilters={hasActiveFilters} />
                     <div className="table-wrap movements-table-wrap">
                         <table className="data-table movements-table">
                             <thead>
@@ -792,8 +856,7 @@ function MovementsPagination({ pageStart, pageEnd, total, pageSize, setPageSize,
         <div className="supplier-pagination movements-pagination">
             <span>Mostrando {pageStart}-{pageEnd} de {total.toLocaleString("pt-BR")} movimentacoes</span>
             <label>
-                Registros por pagina
-                <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+                <select aria-label="Registros por pagina" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
                     {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
                 </select>
             </label>

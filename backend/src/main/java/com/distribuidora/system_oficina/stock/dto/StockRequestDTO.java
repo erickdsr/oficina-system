@@ -3,6 +3,7 @@ package com.distribuidora.system_oficina.stock.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,10 +22,12 @@ public class StockRequestDTO {
     private Integer productId;
     
     @NotNull
+    @PositiveOrZero
     @Schema(description = "quantitade do product", example = "14")
     private Integer quantity;
     
     @NotNull
+    @PositiveOrZero
     @Builder.Default
     @Schema(description = "quantidade minima do product", example = "5")
     private Integer minQuantity = 5;

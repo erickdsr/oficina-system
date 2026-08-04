@@ -1,10 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Eye, ListFilter, Pencil, Plus, ShieldCheck, Trash2, UserCheck, UserRoundX, Users, X } from "lucide-react";
+import { Eye, Pencil, Plus, ShieldCheck, Trash2, UserCheck, UserRoundX, Users, X } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
+import { ActiveFilterChips, FilterPanel, FilterResultSummary, FilterSegmentedControl, FilterSelect } from "../../components/common/FilterPanel";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
-import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
@@ -19,6 +19,23 @@ import EmployeeForm, { roleLabel, type EmployeeFormPayload } from "./EmployeeFor
 
 type EmployeeSortKey = "name" | "role" | "status";
 type SortDirection = "asc" | "desc";
+type EmployeeStatusFilter = "all" | "active" | "inactive";
+
+interface EmployeeFilters {
+    search: string;
+    roleFilter: string;
+    statusFilter: EmployeeStatusFilter;
+    sortKey: EmployeeSortKey;
+    sortDirection: SortDirection;
+}
+
+const defaultEmployeeFilters: EmployeeFilters = {
+    search: "",
+    roleFilter: "all",
+    statusFilter: "all",
+    sortKey: "name",
+    sortDirection: "asc",
+};
 
 interface EmployeeTableRowProps {
     employee: Employee;
@@ -172,13 +189,12 @@ const EmployeeTableRow = memo(function EmployeeTableRow({
 export function EmployeeList() {
     const { user } = useAuth();
     const { employees, loading, error, setError, fetchAll, create, update, remove, forceDelete } = useEmployee();
-    const [search, setSearch] = useState("");
-    const [showInactive, setShowInactive] = useState(false);
+    const [appliedFilters, setAppliedFilters] = useState<EmployeeFilters>(defaultEmployeeFilters);
+    const [draftFilters, setDraftFilters] = useState<EmployeeFilters>(defaultEmployeeFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [roleFilter, setRoleFilter] = useState("all");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const [sortKey, setSortKey] = useState<EmployeeSortKey>("name");
-    const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+    const [isApplyingFilters, setIsApplyingFilters] = useState(false);
+    const sortKey = appliedFilters.sortKey;
+    const sortDirection = appliedFilters.sortDirection;
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
     const [submitting, setSubmitting] = useState(false);
@@ -196,8 +212,8 @@ export function EmployeeList() {
     const canDeleteEmployee = canDelete(user?.role, ["ADMIN"]);
 
     useEffect(() => {
-        void fetchAll(showInactive).catch(() => undefined);
-    }, [fetchAll, showInactive]);
+        void fetchAll(appliedFilters.statusFilter !== "active").catch(() => undefined);
+    }, [appliedFilters.statusFilter, fetchAll]);
 
     const employeeStats = useMemo(() => {
         const activeCount = employees.filter((employee) => employee.status).length;
@@ -213,7 +229,7 @@ export function EmployeeList() {
     }, [employees]);
 
     const filteredEmployees = useMemo(() => {
-        const term = normalizeSearch(search);
+        const term = normalizeSearch(appliedFilters.search);
 
         return [...employees]
             .filter((employee) => {
@@ -231,15 +247,15 @@ export function EmployeeList() {
                     return false;
                 }
 
-                if (roleFilter !== "all" && normalizedRole !== roleFilter) {
+                if (appliedFilters.roleFilter !== "all" && normalizedRole !== appliedFilters.roleFilter) {
                     return false;
                 }
 
-                if (statusFilter === "active" && !employee.status) {
+                if (appliedFilters.statusFilter === "active" && !employee.status) {
                     return false;
                 }
 
-                if (statusFilter === "inactive" && employee.status) {
+                if (appliedFilters.statusFilter === "inactive" && employee.status) {
                     return false;
                 }
 
@@ -257,11 +273,11 @@ export function EmployeeList() {
 
                 return sortDirection === "asc" ? comparison : -comparison;
             });
-    }, [employees, roleFilter, search, sortDirection, sortKey, statusFilter]);
+    }, [appliedFilters.roleFilter, appliedFilters.search, appliedFilters.statusFilter, employees, sortDirection, sortKey]);
 
     useEffect(() => {
         setPage(1);
-    }, [pageSize, roleFilter, search, showInactive, sortDirection, sortKey, statusFilter]);
+    }, [appliedFilters, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / pageSize));
     const currentPage = Math.min(page, totalPages);
@@ -298,7 +314,7 @@ export function EmployeeList() {
             }
             setShowForm(false);
             setEditingEmployee(null);
-            await fetchAll(showInactive);
+            await fetchAll(appliedFilters.statusFilter !== "active");
         } catch (submitError) {
             setFormError(getApiErrorMessage(submitError, "Nao foi possivel salvar o funcionario."));
         } finally {
@@ -337,7 +353,7 @@ export function EmployeeList() {
         setDeleteError(null);
         try {
             await remove(employeeToDelete.id);
-            await fetchAll(showInactive);
+            await fetchAll(appliedFilters.statusFilter !== "active");
             setEmployeeToDelete(null);
             setDeletionReport(null);
         } catch (removeError) {
@@ -356,7 +372,7 @@ export function EmployeeList() {
         setDeleteError(null);
         try {
             await forceDelete(employeeToDelete.id);
-            await fetchAll(showInactive);
+            await fetchAll(appliedFilters.statusFilter !== "active");
             setEmployeeToDelete(null);
             setDeletionReport(null);
         } catch (removeError) {
@@ -378,12 +394,14 @@ export function EmployeeList() {
 
     function handleSort(nextSortKey: EmployeeSortKey) {
         if (sortKey === nextSortKey) {
-            setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+            const nextDirection = sortDirection === "asc" ? "desc" : "asc";
+            setAppliedFilters((current) => ({ ...current, sortDirection: nextDirection }));
+            setDraftFilters((current) => ({ ...current, sortDirection: nextDirection }));
             return;
         }
 
-        setSortKey(nextSortKey);
-        setSortDirection("asc");
+        setAppliedFilters((current) => ({ ...current, sortKey: nextSortKey, sortDirection: "asc" }));
+        setDraftFilters((current) => ({ ...current, sortKey: nextSortKey, sortDirection: "asc" }));
     }
 
     function sortIndicator(targetSortKey: EmployeeSortKey) {
@@ -395,13 +413,37 @@ export function EmployeeList() {
     }
 
     function resetFilters() {
-        setSearch("");
-        setShowInactive(false);
-        setRoleFilter("all");
-        setStatusFilter("all");
-        setSortKey("name");
-        setSortDirection("asc");
+        setDraftFilters(defaultEmployeeFilters);
+        setAppliedFilters(defaultEmployeeFilters);
+        setIsApplyingFilters(false);
     }
+
+    function applyFilters() {
+        setIsApplyingFilters(true);
+        setAppliedFilters(draftFilters);
+        setPage(1);
+        window.setTimeout(() => setIsApplyingFilters(false), 180);
+    }
+
+    const activeFilterCount = useMemo(() => {
+        return [
+            appliedFilters.search.trim() !== "",
+            appliedFilters.roleFilter !== defaultEmployeeFilters.roleFilter,
+            appliedFilters.statusFilter !== defaultEmployeeFilters.statusFilter,
+            appliedFilters.sortKey !== defaultEmployeeFilters.sortKey || appliedFilters.sortDirection !== defaultEmployeeFilters.sortDirection,
+        ].filter(Boolean).length;
+    }, [appliedFilters]);
+
+    const draftActiveFilterCount = useMemo(() => {
+        return [
+            draftFilters.search.trim() !== "",
+            draftFilters.roleFilter !== defaultEmployeeFilters.roleFilter,
+            draftFilters.statusFilter !== defaultEmployeeFilters.statusFilter,
+            draftFilters.sortKey !== defaultEmployeeFilters.sortKey || draftFilters.sortDirection !== defaultEmployeeFilters.sortDirection,
+        ].filter(Boolean).length;
+    }, [draftFilters]);
+
+    const hasActiveFilters = activeFilterCount > 0;
 
     return (
         <section className="page-section employee-page">
@@ -438,57 +480,65 @@ export function EmployeeList() {
                 </div>
             </div>
 
-            <div className="supplier-filter-panel employee-filter-panel">
-                <div className="supplier-filter-panel__search employee-filter-panel__search">
-                    <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar funcionario, email, telefone ou perfil..." />
-                    <span>Mostrando {filteredEmployees.length.toLocaleString("pt-BR")} funcionarios</span>
-                </div>
-                <div className="supplier-filter-panel__actions employee-filter-panel__actions">
-                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Filtros
-                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
-                    </button>
-                    {canEditEmployee && (
+            <FilterPanel
+                search={draftFilters.search}
+                searchPlaceholder="Pesquisar por nome, CPF, email ou funcao..."
+                filtersOpen={filtersOpen}
+                activeFilterCount={activeFilterCount}
+                isApplying={isApplyingFilters}
+                hasActiveFilters={hasActiveFilters}
+                onSearchChange={(search) => setDraftFilters((current) => ({ ...current, search }))}
+                onSearchSubmit={applyFilters}
+                onToggleFilters={() => setFiltersOpen((current) => !current)}
+                onClearFilters={resetFilters}
+                onApplyFilters={applyFilters}
+                chips={draftActiveFilterCount > 0 && (
+                    <ActiveFilterChips>
+                        {draftFilters.statusFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, statusFilter: "all" }))}>{draftFilters.statusFilter === "active" ? "Ativos" : "Inativos"} <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.roleFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, roleFilter: "all" }))}>{roleLabel(draftFilters.roleFilter)} <X size={13} aria-hidden="true" /></button>}
+                    </ActiveFilterChips>
+                )}
+                primaryAction={canEditEmployee && (
                         <button type="button" className="primary-button" onClick={() => { setEditingEmployee(null); setShowForm(true); }}>
                             <Plus size={20} aria-hidden="true" />
                             Novo funcionario
                         </button>
-                    )}
-                </div>
-            </div>
-
-            {filtersOpen && (
-                <div className="product-filter-grid employee-filter-grid">
-                    <label className="employee-filter-field">
-                        Perfil
-                        <select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
-                            <option value="all">Todos</option>
-                            <option value="ADMIN">Administrador</option>
-                            <option value="MANAGER">Gerente</option>
-                            <option value="SALESPERSON">Vendedor</option>
-                            <option value="BUYER">Comprador</option>
-                            <option value="STOCK">Estoquista</option>
-                        </select>
-                    </label>
-                    <label className="employee-filter-field">
-                        Status
-                        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
-                            <option value="all">Todos</option>
-                            <option value="active">Ativo</option>
-                            <option value="inactive">Inativo</option>
-                        </select>
-                    </label>
-                    <label className="checkbox-field supplier-filter-panel__toggle">
-                        <input type="checkbox" checked={showInactive} onChange={(event) => setShowInactive(event.target.checked)} />
-                        Mostrar desativados
-                    </label>
-                    <button type="button" className="secondary-button product-filter-reset" onClick={resetFilters}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Limpar filtros
-                    </button>
-                </div>
-            )}
+                )}
+            >
+                <FilterSelect
+                    label="Ordenacao"
+                    value={draftFilters.sortKey}
+                    onChange={(sortKey) => setDraftFilters((current) => ({ ...current, sortKey }))}
+                    options={[
+                        { value: "name", label: "Nome" },
+                        { value: "role", label: "Perfil" },
+                        { value: "status", label: "Status" },
+                    ]}
+                />
+                <FilterSegmentedControl
+                    label="Status"
+                    value={draftFilters.statusFilter}
+                    onChange={(statusFilter) => setDraftFilters((current) => ({ ...current, statusFilter }))}
+                    options={[
+                        { value: "all", label: "Todos" },
+                        { value: "active", label: "Ativos" },
+                        { value: "inactive", label: "Inativos" },
+                    ]}
+                />
+                <FilterSelect
+                    label="Perfil"
+                    value={draftFilters.roleFilter}
+                    onChange={(roleFilter) => setDraftFilters((current) => ({ ...current, roleFilter }))}
+                    options={[
+                        { value: "all", label: "Todos" },
+                        { value: "ADMIN", label: "Administrador" },
+                        { value: "MANAGER", label: "Gerente" },
+                        { value: "SALESPERSON", label: "Vendedor" },
+                        { value: "BUYER", label: "Comprador" },
+                        { value: "STOCK", label: "Estoquista" },
+                    ]}
+                />
+            </FilterPanel>
 
             {showForm && (
                 <EmployeeForm
@@ -505,12 +555,14 @@ export function EmployeeList() {
             {error && <div className="form-error">{error}</div>}
             {loading ? <LoadingState /> : filteredEmployees.length === 0 ? (
                 <EmptyState
-                    message={search ? "Nenhum funcionario encontrado." : "Nenhum funcionario cadastrado."}
-                    description={search ? "Ajuste a pesquisa ou os filtros para localizar um colaborador." : 'Clique em "Novo Funcionario" para adicionar o primeiro colaborador.'}
-                    actionLabel={canEditEmployee ? "Novo Funcionario" : undefined}
-                    onAction={canEditEmployee ? () => setShowForm(true) : undefined}
+                    message={hasActiveFilters ? "Nenhum funcionario encontrado com os filtros atuais." : "Nenhum funcionario cadastrado."}
+                    description={hasActiveFilters ? "Ajuste a pesquisa ou os filtros para localizar um colaborador." : 'Clique em "Novo Funcionario" para adicionar o primeiro colaborador.'}
+                    actionLabel={hasActiveFilters ? "Limpar filtros" : canEditEmployee ? "Novo Funcionario" : undefined}
+                    onAction={hasActiveFilters ? resetFilters : canEditEmployee ? () => setShowForm(true) : undefined}
                 />
             ) : (
+                <>
+                <FilterResultSummary total={filteredEmployees.length} noun="funcionarios" hasActiveFilters={hasActiveFilters} />
                 <div className="table-wrap employee-table-wrap">
                     <table className="data-table employee-table">
                         <thead>
@@ -541,8 +593,7 @@ export function EmployeeList() {
                     <div className="supplier-pagination employee-pagination">
                         <span>Mostrando {pageStart}-{pageEnd} de {filteredEmployees.length.toLocaleString("pt-BR")} funcionarios</span>
                         <label>
-                            Registros por pagina
-                            <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+                            <select aria-label="Registros por pagina" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
                                 {[10, 20, 50, 100].map((size) => (
                                     <option key={size} value={size}>{size}</option>
                                 ))}
@@ -568,6 +619,7 @@ export function EmployeeList() {
                         </div>
                     </div>
                 </div>
+                </>
             )}
 
             <ConfirmDeleteModal

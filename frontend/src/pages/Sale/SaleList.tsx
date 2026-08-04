@@ -3,13 +3,10 @@ import { Link, useNavigate } from "react-router-dom";
 import {
     Ban,
     CheckCircle2,
-    ChevronDown,
     Clock,
     Copy,
     DollarSign,
     Eye,
-    FileText,
-    ListFilter,
     Pencil,
     Plus,
     Printer,
@@ -19,8 +16,8 @@ import {
     TrendingUp,
     X,
 } from "lucide-react";
+import { ActiveFilterChips, FilterPanel, FilterResultSummary, FilterSegmentedControl, FilterSelect } from "../../components/common/FilterPanel";
 import PageHeader from "../../components/common/PageHeader";
-import SearchInput from "../../components/common/SearchInput";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
 import clientService from "../../services/client.service";
@@ -37,8 +34,26 @@ import { normalizeSearch } from "../../utils/text";
 
 type SaleStatusFilter = "all" | SaleStatus | "EM_ANDAMENTO";
 type SalePaymentFilter = "all" | "pix" | "dinheiro" | "credito" | "debito" | "boleto";
-type SalePeriodFilter = "today" | "week" | "month" | "custom";
+type SalePeriodFilter = "all" | "today" | "week" | "month" | "custom";
 type SaleActionLoading = { id: number; action: "finalize" | "cancel" | "duplicate" } | null;
+
+interface SaleFilters {
+    search: string;
+    statusFilter: SaleStatusFilter;
+    paymentFilter: SalePaymentFilter;
+    periodFilter: SalePeriodFilter;
+    customStart: string;
+    customEnd: string;
+}
+
+const defaultSaleFilters: SaleFilters = {
+    search: "",
+    statusFilter: "all",
+    paymentFilter: "all",
+    periodFilter: "all",
+    customStart: "",
+    customEnd: "",
+};
 
 interface SaleRow {
     sale: SaleResponse;
@@ -90,6 +105,10 @@ function dateKey(value?: string | null) {
 }
 
 function isWithinPeriod(value: string, period: SalePeriodFilter, start: string, end: string) {
+    if (period === "all") {
+        return true;
+    }
+
     const date = new Date(value);
     const now = new Date();
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
@@ -269,13 +288,10 @@ export function SaleList() {
     const [products, setProducts] = useState<ProductResponse[]>([]);
     const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
     const [metadataLoading, setMetadataLoading] = useState(false);
-    const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState<SaleStatusFilter>("all");
-    const [paymentFilter, setPaymentFilter] = useState<SalePaymentFilter>("all");
-    const [periodFilter, setPeriodFilter] = useState<SalePeriodFilter>("today");
-    const [customStart, setCustomStart] = useState("");
-    const [customEnd, setCustomEnd] = useState("");
+    const [appliedFilters, setAppliedFilters] = useState<SaleFilters>(defaultSaleFilters);
+    const [draftFilters, setDraftFilters] = useState<SaleFilters>(defaultSaleFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [isApplyingFilters, setIsApplyingFilters] = useState(false);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [selectedSale, setSelectedSale] = useState<SaleResponse | null>(null);
@@ -337,7 +353,7 @@ export function SaleList() {
     }, [sales, todayKey]);
 
     const filteredRows = useMemo(() => {
-        const term = normalizeSearch(search);
+        const term = normalizeSearch(appliedFilters.search);
 
         return [...saleRows]
             .filter((row) => {
@@ -357,23 +373,23 @@ export function SaleList() {
                 if (term && !searchable.some((value) => value.includes(term))) {
                     return false;
                 }
-                if (statusFilter !== "all" && sale.status !== statusFilter) {
+                if (appliedFilters.statusFilter !== "all" && sale.status !== appliedFilters.statusFilter) {
                     return false;
                 }
-                if (!paymentMatchesFilter(paymentNames, paymentFilter)) {
+                if (!paymentMatchesFilter(paymentNames, appliedFilters.paymentFilter)) {
                     return false;
                 }
-                if (!isWithinPeriod(sale.createdAt, periodFilter, customStart, customEnd)) {
+                if (!isWithinPeriod(sale.createdAt, appliedFilters.periodFilter, appliedFilters.customStart, appliedFilters.customEnd)) {
                     return false;
                 }
                 return true;
             })
             .sort((left, right) => new Date(right.sale.createdAt).getTime() - new Date(left.sale.createdAt).getTime());
-    }, [customEnd, customStart, paymentFilter, periodFilter, saleRows, search, statusFilter]);
+    }, [appliedFilters.customEnd, appliedFilters.customStart, appliedFilters.paymentFilter, appliedFilters.periodFilter, appliedFilters.search, appliedFilters.statusFilter, saleRows]);
 
     useEffect(() => {
         setPage(1);
-    }, [customEnd, customStart, pageSize, paymentFilter, periodFilter, search, statusFilter]);
+    }, [appliedFilters, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
     const currentPage = Math.min(page, totalPages);
@@ -387,13 +403,39 @@ export function SaleList() {
     }, [currentPage, totalPages]);
 
     function resetFilters() {
-        setSearch("");
-        setStatusFilter("all");
-        setPaymentFilter("all");
-        setPeriodFilter("today");
-        setCustomStart("");
-        setCustomEnd("");
+        setDraftFilters(defaultSaleFilters);
+        setAppliedFilters(defaultSaleFilters);
+        setIsApplyingFilters(false);
     }
+
+    function applyFilters() {
+        setIsApplyingFilters(true);
+        setAppliedFilters(draftFilters);
+        setPage(1);
+        window.setTimeout(() => setIsApplyingFilters(false), 180);
+    }
+
+    const activeFilterCount = useMemo(() => {
+        return [
+            appliedFilters.search.trim() !== "",
+            appliedFilters.statusFilter !== defaultSaleFilters.statusFilter,
+            appliedFilters.paymentFilter !== defaultSaleFilters.paymentFilter,
+            appliedFilters.periodFilter !== defaultSaleFilters.periodFilter,
+            appliedFilters.customStart !== "" || appliedFilters.customEnd !== "",
+        ].filter(Boolean).length;
+    }, [appliedFilters]);
+
+    const draftActiveFilterCount = useMemo(() => {
+        return [
+            draftFilters.search.trim() !== "",
+            draftFilters.statusFilter !== defaultSaleFilters.statusFilter,
+            draftFilters.paymentFilter !== defaultSaleFilters.paymentFilter,
+            draftFilters.periodFilter !== defaultSaleFilters.periodFilter,
+            draftFilters.customStart !== "" || draftFilters.customEnd !== "",
+        ].filter(Boolean).length;
+    }, [draftFilters]);
+
+    const hasActiveFilters = activeFilterCount > 0;
 
     function printReceipt() {
         window.print();
@@ -475,69 +517,60 @@ export function SaleList() {
                 </div>
             </div>
 
-            <div className="supplier-filter-panel sale-filter-panel">
-                <div className="supplier-filter-panel__search sale-filter-panel__search">
-                    <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar numero da venda, cliente ou funcionario..." />
-                    <span>{filteredRows.length.toLocaleString("pt-BR")} vendas encontradas</span>
-                </div>
-                <div className="supplier-filter-panel__actions">
-                    <button type="button" className="secondary-button sale-mobile-filter-toggle" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Filtros
-                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
-                    </button>
-                </div>
-            </div>
-
-            {filtersOpen && (
-                <div className="product-filter-grid sale-filter-grid is-open">
-                    <label>
-                        Status
-                        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as SaleStatusFilter)}>
-                            <option value="all">Todos</option>
-                            <option value="FINALIZADA">Finalizada</option>
-                            <option value="PENDENTE">Pendente</option>
-                            <option value="CANCELADA">Cancelada</option>
-                        </select>
-                    </label>
-                    <label>
-                        Forma de pagamento
-                        <select value={paymentFilter} onChange={(event) => setPaymentFilter(event.target.value as SalePaymentFilter)}>
-                            <option value="all">Todas</option>
-                            <option value="pix">Pix</option>
-                            <option value="dinheiro">Dinheiro</option>
-                            <option value="credito">Cartao Credito</option>
-                            <option value="debito">Cartao Debito</option>
-                            <option value="boleto">Boleto</option>
-                        </select>
-                    </label>
-                    <label>
-                        Periodo
-                        <select value={periodFilter} onChange={(event) => setPeriodFilter(event.target.value as SalePeriodFilter)}>
-                            <option value="today">Hoje</option>
-                            <option value="week">Ultimos 7 dias</option>
-                            <option value="month">30 dias</option>
-                            <option value="custom">Personalizado</option>
-                        </select>
-                    </label>
-                    {periodFilter === "custom" && (
-                        <>
-                            <label>
-                                Inicio
-                                <input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} />
-                            </label>
-                            <label>
-                                Fim
-                                <input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} />
-                            </label>
-                        </>
-                    )}
-                    <button type="button" className="secondary-button product-filter-reset" onClick={resetFilters}>
-                        <FileText size={18} aria-hidden="true" />
-                        Limpar filtros
-                    </button>
-                </div>
-            )}
+            <FilterPanel
+                search={draftFilters.search}
+                searchPlaceholder="Pesquisar por numero, cliente ou vendedor..."
+                filtersOpen={filtersOpen}
+                activeFilterCount={activeFilterCount}
+                isApplying={isApplyingFilters}
+                hasActiveFilters={hasActiveFilters}
+                onSearchChange={(search) => setDraftFilters((current) => ({ ...current, search }))}
+                onSearchSubmit={applyFilters}
+                onToggleFilters={() => setFiltersOpen((current) => !current)}
+                onClearFilters={resetFilters}
+                onApplyFilters={applyFilters}
+                chips={draftActiveFilterCount > 0 && (
+                    <ActiveFilterChips>
+                        {draftFilters.statusFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, statusFilter: "all" }))}>{draftFilters.statusFilter} <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.paymentFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, paymentFilter: "all" }))}>Pagamento <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.periodFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, periodFilter: "all", customStart: "", customEnd: "" }))}>Periodo <X size={13} aria-hidden="true" /></button>}
+                    </ActiveFilterChips>
+                )}
+            >
+                <FilterSegmentedControl label="Status" value={draftFilters.statusFilter} onChange={(statusFilter) => setDraftFilters((current) => ({ ...current, statusFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    { value: "PENDENTE", label: "Pendentes" },
+                    { value: "FINALIZADA", label: "Finalizadas" },
+                    { value: "CANCELADA", label: "Canceladas" },
+                ]} />
+                <FilterSelect label="Pagamento" value={draftFilters.paymentFilter} onChange={(paymentFilter) => setDraftFilters((current) => ({ ...current, paymentFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    { value: "pix", label: "Pix" },
+                    { value: "dinheiro", label: "Dinheiro" },
+                    { value: "credito", label: "Cartao credito" },
+                    { value: "debito", label: "Cartao debito" },
+                    { value: "boleto", label: "Boleto" },
+                ]} />
+                <FilterSelect label="Periodo" value={draftFilters.periodFilter} onChange={(periodFilter) => setDraftFilters((current) => ({ ...current, periodFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    { value: "today", label: "Hoje" },
+                    { value: "week", label: "Ultimos 7 dias" },
+                    { value: "month", label: "30 dias" },
+                    { value: "custom", label: "Personalizado" },
+                ]} />
+                {draftFilters.periodFilter === "custom" && (
+                    <>
+                        <section className="client-filter-group garage-filter-field">
+                            <h3>Inicio</h3>
+                            <div className="client-input-wrap"><input type="date" value={draftFilters.customStart} onChange={(event) => setDraftFilters((current) => ({ ...current, customStart: event.target.value }))} /></div>
+                        </section>
+                        <section className="client-filter-group garage-filter-field">
+                            <h3>Fim</h3>
+                            <div className="client-input-wrap"><input type="date" value={draftFilters.customEnd} onChange={(event) => setDraftFilters((current) => ({ ...current, customEnd: event.target.value }))} /></div>
+                        </section>
+                    </>
+                )}
+            </FilterPanel>
 
             {(error || actionError) && <div className="form-error">{error ?? actionError}</div>}
 
@@ -546,9 +579,11 @@ export function SaleList() {
                     <div className="empty-state__icon" aria-hidden="true">
                         <ShoppingCart size={24} />
                     </div>
-                    <strong>Nenhuma venda encontrada</strong>
-                    <span>Comece registrando sua primeira venda.</span>
-                    {canEditSale && (
+                    <strong>{hasActiveFilters ? "Nenhuma venda encontrada com os filtros atuais." : "Nenhuma venda encontrada"}</strong>
+                    <span>{hasActiveFilters ? "Ajuste os campos ou limpe os filtros para ampliar a busca." : "Comece registrando sua primeira venda."}</span>
+                    {hasActiveFilters ? (
+                        <button type="button" className="secondary-button" onClick={resetFilters}>Limpar filtros</button>
+                    ) : canEditSale && (
                         <button type="button" className="primary-button" onClick={() => navigate("/sales/new")}>
                             <Plus size={20} aria-hidden="true" />
                             Nova Venda
@@ -557,6 +592,7 @@ export function SaleList() {
                 </div>
             ) : (
                 <>
+                    <FilterResultSummary total={filteredRows.length} noun="vendas" hasActiveFilters={hasActiveFilters} />
                     <div className="table-wrap sale-table-wrap">
                         <table className="data-table sale-table">
                             <thead>
@@ -760,8 +796,7 @@ function SalePagination({ pageStart, pageEnd, total, pageSize, setPageSize, curr
         <div className="supplier-pagination sale-pagination">
             <span>Mostrando {pageStart}-{pageEnd} de {total.toLocaleString("pt-BR")} vendas</span>
             <label>
-                Registros por pagina
-                <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+                <select aria-label="Registros por pagina" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
                     {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
                 </select>
             </label>

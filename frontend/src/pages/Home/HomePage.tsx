@@ -2,12 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
     Area,
-    AreaChart,
     Bar,
     BarChart,
     CartesianGrid,
+    ComposedChart,
     Line,
-    LineChart,
     ResponsiveContainer,
     Tooltip,
     XAxis,
@@ -22,23 +21,18 @@ import {
     CreditCard,
     DollarSign,
     PackageX,
-    Plus,
     RefreshCcw,
     ShoppingCart,
     TrendingUp,
     Users,
     WalletCards,
-    Zap,
 } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
 import StatusBadge from "../../components/common/StatusBadge";
 import {
     ChartContainer,
-    ChartEmpty,
     ChartLegend,
-    ChartTooltip,
     getYAxisDomain,
-    resolveChartState,
 } from "../../components/common/ChartKit";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
@@ -56,7 +50,7 @@ import { formatCurrency, formatDateTime } from "../../utils/formatters";
 
 type SalesPeriod = "today" | "7d" | "30d" | "month" | "year";
 type ProductPeriod = "today" | "week" | "month" | "year";
-type ChartType = "line" | "bar" | "area";
+type ChartType = "line" | "column";
 
 interface MetricCardData {
     title: string;
@@ -69,7 +63,20 @@ interface MetricCardData {
 
 interface SaleChartPoint {
     label: string;
+    period: string;
     total: number;
+    salesCount: number;
+    start: Date;
+    end: Date;
+}
+
+interface SalesTooltipPayload {
+    payload?: SaleChartPoint;
+}
+
+interface SalesTooltipProps {
+    active?: boolean;
+    payload?: SalesTooltipPayload[];
 }
 
 interface TopProduct {
@@ -105,9 +112,10 @@ const productPeriods: Array<{ id: ProductPeriod; label: string }> = [
 
 const chartTypes: Array<{ id: ChartType; label: string }> = [
     { id: "line", label: "Linha" },
-    { id: "bar", label: "Barras" },
-    { id: "area", label: "Area" },
+    { id: "column", label: "Colunas" },
 ];
+
+const monthLabels = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 function startOfDay(date: Date) {
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -131,27 +139,24 @@ function daysAgo(days: number) {
     return date;
 }
 
-function inSalesPeriod(value: string, period: SalesPeriod) {
-    const date = new Date(value);
-    const now = new Date();
+function addDays(date: Date, days: number) {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+    return next;
+}
 
-    if (period === "today") {
-        return isSameDay(date, now);
-    }
+function addMonths(date: Date, months: number) {
+    const next = new Date(date);
+    next.setMonth(next.getMonth() + months);
+    return next;
+}
 
-    if (period === "7d") {
-        return date >= daysAgo(6);
-    }
+function startOfMonth(date: Date) {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+}
 
-    if (period === "30d") {
-        return date >= daysAgo(29);
-    }
-
-    if (period === "month") {
-        return isSameYear(date, now);
-    }
-
-    return date.getFullYear() >= now.getFullYear() - 4;
+function startOfYear(date: Date) {
+    return new Date(date.getFullYear(), 0, 1);
 }
 
 function inProductPeriod(value: string, period: ProductPeriod) {
@@ -244,20 +249,131 @@ function periodLabel(period: SalesPeriod) {
     return "Ano a ano";
 }
 
-function buildSalesChartData(sales: SaleResponse[], period: SalesPeriod): SaleChartPoint[] {
-    const totals = new Map<string, number>();
+function compactCurrency(value: number) {
+    if (value >= 1_000_000) {
+        return `R$ ${(value / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
+    }
 
-    sales.filter((sale) => inSalesPeriod(sale.createdAt, period)).forEach((sale) => {
-        const date = new Date(sale.createdAt);
-        const label = period === "month"
-            ? new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date)
-            : period === "year"
-                ? String(date.getFullYear())
-                : new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(date);
-        totals.set(label, (totals.get(label) ?? 0) + sale.total);
+    if (value >= 1_000) {
+        return `R$ ${(value / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
+    }
+
+    return formatCurrency(value);
+}
+
+function saleCountLabel(count: number) {
+    return `${count.toLocaleString("pt-BR")} ${count === 1 ? "venda" : "vendas"}`;
+}
+
+function buildSalesBuckets(period: SalesPeriod, reference: Date): SaleChartPoint[] {
+    if (period === "today") {
+        const start = startOfDay(reference);
+        return Array.from({ length: reference.getHours() + 1 }, (_, hour) => {
+            const bucketStart = new Date(start);
+            bucketStart.setHours(hour, 0, 0, 0);
+            const bucketEnd = new Date(start);
+            bucketEnd.setHours(hour + 1, 0, 0, 0);
+            return {
+                label: `${String(hour).padStart(2, "0")}h`,
+                period: `${String(hour).padStart(2, "0")}:00`,
+                total: 0,
+                salesCount: 0,
+                start: bucketStart,
+                end: bucketEnd,
+            };
+        });
+    }
+
+    if (period === "7d" || period === "30d") {
+        const days = period === "7d" ? 7 : 30;
+        const firstDay = addDays(startOfDay(reference), -(days - 1));
+        return Array.from({ length: days }, (_, index) => {
+            const start = addDays(firstDay, index);
+            const end = addDays(start, 1);
+            return {
+                label: new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(start),
+                period: new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long" }).format(start),
+                total: 0,
+                salesCount: 0,
+                start,
+                end,
+            };
+        });
+    }
+
+    if (period === "month") {
+        const currentMonth = startOfMonth(reference);
+        const firstMonth = addMonths(currentMonth, -7);
+        return Array.from({ length: 8 }, (_, index) => {
+            const start = addMonths(firstMonth, index);
+            const end = addMonths(start, 1);
+            return {
+                label: monthLabels[start.getMonth()],
+                period: new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(start),
+                total: 0,
+                salesCount: 0,
+                start,
+                end,
+            };
+        });
+    }
+
+    const currentYear = startOfYear(reference).getFullYear();
+    const firstYear = currentYear - 3;
+    return Array.from({ length: 4 }, (_, index) => {
+        const year = firstYear + index;
+        const start = new Date(year, 0, 1);
+        const end = new Date(year + 1, 0, 1);
+        return {
+            label: String(year),
+            period: String(year),
+            total: 0,
+            salesCount: 0,
+            start,
+            end,
+        };
+    });
+}
+
+function buildSalesChartData(sales: SaleResponse[], period: SalesPeriod, reference: Date): SaleChartPoint[] {
+    const buckets = buildSalesBuckets(period, reference);
+
+    sales.forEach((sale) => {
+        const saleDate = new Date(sale.createdAt);
+        const bucket = buckets.find((item) => saleDate >= item.start && saleDate < item.end);
+        if (!bucket) {
+            return;
+        }
+
+        bucket.total += sale.total;
+        bucket.salesCount += 1;
     });
 
-    return Array.from(totals.entries()).map(([label, total]) => ({ label, total }));
+    if (period === "today") {
+        const firstDataIndex = buckets.findIndex((bucket) => bucket.salesCount > 0 || bucket.total > 0);
+        if (firstDataIndex === -1) {
+            return [];
+        }
+
+        return buckets.slice(Math.max(0, firstDataIndex - 1));
+    }
+
+    return buckets;
+}
+
+function SalesChartTooltip({ active, payload }: SalesTooltipProps) {
+    const point = payload?.[0]?.payload;
+    if (!active || !point) {
+        return null;
+    }
+
+    return (
+        <div className="chart-tooltip home-chart-tooltip">
+            <span>{point.period}</span>
+            <strong>{formatCurrency(point.total)}</strong>
+            <small>{saleCountLabel(point.salesCount)}</small>
+        </div>
+    );
 }
 
 export function HomePage() {
@@ -274,7 +390,7 @@ export function HomePage() {
     const [error, setError] = useState<string | null>(null);
     const [salesPeriod, setSalesPeriod] = useState<SalesPeriod>("7d");
     const [productPeriod, setProductPeriod] = useState<ProductPeriod>("month");
-    const [chartType, setChartType] = useState<ChartType>("area");
+    const [chartType, setChartType] = useState<ChartType>("column");
 
     const loadHome = useCallback(async (silent = false) => {
         if (silent) {
@@ -316,10 +432,16 @@ export function HomePage() {
             void loadHome(true);
         };
 
+        const handleDashboardRefresh = () => {
+            void loadHome(true);
+        };
+
         window.addEventListener("focus", handleFocus);
+        window.addEventListener("garageos:refresh-dashboard", handleDashboardRefresh);
         return () => {
             window.clearInterval(interval);
             window.removeEventListener("focus", handleFocus);
+            window.removeEventListener("garageos:refresh-dashboard", handleDashboardRefresh);
         };
     }, [loadHome]);
 
@@ -358,9 +480,11 @@ export function HomePage() {
         ];
     }, [clients.length, finalizedSales, lowStock.length, products, purchases, sales, now]);
 
-    const salesChartData = useMemo(() => buildSalesChartData(finalizedSales, salesPeriod), [finalizedSales, salesPeriod]);
+    const salesChartData = useMemo(() => buildSalesChartData(finalizedSales, salesPeriod, now), [finalizedSales, now, salesPeriod]);
+    const salesChartVisibleData = useMemo(() => salesChartData.filter((item) => item.salesCount > 0 || item.total > 0), [salesChartData]);
     const salesMaxValue = Math.max(...salesChartData.map((item) => item.total), 0);
-    const salesChartState = resolveChartState(salesChartData.length);
+    const salesChartTotal = salesChartVisibleData.reduce((sum, item) => sum + item.total, 0);
+    const salesChartCount = salesChartVisibleData.reduce((sum, item) => sum + item.salesCount, 0);
 
     const topProducts = useMemo<TopProduct[]>(() => {
         const items = new Map<number, { quantity: number; total: number }>();
@@ -466,52 +590,85 @@ export function HomePage() {
     }, [lowStock, now, products, purchases, sales]);
 
     function renderSalesChart() {
-        if (salesChartState === "empty") {
-            return <ChartEmpty message="Ainda nao existem vendas suficientes para gerar indicadores. Assim que forem realizadas vendas, os graficos aparecerao automaticamente." />;
+        if (salesChartVisibleData.length === 0) {
+            return <EmptyState message="Todavia nao existem vendas nesse periodo." description="As vendas aparecerao aqui automaticamente." />;
         }
 
         const chartProps = {
             data: salesChartData,
-            margin: { top: 24, right: 28, bottom: 10, left: 8 },
+            margin: { top: 20, right: 18, bottom: 0, left: 0 },
         };
 
-        const grid = <CartesianGrid stroke="rgba(255,255,255,.035)" vertical={false} />;
-        const xAxis = <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fill: "#94A3B8", fontSize: 12 }} padding={{ left: 22, right: 22 }} />;
-        const yAxis = <YAxis domain={getYAxisDomain(salesMaxValue)} axisLine={false} tickLine={false} tick={{ fill: "#94A3B8", fontSize: 12 }} />;
-        const tooltip = <Tooltip content={<ChartTooltip valueFormatter={(value) => formatCurrency(value)} />} cursor={{ stroke: "rgba(59,130,246,.18)", strokeWidth: 1 }} />;
+        const grid = <CartesianGrid stroke="rgba(148,163,184,.12)" strokeDasharray="3 8" vertical={false} />;
+        const xAxis = (
+            <XAxis
+                dataKey="label"
+                axisLine={false}
+                tickLine={false}
+                interval={salesPeriod === "30d" ? 2 : 0}
+                minTickGap={10}
+                padding={{ left: salesChartData.length <= 2 ? 90 : 18, right: salesChartData.length <= 2 ? 90 : 18 }}
+                tick={{ fill: "#94A3B8", fontSize: 12, fontWeight: 700 }}
+            />
+        );
+        const yAxis = (
+            <YAxis
+                width={68}
+                domain={getYAxisDomain(salesMaxValue)}
+                axisLine={false}
+                tickLine={false}
+                tickCount={5}
+                tickFormatter={compactCurrency}
+                tick={{ fill: "#64748B", fontSize: 11, fontWeight: 700 }}
+            />
+        );
+        const tooltip = (
+            <Tooltip
+                content={<SalesChartTooltip />}
+                cursor={chartType === "column" ? { fill: "rgba(37,99,235,.08)" } : { stroke: "rgba(59,130,246,.22)", strokeWidth: 1 }}
+            />
+        );
 
         return (
             <>
                 <div className="chart-stage home-chart-stage">
                     <ResponsiveContainer width="100%" height={328}>
-                        {chartType === "bar" ? (
+                        {chartType === "column" ? (
                             <BarChart {...chartProps}>
                                 {grid}
                                 {xAxis}
                                 {yAxis}
                                 {tooltip}
-                                <Bar dataKey="total" fill="#2563EB" radius={[6, 6, 0, 0]} isAnimationActive animationDuration={700} animationEasing="ease-out" />
+                                <Bar
+                                    dataKey="total"
+                                    fill="#2563EB"
+                                    radius={[8, 8, 3, 3]}
+                                    maxBarSize={salesChartData.length <= 2 ? 54 : 34}
+                                    minPointSize={salesChartVisibleData.length === 1 ? 4 : 0}
+                                    isAnimationActive
+                                    animationDuration={720}
+                                    animationEasing="ease-out"
+                                />
                             </BarChart>
-                        ) : chartType === "line" ? (
-                            <LineChart {...chartProps}>
-                                {grid}
-                                {xAxis}
-                                {yAxis}
-                                {tooltip}
-                                <Line type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={3} dot={{ r: 4, fill: "#2563EB", strokeWidth: 2, stroke: "#93C5FD" }} activeDot={{ r: 7 }} isAnimationActive animationDuration={800} animationEasing="ease-out" />
-                            </LineChart>
                         ) : (
-                            <AreaChart {...chartProps}>
+                            <ComposedChart {...chartProps}>
+                                <defs>
+                                    <linearGradient id="homeSalesLineFill" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.22} />
+                                        <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.01} />
+                                    </linearGradient>
+                                </defs>
                                 {grid}
                                 {xAxis}
                                 {yAxis}
                                 {tooltip}
-                                <Area type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={3} fill="rgba(37, 99, 235, 0.22)" isAnimationActive animationDuration={800} animationEasing="ease-out" />
-                            </AreaChart>
+                                <Area type="monotone" dataKey="total" fill="url(#homeSalesLineFill)" stroke="transparent" activeDot={false} isAnimationActive animationDuration={820} animationEasing="ease-out" />
+                                <Line type="monotone" dataKey="total" stroke="#60A5FA" strokeWidth={3} dot={{ r: 3, fill: "#0F172A", strokeWidth: 2, stroke: "#60A5FA" }} activeDot={{ r: 6, fill: "#2563EB", stroke: "#BFDBFE", strokeWidth: 2 }} isAnimationActive animationDuration={820} animationEasing="ease-out" />
+                            </ComposedChart>
                         )}
                     </ResponsiveContainer>
                 </div>
-                <ChartLegend items={[{ label: periodLabel(salesPeriod), color: "#2563EB", value: formatCurrency(salesMaxValue) }]} />
+                <ChartLegend items={[{ label: periodLabel(salesPeriod), color: "#2563EB", value: `${formatCurrency(salesChartTotal)} - ${saleCountLabel(salesChartCount)}` }]} />
             </>
         );
     }
@@ -529,7 +686,6 @@ export function HomePage() {
             <section className="page-section home-page">
                 <div className="home-hero">
                     <div>
-                        <span>Home</span>
                         <h2>Central operacional do sistema.</h2>
                         <p>Bem-vindo ao GarageOS. Aqui voce acompanha tudo que esta acontecendo na empresa.</p>
                     </div>
@@ -547,24 +703,10 @@ export function HomePage() {
         <section className="page-section home-page">
             <div className="home-hero">
                 <div>
-                    <span>Home</span>
                     <h2>{greeting()}, {firstName(user?.name)} 👋</h2>
                     <p>Bem-vindo ao GarageOS. Aqui voce acompanha tudo que esta acontecendo na empresa.</p>
                 </div>
-                <div className="home-hero__actions">
-                    <Link className="primary-button" to="/sales/new">
-                        <Plus size={18} aria-hidden="true" />
-                        Nova Venda
-                    </Link>
-                    <Link className="secondary-button" to="/stock/movements">
-                        <Zap size={18} aria-hidden="true" />
-                        Movimentos
-                    </Link>
-                    <button type="button" className="secondary-button" onClick={() => loadHome(true)} disabled={refreshing}>
-                        <RefreshCcw className={refreshing ? "loading-state__spinner" : undefined} size={18} aria-hidden="true" />
-                        Atualizar dados
-                    </button>
-                </div>
+                {refreshing && <RefreshCcw className="loading-state__spinner home-hero__refresh" size={18} aria-label="Atualizando dados" />}
             </div>
 
             <div className="home-metric-grid">

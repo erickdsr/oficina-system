@@ -90,7 +90,7 @@ export function Sidebar({ collapsed = false, onNavigate }: SidebarProps) {
                                 <NavLink
                                     key={`${item.section}-${item.to}-${item.label}`}
                                     to={item.to}
-                                    end={item.to === "/"}
+                                    end={item.to === "/" || item.to === "/stock"}
                                     className={({ isActive }: { isActive: boolean }) => (isActive ? "active" : undefined)}
                                     onClick={onNavigate}
                                     title={collapsed ? item.label : undefined}

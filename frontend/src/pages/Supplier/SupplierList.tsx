@@ -1,10 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Eye, ListFilter, Pencil, Trash2, X } from "lucide-react";
+import { Eye, Pencil, Trash2, X } from "lucide-react";
 import EmptyState from "../../components/common/EmptyState";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
+import { ActiveFilterChips, FilterPanel, FilterResultSummary, FilterSegmentedControl, FilterSelect } from "../../components/common/FilterPanel";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
-import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
@@ -30,6 +30,28 @@ interface SupplierTableRowProps {
 
 type SupplierSortKey = "name" | "cnpj" | "city" | "status";
 type SortDirection = "asc" | "desc";
+type SupplierStatusFilter = "all" | "active" | "inactive";
+type SupplierTypeFilter = "all" | "PF" | "PJ";
+
+interface SupplierFilters {
+    search: string;
+    statusFilter: SupplierStatusFilter;
+    typeFilter: SupplierTypeFilter;
+    stateFilter: string;
+    cityFilter: string;
+    sortKey: SupplierSortKey;
+    sortDirection: SortDirection;
+}
+
+const defaultSupplierFilters: SupplierFilters = {
+    search: "",
+    statusFilter: "all",
+    typeFilter: "all",
+    stateFilter: "",
+    cityFilter: "",
+    sortKey: "name",
+    sortDirection: "asc",
+};
 
 function supplierStatus(supplier: Supplier) {
     return supplier.status
@@ -119,9 +141,10 @@ const SupplierTableRow = memo(function SupplierTableRow({
 export function SupplierList() {
     const { user } = useAuth();
     const { suppliers, loading, error, setError, fetchAll, create, update, remove, forceDelete } = useSupplier();
-    const [search, setSearch] = useState("");
-    const [showInactive, setShowInactive] = useState(false);
+    const [appliedFilters, setAppliedFilters] = useState<SupplierFilters>(defaultSupplierFilters);
+    const [draftFilters, setDraftFilters] = useState<SupplierFilters>(defaultSupplierFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [isApplyingFilters, setIsApplyingFilters] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
@@ -133,14 +156,14 @@ export function SupplierList() {
     const [supplierToView, setSupplierToView] = useState<Supplier | null>(null);
     const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
     const [linkedProductsCount, setLinkedProductsCount] = useState(0);
-    const [sortKey, setSortKey] = useState<SupplierSortKey>("name");
-    const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+    const sortKey = appliedFilters.sortKey;
+    const sortDirection = appliedFilters.sortDirection;
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
     useEffect(() => {
-        void fetchAll(showInactive).catch(() => undefined);
-    }, [fetchAll, showInactive]);
+        void fetchAll(appliedFilters.statusFilter !== "active").catch(() => undefined);
+    }, [appliedFilters.statusFilter, fetchAll]);
 
     useEffect(() => {
         let active = true;
@@ -161,28 +184,51 @@ export function SupplierList() {
     }, []);
 
     const filteredSuppliers = useMemo(() => {
-        const term = normalizeSearch(search);
-        const numericTerm = onlyDigits(search);
+        const term = normalizeSearch(appliedFilters.search);
+        const numericTerm = onlyDigits(appliedFilters.search);
 
         return [...suppliers]
             .filter((supplier) => {
-                if (!term && !numericTerm) {
-                    return true;
+                if (term || numericTerm) {
+                    const searchableText = [
+                        supplier.name,
+                        supplier.tradeName,
+                        supplier.legalName,
+                        supplier.contactName,
+                        supplier.email,
+                        supplier.city,
+                    ]
+                        .map(normalizeSearch)
+                        .join(" ");
+                    const searchableDigits = [supplier.cnpj, supplier.phone].map(onlyDigits).join(" ");
+
+                    if (!searchableText.includes(term) && !(numericTerm.length > 0 && searchableDigits.includes(numericTerm))) {
+                        return false;
+                    }
                 }
 
-                const searchableText = [
-                    supplier.name,
-                    supplier.tradeName,
-                    supplier.legalName,
-                    supplier.contactName,
-                    supplier.email,
-                    supplier.city,
-                ]
-                    .map(normalizeSearch)
-                    .join(" ");
-                const searchableDigits = [supplier.cnpj, supplier.phone].map(onlyDigits).join(" ");
+                if (appliedFilters.statusFilter === "active" && !supplier.status) {
+                    return false;
+                }
 
-                return searchableText.includes(term) || (numericTerm.length > 0 && searchableDigits.includes(numericTerm));
+                if (appliedFilters.statusFilter === "inactive" && supplier.status) {
+                    return false;
+                }
+
+                const supplierType = onlyDigits(supplier.cnpj).length <= 11 ? "PF" : "PJ";
+                if (appliedFilters.typeFilter !== "all" && supplierType !== appliedFilters.typeFilter) {
+                    return false;
+                }
+
+                if (appliedFilters.stateFilter && normalizeSearch(supplier.state) !== normalizeSearch(appliedFilters.stateFilter)) {
+                    return false;
+                }
+
+                if (appliedFilters.cityFilter && normalizeSearch(supplier.city) !== normalizeSearch(appliedFilters.cityFilter)) {
+                    return false;
+                }
+
+                return true;
             })
             .sort((left, right) => {
                 let comparison: number;
@@ -199,11 +245,25 @@ export function SupplierList() {
 
                 return sortDirection === "asc" ? comparison : -comparison;
             });
-    }, [search, sortDirection, sortKey, suppliers]);
+    }, [appliedFilters.cityFilter, appliedFilters.search, appliedFilters.stateFilter, appliedFilters.statusFilter, appliedFilters.typeFilter, sortDirection, sortKey, suppliers]);
 
     useEffect(() => {
         setPage(1);
-    }, [search, showInactive, pageSize, sortDirection, sortKey]);
+    }, [appliedFilters, pageSize]);
+
+    const supplierStateOptions = useMemo(() => {
+        return Array.from(new Set(suppliers.map((supplier) => supplier.state?.trim().toUpperCase()).filter(Boolean) as string[]))
+            .sort((left, right) => left.localeCompare(right, "pt-BR"));
+    }, [suppliers]);
+
+    const supplierCityOptions = useMemo(() => {
+        return Array.from(new Set(
+            suppliers
+                .filter((supplier) => !draftFilters.stateFilter || normalizeSearch(supplier.state) === normalizeSearch(draftFilters.stateFilter))
+                .map((supplier) => supplier.city?.trim())
+                .filter(Boolean) as string[],
+        )).sort((left, right) => left.localeCompare(right, "pt-BR", { sensitivity: "base" }));
+    }, [draftFilters.stateFilter, suppliers]);
 
     const supplierStats = useMemo(() => {
         const activeCount = suppliers.filter((supplier) => supplier.status).length;
@@ -247,12 +307,14 @@ export function SupplierList() {
 
     function handleSort(nextSortKey: SupplierSortKey) {
         if (sortKey === nextSortKey) {
-            setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+            const nextDirection = sortDirection === "asc" ? "desc" : "asc";
+            setAppliedFilters((current) => ({ ...current, sortDirection: nextDirection }));
+            setDraftFilters((current) => ({ ...current, sortDirection: nextDirection }));
             return;
         }
 
-        setSortKey(nextSortKey);
-        setSortDirection("asc");
+        setAppliedFilters((current) => ({ ...current, sortKey: nextSortKey, sortDirection: "asc" }));
+        setDraftFilters((current) => ({ ...current, sortKey: nextSortKey, sortDirection: "asc" }));
     }
 
     function sortIndicator(targetSortKey: SupplierSortKey) {
@@ -264,11 +326,41 @@ export function SupplierList() {
     }
 
     function resetFilters() {
-        setSearch("");
-        setShowInactive(false);
-        setSortKey("name");
-        setSortDirection("asc");
+        setDraftFilters(defaultSupplierFilters);
+        setAppliedFilters(defaultSupplierFilters);
+        setIsApplyingFilters(false);
     }
+
+    function applyFilters() {
+        setIsApplyingFilters(true);
+        setAppliedFilters(draftFilters);
+        setPage(1);
+        window.setTimeout(() => setIsApplyingFilters(false), 180);
+    }
+
+    const activeFilterCount = useMemo(() => {
+        return [
+            appliedFilters.search.trim() !== "",
+            appliedFilters.statusFilter !== defaultSupplierFilters.statusFilter,
+            appliedFilters.typeFilter !== defaultSupplierFilters.typeFilter,
+            appliedFilters.stateFilter !== defaultSupplierFilters.stateFilter,
+            appliedFilters.cityFilter !== defaultSupplierFilters.cityFilter,
+            appliedFilters.sortKey !== defaultSupplierFilters.sortKey || appliedFilters.sortDirection !== defaultSupplierFilters.sortDirection,
+        ].filter(Boolean).length;
+    }, [appliedFilters]);
+
+    const draftActiveFilterCount = useMemo(() => {
+        return [
+            draftFilters.search.trim() !== "",
+            draftFilters.statusFilter !== defaultSupplierFilters.statusFilter,
+            draftFilters.typeFilter !== defaultSupplierFilters.typeFilter,
+            draftFilters.stateFilter !== defaultSupplierFilters.stateFilter,
+            draftFilters.cityFilter !== defaultSupplierFilters.cityFilter,
+            draftFilters.sortKey !== defaultSupplierFilters.sortKey || draftFilters.sortDirection !== defaultSupplierFilters.sortDirection,
+        ].filter(Boolean).length;
+    }, [draftFilters]);
+
+    const hasActiveFilters = activeFilterCount > 0;
 
     const handleEditClick = useCallback((supplier: Supplier) => {
         setEditingSupplier(supplier);
@@ -286,7 +378,7 @@ export function SupplierList() {
             }
             setShowForm(false);
             setEditingSupplier(null);
-            await fetchAll(showInactive);
+            await fetchAll(appliedFilters.statusFilter !== "active");
         } catch (submitError) {
             setFormError(getApiErrorMessage(submitError, "Nao foi possivel salvar o fornecedor."));
         } finally {
@@ -315,7 +407,7 @@ export function SupplierList() {
         setDeleteError(null);
         try {
             await remove(supplierToDelete.id);
-            await fetchAll(showInactive);
+            await fetchAll(appliedFilters.statusFilter !== "active");
             setSupplierToDelete(null);
             setDeletionReport(null);
         } catch (removeError) {
@@ -334,7 +426,7 @@ export function SupplierList() {
         setDeleteError(null);
         try {
             await forceDelete(supplierToDelete.id);
-            await fetchAll(showInactive);
+            await fetchAll(appliedFilters.statusFilter !== "active");
             setSupplierToDelete(null);
             setDeletionReport(null);
         } catch (removeError) {
@@ -379,38 +471,82 @@ export function SupplierList() {
                     <strong>{supplierStats.linkedProductsCount.toLocaleString("pt-BR")}</strong>
                 </div>
             </div>
-            <div className="supplier-filter-panel">
-                <div className="supplier-filter-panel__search">
-                    <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar fornecedor..." />
-                    <span>{filteredSuppliers.length} fornecedores encontrados</span>
-                </div>
-                <div className="supplier-filter-panel__actions">
-                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Filtros
-                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
-                    </button>
-                    {canEditSupplier && (
+            <FilterPanel
+                search={draftFilters.search}
+                searchPlaceholder="Pesquisar por razao social, nome fantasia, CNPJ ou contato..."
+                filtersOpen={filtersOpen}
+                activeFilterCount={activeFilterCount}
+                isApplying={isApplyingFilters}
+                hasActiveFilters={hasActiveFilters}
+                onSearchChange={(search) => setDraftFilters((current) => ({ ...current, search }))}
+                onSearchSubmit={applyFilters}
+                onToggleFilters={() => setFiltersOpen((current) => !current)}
+                onClearFilters={resetFilters}
+                onApplyFilters={applyFilters}
+                chips={draftActiveFilterCount > 0 && (
+                    <ActiveFilterChips>
+                        {draftFilters.statusFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, statusFilter: "all" }))}>{draftFilters.statusFilter === "active" ? "Ativos" : "Inativos"} <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.typeFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, typeFilter: "all" }))}>{draftFilters.typeFilter === "PF" ? "Pessoa fisica" : "Pessoa juridica"} <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.stateFilter && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, stateFilter: "", cityFilter: "" }))}>{draftFilters.stateFilter} <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.cityFilter && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, cityFilter: "" }))}>{draftFilters.cityFilter} <X size={13} aria-hidden="true" /></button>}
+                    </ActiveFilterChips>
+                )}
+                primaryAction={canEditSupplier && (
                         <button type="button" className="primary-button" onClick={() => setShowForm(true)}>
                             Novo fornecedor
                         </button>
-                    )}
-                </div>
-            </div>
-            {filtersOpen && (
-                <div className="product-filter-grid supplier-filter-grid">
-                    <label className="client-switch-field">
-                        Mostrar registros desativados
-                        <button type="button" className={`client-switch${showInactive ? " active" : ""}`} aria-pressed={showInactive} onClick={() => setShowInactive((current) => !current)}>
-                            <span />
-                        </button>
-                    </label>
-                    <button type="button" className="secondary-button product-filter-reset" onClick={resetFilters}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Limpar filtros
-                    </button>
-                </div>
-            )}
+                )}
+            >
+                <FilterSelect
+                    label="Ordenacao"
+                    value={draftFilters.sortKey}
+                    onChange={(sortKey) => setDraftFilters((current) => ({ ...current, sortKey }))}
+                    options={[
+                        { value: "name", label: "Nome" },
+                        { value: "cnpj", label: "CNPJ" },
+                        { value: "city", label: "Cidade" },
+                        { value: "status", label: "Status" },
+                    ]}
+                />
+                <FilterSegmentedControl
+                    label="Status"
+                    value={draftFilters.statusFilter}
+                    onChange={(statusFilter) => setDraftFilters((current) => ({ ...current, statusFilter }))}
+                    options={[
+                        { value: "all", label: "Todos" },
+                        { value: "active", label: "Ativos" },
+                        { value: "inactive", label: "Inativos" },
+                    ]}
+                />
+                <FilterSegmentedControl
+                    label="Tipo"
+                    value={draftFilters.typeFilter}
+                    onChange={(typeFilter) => setDraftFilters((current) => ({ ...current, typeFilter }))}
+                    options={[
+                        { value: "all", label: "Todos" },
+                        { value: "PF", label: "Pessoa fisica" },
+                        { value: "PJ", label: "Pessoa juridica" },
+                    ]}
+                />
+                <FilterSelect
+                    label="Estado"
+                    value={draftFilters.stateFilter}
+                    onChange={(stateFilter) => setDraftFilters((current) => ({ ...current, stateFilter, cityFilter: "" }))}
+                    options={[
+                        { value: "", label: "Todos" },
+                        ...supplierStateOptions.map((state) => ({ value: state, label: state })),
+                    ]}
+                />
+                <FilterSelect
+                    label="Cidade"
+                    value={draftFilters.cityFilter}
+                    onChange={(cityFilter) => setDraftFilters((current) => ({ ...current, cityFilter }))}
+                    options={[
+                        { value: "", label: "Todas" },
+                        ...supplierCityOptions.map((city) => ({ value: city, label: city })),
+                    ]}
+                />
+            </FilterPanel>
             {showForm && (
                 <SupplierForm
                     supplier={editingSupplier}
@@ -427,8 +563,15 @@ export function SupplierList() {
             {loading ? (
                 <LoadingState />
             ) : filteredSuppliers.length === 0 ? (
-                <EmptyState />
+                <EmptyState
+                    message={hasActiveFilters ? "Nenhum fornecedor encontrado com os filtros atuais." : "Nenhum fornecedor cadastrado."}
+                    description={hasActiveFilters ? "Ajuste os campos ou limpe os filtros para ampliar a busca." : undefined}
+                    actionLabel={hasActiveFilters ? "Limpar filtros" : undefined}
+                    onAction={hasActiveFilters ? resetFilters : undefined}
+                />
             ) : (
+                <>
+                <FilterResultSummary total={filteredSuppliers.length} noun="fornecedores" hasActiveFilters={hasActiveFilters} />
                 <div className="table-wrap">
                     <table className="data-table supplier-table">
                         <thead>
@@ -459,8 +602,7 @@ export function SupplierList() {
                     <div className="supplier-pagination">
                         <span>Mostrando {pageStart}-{pageEnd} de {filteredSuppliers.length} fornecedores</span>
                         <label>
-                            Registros por pagina
-                            <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+                            <select aria-label="Registros por pagina" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
                                 {[10, 25, 50, 100].map((size) => (
                                     <option key={size} value={size}>{size}</option>
                                 ))}
@@ -486,6 +628,7 @@ export function SupplierList() {
                         </div>
                     </div>
                 </div>
+                </>
             )}
             <ConfirmDeleteModal
                 isOpen={supplierToDelete !== null}

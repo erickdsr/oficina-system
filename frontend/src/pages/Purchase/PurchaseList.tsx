@@ -3,29 +3,25 @@ import { Link, useNavigate } from "react-router-dom";
 import {
     Ban,
     CheckCircle2,
-    ChevronDown,
     ClipboardList,
     Copy,
     CreditCard,
     Eye,
-    FileText,
-    ListFilter,
     PackageCheck,
     Pencil,
     Plus,
     RefreshCw,
-    Search,
     ShoppingCart,
     Timer,
     Trash2,
     WalletCards,
     XCircle,
 } from "lucide-react";
+import { ActiveFilterChips, FilterPanel, FilterResultSummary, FilterSegmentedControl, FilterSelect } from "../../components/common/FilterPanel";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
 import EmptyState from "../../components/common/EmptyState";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
-import SearchInput from "../../components/common/SearchInput";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
 import productService from "../../services/product.service";
@@ -42,6 +38,30 @@ type PurchaseStatusFilter = "all" | PurchaseStatus | "PROCESSANDO";
 type PurchasePeriodFilter = "all" | "today" | "week" | "month" | "custom";
 type PurchaseSortKey = "recent" | "oldest" | "highest" | "lowest";
 type PurchaseActionLoading = { id: number; action: "receive" | "cancel" | "duplicate" } | null;
+
+interface PurchaseFilters {
+    search: string;
+    supplierFilter: string;
+    statusFilter: PurchaseStatusFilter;
+    periodFilter: PurchasePeriodFilter;
+    customStart: string;
+    customEnd: string;
+    sortKey: PurchaseSortKey;
+    minValue: string;
+    maxValue: string;
+}
+
+const defaultPurchaseFilters: PurchaseFilters = {
+    search: "",
+    supplierFilter: "all",
+    statusFilter: "all",
+    periodFilter: "all",
+    customStart: "",
+    customEnd: "",
+    sortKey: "recent",
+    minValue: "",
+    maxValue: "",
+};
 
 interface PurchaseRow {
     purchase: PurchaseResponse;
@@ -250,17 +270,10 @@ export function PurchaseList() {
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
     const [products, setProducts] = useState<ProductResponse[]>([]);
     const [metadataLoading, setMetadataLoading] = useState(false);
-    const [search, setSearch] = useState("");
-    const [showInactive, setShowInactive] = useState(false);
+    const [appliedFilters, setAppliedFilters] = useState<PurchaseFilters>(defaultPurchaseFilters);
+    const [draftFilters, setDraftFilters] = useState<PurchaseFilters>(defaultPurchaseFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [supplierFilter, setSupplierFilter] = useState("all");
-    const [statusFilter, setStatusFilter] = useState<PurchaseStatusFilter>("all");
-    const [periodFilter, setPeriodFilter] = useState<PurchasePeriodFilter>("all");
-    const [customStart, setCustomStart] = useState("");
-    const [customEnd, setCustomEnd] = useState("");
-    const [sortKey, setSortKey] = useState<PurchaseSortKey>("recent");
-    const [minValue, setMinValue] = useState("");
-    const [maxValue, setMaxValue] = useState("");
+    const [isApplyingFilters, setIsApplyingFilters] = useState(false);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [purchaseToDelete, setPurchaseToDelete] = useState<PurchaseResponse | null>(null);
@@ -275,7 +288,7 @@ export function PurchaseList() {
         setMetadataLoading(true);
         try {
             const [, supplierData, productData] = await Promise.all([
-                loadPurchases(showInactive),
+                loadPurchases(appliedFilters.statusFilter !== "all"),
                 supplierService.list(true),
                 productService.list(true),
             ]);
@@ -284,7 +297,7 @@ export function PurchaseList() {
         } finally {
             setMetadataLoading(false);
         }
-    }, [loadPurchases, showInactive]);
+    }, [appliedFilters.statusFilter, loadPurchases]);
 
     useEffect(() => {
         void loadData().catch(() => undefined);
@@ -314,9 +327,9 @@ export function PurchaseList() {
     }, [purchases]);
 
     const filteredRows = useMemo(() => {
-        const term = normalizeSearch(search);
-        const min = minValue ? Number(minValue) : Number.NEGATIVE_INFINITY;
-        const max = maxValue ? Number(maxValue) : Number.POSITIVE_INFINITY;
+        const term = normalizeSearch(appliedFilters.search);
+        const min = appliedFilters.minValue ? Number(appliedFilters.minValue) : Number.NEGATIVE_INFINITY;
+        const max = appliedFilters.maxValue ? Number(appliedFilters.maxValue) : Number.POSITIVE_INFINITY;
 
         return [...purchaseRows]
             .filter((row) => {
@@ -337,13 +350,13 @@ export function PurchaseList() {
                 if (term && !searchable.some((value) => value.includes(term))) {
                     return false;
                 }
-                if (supplierFilter !== "all" && String(purchase.supplierId ?? "") !== supplierFilter) {
+                if (appliedFilters.supplierFilter !== "all" && String(purchase.supplierId ?? "") !== appliedFilters.supplierFilter) {
                     return false;
                 }
-                if (statusFilter !== "all" && purchase.status !== statusFilter) {
+                if (appliedFilters.statusFilter !== "all" && purchase.status !== appliedFilters.statusFilter) {
                     return false;
                 }
-                if (!isWithinPeriod(purchase.createdAt, periodFilter, customStart, customEnd)) {
+                if (!isWithinPeriod(purchase.createdAt, appliedFilters.periodFilter, appliedFilters.customStart, appliedFilters.customEnd)) {
                     return false;
                 }
                 if (purchase.total < min || purchase.total > max) {
@@ -352,22 +365,22 @@ export function PurchaseList() {
                 return true;
             })
             .sort((left, right) => {
-                if (sortKey === "oldest") {
+                if (appliedFilters.sortKey === "oldest") {
                     return new Date(left.purchase.createdAt).getTime() - new Date(right.purchase.createdAt).getTime();
                 }
-                if (sortKey === "highest") {
+                if (appliedFilters.sortKey === "highest") {
                     return right.purchase.total - left.purchase.total;
                 }
-                if (sortKey === "lowest") {
+                if (appliedFilters.sortKey === "lowest") {
                     return left.purchase.total - right.purchase.total;
                 }
                 return new Date(right.purchase.createdAt).getTime() - new Date(left.purchase.createdAt).getTime();
             });
-    }, [customEnd, customStart, maxValue, minValue, periodFilter, purchaseRows, search, sortKey, statusFilter, supplierFilter]);
+    }, [appliedFilters.customEnd, appliedFilters.customStart, appliedFilters.maxValue, appliedFilters.minValue, appliedFilters.periodFilter, appliedFilters.search, appliedFilters.sortKey, appliedFilters.statusFilter, appliedFilters.supplierFilter, purchaseRows]);
 
     useEffect(() => {
         setPage(1);
-    }, [customEnd, customStart, maxValue, minValue, pageSize, periodFilter, search, sortKey, statusFilter, supplierFilter]);
+    }, [appliedFilters, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
     const currentPage = Math.min(page, totalPages);
@@ -381,17 +394,43 @@ export function PurchaseList() {
     }, [currentPage, totalPages]);
 
     function resetFilters() {
-        setSearch("");
-        setSupplierFilter("all");
-        setStatusFilter("all");
-        setPeriodFilter("all");
-        setCustomStart("");
-        setCustomEnd("");
-        setSortKey("recent");
-        setMinValue("");
-        setMaxValue("");
-        setShowInactive(false);
+        setDraftFilters(defaultPurchaseFilters);
+        setAppliedFilters(defaultPurchaseFilters);
+        setIsApplyingFilters(false);
     }
+
+    function applyFilters() {
+        setIsApplyingFilters(true);
+        setAppliedFilters(draftFilters);
+        setPage(1);
+        window.setTimeout(() => setIsApplyingFilters(false), 180);
+    }
+
+    const activeFilterCount = useMemo(() => {
+        return [
+            appliedFilters.search.trim() !== "",
+            appliedFilters.supplierFilter !== defaultPurchaseFilters.supplierFilter,
+            appliedFilters.statusFilter !== defaultPurchaseFilters.statusFilter,
+            appliedFilters.periodFilter !== defaultPurchaseFilters.periodFilter,
+            appliedFilters.sortKey !== defaultPurchaseFilters.sortKey,
+            appliedFilters.minValue !== "" || appliedFilters.maxValue !== "",
+            appliedFilters.customStart !== "" || appliedFilters.customEnd !== "",
+        ].filter(Boolean).length;
+    }, [appliedFilters]);
+
+    const draftActiveFilterCount = useMemo(() => {
+        return [
+            draftFilters.search.trim() !== "",
+            draftFilters.supplierFilter !== defaultPurchaseFilters.supplierFilter,
+            draftFilters.statusFilter !== defaultPurchaseFilters.statusFilter,
+            draftFilters.periodFilter !== defaultPurchaseFilters.periodFilter,
+            draftFilters.sortKey !== defaultPurchaseFilters.sortKey,
+            draftFilters.minValue !== "" || draftFilters.maxValue !== "",
+            draftFilters.customStart !== "" || draftFilters.customEnd !== "",
+        ].filter(Boolean).length;
+    }, [draftFilters]);
+
+    const hasActiveFilters = activeFilterCount > 0;
 
     function handleDeleteClick(purchase: PurchaseResponse) {
         setDeleteError(null);
@@ -498,111 +537,78 @@ export function PurchaseList() {
                 </div>
             </div>
 
-            <div className="supplier-filter-panel stock-filter-panel purchase-filter-panel">
-                <div className="supplier-filter-panel__search purchase-filter-panel__search">
-                    <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar compra, fornecedor, CNPJ, produto ou responsavel..." />
-                    <div className="client-search-hints" aria-label="Campos pesquisaveis">
-                        <Search size={14} aria-hidden="true" />
-                        <span>Busca em tempo real por numero, fornecedor, CNPJ, produto e responsavel</span>
-                    </div>
-                </div>
-                <div className="supplier-filter-panel__actions">
-                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Filtros
-                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
-                    </button>
-                </div>
-            </div>
-
-            {filtersOpen && (
-                <div className="stock-filter-grid purchase-filter-grid">
-                    <label className="employee-filter-field">
-                        Fornecedor
-                        <select value={supplierFilter} onChange={(event) => setSupplierFilter(event.target.value)}>
-                            <option value="all">Todos</option>
-                            {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.tradeName || supplier.name}</option>)}
-                        </select>
-                    </label>
-                    <label className="employee-filter-field">
-                        Status
-                        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as PurchaseStatusFilter)}>
-                            <option value="all">Todos</option>
-                            <option value="PENDENTE">Pendente</option>
-                            <option value="RECEBIDA">Recebida</option>
-                            <option value="CANCELADA">Cancelada</option>
-                        </select>
-                    </label>
-                    <label className="employee-filter-field">
-                        Periodo
-                        <select value={periodFilter} onChange={(event) => setPeriodFilter(event.target.value as PurchasePeriodFilter)}>
-                            <option value="all">Todos</option>
-                            <option value="today">Hoje</option>
-                            <option value="week">Semana</option>
-                            <option value="month">Mes</option>
-                            <option value="custom">Personalizado</option>
-                        </select>
-                    </label>
-                    <label className="employee-filter-field">
-                        Ordenacao
-                        <select value={sortKey} onChange={(event) => setSortKey(event.target.value as PurchaseSortKey)}>
-                            <option value="recent">Mais recente</option>
-                            <option value="oldest">Mais antiga</option>
-                            <option value="highest">Maior valor</option>
-                            <option value="lowest">Menor valor</option>
-                        </select>
-                    </label>
-                    <label className="employee-filter-field">
-                        Valor minimo
-                        <input type="number" min="0" step="0.01" value={minValue} onChange={(event) => setMinValue(event.target.value)} placeholder="R$ 0,00" />
-                    </label>
-                    <label className="employee-filter-field">
-                        Valor maximo
-                        <input type="number" min="0" step="0.01" value={maxValue} onChange={(event) => setMaxValue(event.target.value)} placeholder="Sem limite" />
-                    </label>
-                    {periodFilter === "custom" && (
-                        <>
-                            <label className="employee-filter-field">
-                                Inicio
-                                <input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} />
-                            </label>
-                            <label className="employee-filter-field">
-                                Fim
-                                <input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} />
-                            </label>
-                        </>
-                    )}
-                    <label className="purchase-switch-field">
-                        <span>Mostrar registros desativados</span>
-                        <button type="button" className={`client-switch${showInactive ? " active" : ""}`} role="switch" aria-checked={showInactive} onClick={() => setShowInactive((current) => !current)}>
-                            <span />
-                        </button>
-                    </label>
-                    <div className="stock-filter-actions purchase-filter-actions">
-                        <button type="button" className="secondary-button" onClick={resetFilters}>
-                            <FileText size={18} aria-hidden="true" />
-                            Limpar filtros
-                        </button>
-                        <button type="button" className="secondary-button" onClick={() => void loadData()} disabled={metadataLoading}>
-                            <RefreshCw size={18} aria-hidden="true" />
-                            Atualizar
-                        </button>
-                    </div>
-                </div>
-            )}
+            <FilterPanel
+                search={draftFilters.search}
+                searchPlaceholder="Pesquisar por numero, fornecedor ou responsavel..."
+                filtersOpen={filtersOpen}
+                activeFilterCount={activeFilterCount}
+                isApplying={isApplyingFilters}
+                hasActiveFilters={hasActiveFilters}
+                onSearchChange={(search) => setDraftFilters((current) => ({ ...current, search }))}
+                onSearchSubmit={applyFilters}
+                onToggleFilters={() => setFiltersOpen((current) => !current)}
+                onClearFilters={resetFilters}
+                onApplyFilters={applyFilters}
+                chips={draftActiveFilterCount > 0 && (
+                    <ActiveFilterChips>
+                        {draftFilters.statusFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, statusFilter: "all" }))}>{draftFilters.statusFilter} <XCircle size={13} aria-hidden="true" /></button>}
+                        {draftFilters.supplierFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, supplierFilter: "all" }))}>Fornecedor <XCircle size={13} aria-hidden="true" /></button>}
+                        {draftFilters.periodFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, periodFilter: "all", customStart: "", customEnd: "" }))}>Periodo <XCircle size={13} aria-hidden="true" /></button>}
+                    </ActiveFilterChips>
+                )}
+            >
+                <FilterSelect label="Ordenacao" value={draftFilters.sortKey} onChange={(sortKey) => setDraftFilters((current) => ({ ...current, sortKey }))} options={[
+                    { value: "recent", label: "Mais recentes" },
+                    { value: "oldest", label: "Mais antigas" },
+                    { value: "highest", label: "Maior valor" },
+                    { value: "lowest", label: "Menor valor" },
+                ]} />
+                <FilterSegmentedControl label="Status" value={draftFilters.statusFilter} onChange={(statusFilter) => setDraftFilters((current) => ({ ...current, statusFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    { value: "PENDENTE", label: "Pendentes" },
+                    { value: "RECEBIDA", label: "Recebidas" },
+                    { value: "CANCELADA", label: "Canceladas" },
+                ]} />
+                <FilterSelect label="Fornecedor" value={draftFilters.supplierFilter} onChange={(supplierFilter) => setDraftFilters((current) => ({ ...current, supplierFilter }))} options={[
+                    { value: "all", label: "Todos" },
+                    ...suppliers.map((supplier) => ({ value: String(supplier.id), label: supplier.tradeName || supplier.name })),
+                ]} />
+                <FilterSelect label="Periodo" value={draftFilters.periodFilter} onChange={(periodFilter) => setDraftFilters((current) => ({ ...current, periodFilter }))} options={[
+                    { value: "all", label: "Todos" },
+                    { value: "today", label: "Hoje" },
+                    { value: "week", label: "Semana" },
+                    { value: "month", label: "Mes" },
+                    { value: "custom", label: "Personalizado" },
+                ]} />
+                <section className="client-filter-group garage-filter-field">
+                    <h3>Valor minimo</h3>
+                    <div className="client-input-wrap"><input type="number" min="0" step="0.01" value={draftFilters.minValue} onChange={(event) => setDraftFilters((current) => ({ ...current, minValue: event.target.value }))} placeholder="R$ 0,00" /></div>
+                </section>
+                <section className="client-filter-group garage-filter-field">
+                    <h3>Valor maximo</h3>
+                    <div className="client-input-wrap"><input type="number" min="0" step="0.01" value={draftFilters.maxValue} onChange={(event) => setDraftFilters((current) => ({ ...current, maxValue: event.target.value }))} placeholder="Sem limite" /></div>
+                </section>
+                {draftFilters.periodFilter === "custom" && (
+                    <>
+                        <section className="client-filter-group garage-filter-field"><h3>Inicio</h3><div className="client-input-wrap"><input type="date" value={draftFilters.customStart} onChange={(event) => setDraftFilters((current) => ({ ...current, customStart: event.target.value }))} /></div></section>
+                        <section className="client-filter-group garage-filter-field"><h3>Fim</h3><div className="client-input-wrap"><input type="date" value={draftFilters.customEnd} onChange={(event) => setDraftFilters((current) => ({ ...current, customEnd: event.target.value }))} /></div></section>
+                    </>
+                )}
+            </FilterPanel>
 
             {error && <div className="form-error">{error}</div>}
             {deleteError && !purchaseToDelete && <div className="form-error">{deleteError}</div>}
 
-            {loading ? <LoadingState /> : filteredRows.length === 0 ? (
+            {loading || metadataLoading ? <LoadingState /> : filteredRows.length === 0 ? (
                 <EmptyState
-                    message="Nenhuma compra encontrada."
-                    description="Ajuste os filtros ou registre uma nova compra para continuar."
-                    actionLabel={canEditPurchase ? "Nova Compra" : undefined}
-                    onAction={canEditPurchase ? () => navigate("/purchases/new") : undefined}
+                    message={hasActiveFilters ? "Nenhuma compra encontrada com os filtros atuais." : "Nenhuma compra encontrada."}
+                    description={hasActiveFilters ? "Ajuste os campos ou limpe os filtros para ampliar a busca." : "Registre uma nova compra para continuar."}
+                    actionLabel={hasActiveFilters ? "Limpar filtros" : canEditPurchase ? "Nova Compra" : undefined}
+                    onAction={hasActiveFilters ? resetFilters : canEditPurchase ? () => navigate("/purchases/new") : undefined}
                 />
             ) : (
                 <>
+                    <FilterResultSummary total={filteredRows.length} noun="compras" hasActiveFilters={hasActiveFilters} />
                     <div className="table-wrap purchase-table-wrap">
                         <table className="data-table purchase-table">
                             <thead>
@@ -734,8 +740,7 @@ function PurchasePagination({ pageStart, pageEnd, total, pageSize, setPageSize, 
         <div className="supplier-pagination purchase-pagination">
             <span>Mostrando {pageStart}-{pageEnd} de {total.toLocaleString("pt-BR")} compras</span>
             <label>
-                Registros por pagina
-                <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+                <select aria-label="Registros por pagina" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
                     {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
                 </select>
             </label>

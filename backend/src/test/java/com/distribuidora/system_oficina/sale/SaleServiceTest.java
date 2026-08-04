@@ -34,10 +34,7 @@ import com.distribuidora.system_oficina.sale.dto.SaleRequestDTO;
 import com.distribuidora.system_oficina.sale.dto.SaleResponseDTO;
 import com.distribuidora.system_oficina.sale.entity.Sale;
 import com.distribuidora.system_oficina.sale.entity.SaleItem;
-import com.distribuidora.system_oficina.sale.entity.SalePayments;
 import com.distribuidora.system_oficina.sale.entity.SaleStatus;
-import com.distribuidora.system_oficina.sale.repository.SaleItemRepository;
-import com.distribuidora.system_oficina.sale.repository.SalePaymentsRepository;
 import com.distribuidora.system_oficina.sale.repository.SaleRepository;
 import com.distribuidora.system_oficina.sale.service.SaleService;
 import com.distribuidora.system_oficina.stock.service.StockService;
@@ -47,12 +44,6 @@ class SaleServiceTest {
 
     @Mock
     private SaleRepository saleRepository;
-
-    @Mock
-    private SaleItemRepository saleItemRepository;
-
-    @Mock
-    private SalePaymentsRepository salePaymentsRepository;
 
     @Mock
     private ClientRepository clientRepository;
@@ -116,8 +107,9 @@ class SaleServiceTest {
         assertThat(result).isNotNull();
         assertThat(result.getStatus()).isEqualTo(SaleStatus.PENDENTE);
         assertThat(result.getTotal()).isEqualByComparingTo("18.00");
-        verify(saleItemRepository).save(any(SaleItem.class));
-        verify(salePaymentsRepository).save(any(SalePayments.class));
+        assertThat(result.getItems()).hasSize(1);
+        assertThat(result.getPayments()).hasSize(1);
+        verify(saleRepository).save(any(Sale.class));
     }
 
     @Test
@@ -181,8 +173,6 @@ class SaleServiceTest {
         when(employeeRepository.findById(2)).thenReturn(Optional.of(employee));
         when(productRepository.findById(10)).thenReturn(Optional.of(product));
         when(paymentMethodRepository.findById(3)).thenReturn(Optional.of(paymentMethod));
-        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
         SaleRequestDTO request = SaleRequestDTO.builder()
                 .clientId(1)
                 .employeeId(2)
@@ -232,8 +222,6 @@ class SaleServiceTest {
         when(clientRepository.findById(1)).thenReturn(Optional.of(client));
         when(employeeRepository.findById(2)).thenReturn(Optional.of(employee));
         when(productRepository.findById(10)).thenReturn(Optional.empty());
-        when(saleRepository.save(any(Sale.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
         SaleRequestDTO request = SaleRequestDTO.builder()
                 .clientId(1)
                 .employeeId(2)

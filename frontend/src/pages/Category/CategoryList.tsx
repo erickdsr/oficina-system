@@ -1,10 +1,10 @@
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, CircleCheck, Eye, Layers3, ListFilter, PackageCheck, PackageX, Pencil, Plus, Trash2, X } from "lucide-react";
+import { CircleCheck, Eye, Layers3, PackageCheck, PackageX, Pencil, Plus, Trash2, X } from "lucide-react";
 import ConfirmDeleteModal from "../../components/common/ConfirmDeleteModal";
 import EmptyState from "../../components/common/EmptyState";
+import { ActiveFilterChips, FilterPanel, FilterResultSummary, FilterSegmentedControl, FilterSelect } from "../../components/common/FilterPanel";
 import LoadingState from "../../components/common/LoadingState";
 import PageHeader from "../../components/common/PageHeader";
-import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import useCategory from "../../hooks/useCategory";
@@ -21,6 +21,24 @@ import CategoryForm from "./CategoryForm";
 
 type CategorySortKey = "name" | "products" | "status";
 type SortDirection = "asc" | "desc";
+type CategoryStatusFilter = "all" | "active" | "inactive";
+type CategoryProductPresenceFilter = "all" | "with" | "without";
+
+interface CategoryFilters {
+    search: string;
+    statusFilter: CategoryStatusFilter;
+    productPresenceFilter: CategoryProductPresenceFilter;
+    sortKey: CategorySortKey;
+    sortDirection: SortDirection;
+}
+
+const defaultCategoryFilters: CategoryFilters = {
+    search: "",
+    statusFilter: "all",
+    productPresenceFilter: "all",
+    sortKey: "name",
+    sortDirection: "asc",
+};
 
 interface CategoryTableRowProps {
     category: Category;
@@ -145,9 +163,10 @@ export function CategoryList() {
     const { user } = useAuth();
     const { categories, loading, error, setError, loadCategories, createCategory, updateCategory } = useCategory();
     const [products, setProducts] = useState<ProductResponse[]>([]);
-    const [search, setSearch] = useState("");
-    const [showInactive, setShowInactive] = useState(false);
+    const [appliedFilters, setAppliedFilters] = useState<CategoryFilters>(defaultCategoryFilters);
+    const [draftFilters, setDraftFilters] = useState<CategoryFilters>(defaultCategoryFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
+    const [isApplyingFilters, setIsApplyingFilters] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
     const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -158,8 +177,8 @@ export function CategoryList() {
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [deletionReport, setDeletionReport] = useState<DeletionReport | null>(null);
     const [showForm, setShowForm] = useState(false);
-    const [sortKey, setSortKey] = useState<CategorySortKey>("name");
-    const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+    const sortKey = appliedFilters.sortKey;
+    const sortDirection = appliedFilters.sortDirection;
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(20);
     const [showAllDrawerProducts, setShowAllDrawerProducts] = useState(false);
@@ -168,8 +187,8 @@ export function CategoryList() {
     const canDeleteCategory = canDelete(user?.role);
 
     useEffect(() => {
-        void loadCategories(showInactive).catch(() => undefined);
-    }, [loadCategories, showInactive]);
+        void loadCategories(appliedFilters.statusFilter !== "active").catch(() => undefined);
+    }, [appliedFilters.statusFilter, loadCategories]);
 
     useEffect(() => {
         let active = true;
@@ -192,10 +211,10 @@ export function CategoryList() {
     const refreshCategoryData = useCallback(async () => {
         const [productData] = await Promise.all([
             productService.list(true),
-            loadCategories(showInactive),
+            loadCategories(appliedFilters.statusFilter !== "active"),
         ]);
         setProducts(productData);
-    }, [loadCategories, showInactive]);
+    }, [appliedFilters.statusFilter, loadCategories]);
 
     const productsByCategory = useMemo(() => {
         return products.reduce<Record<number, ProductResponse[]>>((accumulator, product) => {
@@ -207,17 +226,38 @@ export function CategoryList() {
     }, [products]);
 
     const filteredCategories = useMemo(() => {
-        const term = normalizeSearch(search);
+        const term = normalizeSearch(appliedFilters.search);
 
         return [...categories]
             .filter((category) => {
-                if (!term) {
-                    return true;
+                if (term) {
+                    const matchesSearch = [category.name, category.description]
+                        .map(normalizeSearch)
+                        .some((value) => value.includes(term));
+
+                    if (!matchesSearch) {
+                        return false;
+                    }
                 }
 
-                return [category.name, category.description]
-                    .map(normalizeSearch)
-                    .some((value) => value.includes(term));
+                if (appliedFilters.statusFilter === "active" && !category.status) {
+                    return false;
+                }
+
+                if (appliedFilters.statusFilter === "inactive" && category.status) {
+                    return false;
+                }
+
+                const productCount = productsByCategory[category.id]?.length ?? 0;
+                if (appliedFilters.productPresenceFilter === "with" && productCount === 0) {
+                    return false;
+                }
+
+                if (appliedFilters.productPresenceFilter === "without" && productCount > 0) {
+                    return false;
+                }
+
+                return true;
             })
             .sort((left, right) => {
                 let comparison: number;
@@ -232,11 +272,11 @@ export function CategoryList() {
 
                 return sortDirection === "asc" ? comparison : -comparison;
             });
-    }, [categories, productsByCategory, search, sortDirection, sortKey]);
+    }, [appliedFilters.productPresenceFilter, appliedFilters.search, appliedFilters.statusFilter, categories, productsByCategory, sortDirection, sortKey]);
 
     useEffect(() => {
         setPage(1);
-    }, [pageSize, search, showInactive, sortDirection, sortKey]);
+    }, [appliedFilters, pageSize]);
 
     const categoryStats = useMemo(() => {
         const activeCount = categories.filter((category) => category.status).length;
@@ -366,12 +406,14 @@ export function CategoryList() {
 
     function handleSort(nextSortKey: CategorySortKey) {
         if (sortKey === nextSortKey) {
-            setSortDirection((current) => (current === "asc" ? "desc" : "asc"));
+            const nextDirection = sortDirection === "asc" ? "desc" : "asc";
+            setAppliedFilters((current) => ({ ...current, sortDirection: nextDirection }));
+            setDraftFilters((current) => ({ ...current, sortDirection: nextDirection }));
             return;
         }
 
-        setSortKey(nextSortKey);
-        setSortDirection("asc");
+        setAppliedFilters((current) => ({ ...current, sortKey: nextSortKey, sortDirection: "asc" }));
+        setDraftFilters((current) => ({ ...current, sortKey: nextSortKey, sortDirection: "asc" }));
     }
 
     function sortIndicator(targetSortKey: CategorySortKey) {
@@ -383,11 +425,37 @@ export function CategoryList() {
     }
 
     function resetFilters() {
-        setSearch("");
-        setShowInactive(false);
-        setSortKey("name");
-        setSortDirection("asc");
+        setDraftFilters(defaultCategoryFilters);
+        setAppliedFilters(defaultCategoryFilters);
+        setIsApplyingFilters(false);
     }
+
+    function applyFilters() {
+        setIsApplyingFilters(true);
+        setAppliedFilters(draftFilters);
+        setPage(1);
+        window.setTimeout(() => setIsApplyingFilters(false), 180);
+    }
+
+    const activeFilterCount = useMemo(() => {
+        return [
+            appliedFilters.search.trim() !== "",
+            appliedFilters.statusFilter !== defaultCategoryFilters.statusFilter,
+            appliedFilters.productPresenceFilter !== defaultCategoryFilters.productPresenceFilter,
+            appliedFilters.sortKey !== defaultCategoryFilters.sortKey || appliedFilters.sortDirection !== defaultCategoryFilters.sortDirection,
+        ].filter(Boolean).length;
+    }, [appliedFilters]);
+
+    const draftActiveFilterCount = useMemo(() => {
+        return [
+            draftFilters.search.trim() !== "",
+            draftFilters.statusFilter !== defaultCategoryFilters.statusFilter,
+            draftFilters.productPresenceFilter !== defaultCategoryFilters.productPresenceFilter,
+            draftFilters.sortKey !== defaultCategoryFilters.sortKey || draftFilters.sortDirection !== defaultCategoryFilters.sortDirection,
+        ].filter(Boolean).length;
+    }, [draftFilters]);
+
+    const hasActiveFilters = activeFilterCount > 0;
 
     return (
         <section className="page-section category-page">
@@ -430,39 +498,62 @@ export function CategoryList() {
                     <small>{categoryStats.disabledCount === 0 ? "Todos os grupos estao disponiveis." : "Fora de uso no catalogo."}</small>
                 </div>
             </div>
-            <div className="supplier-filter-panel category-filter-panel">
-                <div className="supplier-filter-panel__search category-filter-panel__search">
-                    <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar categoria..." />
-                    <span>Mostrando {filteredCategories.length} categorias</span>
-                </div>
-                <div className="supplier-filter-panel__actions">
-                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Filtros
-                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
-                    </button>
-                    {canEditCategory && (
+            <FilterPanel
+                search={draftFilters.search}
+                searchPlaceholder="Pesquisar por nome ou descricao..."
+                filtersOpen={filtersOpen}
+                activeFilterCount={activeFilterCount}
+                isApplying={isApplyingFilters}
+                hasActiveFilters={hasActiveFilters}
+                onSearchChange={(search) => setDraftFilters((current) => ({ ...current, search }))}
+                onSearchSubmit={applyFilters}
+                onToggleFilters={() => setFiltersOpen((current) => !current)}
+                onClearFilters={resetFilters}
+                onApplyFilters={applyFilters}
+                chips={draftActiveFilterCount > 0 && (
+                    <ActiveFilterChips>
+                        {draftFilters.statusFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, statusFilter: "all" }))}>{draftFilters.statusFilter === "active" ? "Ativas" : "Inativas"} <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.productPresenceFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, productPresenceFilter: "all" }))}>{draftFilters.productPresenceFilter === "with" ? "Com produtos" : "Sem produtos"} <X size={13} aria-hidden="true" /></button>}
+                    </ActiveFilterChips>
+                )}
+                primaryAction={canEditCategory && (
                         <button type="button" className="primary-button" onClick={() => setShowForm(true)}>
                             <Plus size={20} aria-hidden="true" />
                             Nova categoria
                         </button>
-                    )}
-                </div>
-            </div>
-            {filtersOpen && (
-                <div className="product-filter-grid category-filter-grid">
-                    <label className="client-switch-field">
-                        Mostrar registros desativados
-                        <button type="button" className={`client-switch${showInactive ? " active" : ""}`} aria-pressed={showInactive} onClick={() => setShowInactive((current) => !current)}>
-                            <span />
-                        </button>
-                    </label>
-                    <button type="button" className="secondary-button product-filter-reset" onClick={resetFilters}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Limpar filtros
-                    </button>
-                </div>
-            )}
+                )}
+            >
+                <FilterSelect
+                    label="Ordenacao"
+                    value={draftFilters.sortKey}
+                    onChange={(sortKey) => setDraftFilters((current) => ({ ...current, sortKey }))}
+                    options={[
+                        { value: "name", label: "Nome" },
+                        { value: "products", label: "Quantidade de produtos" },
+                        { value: "status", label: "Status" },
+                    ]}
+                />
+                <FilterSegmentedControl
+                    label="Status"
+                    value={draftFilters.statusFilter}
+                    onChange={(statusFilter) => setDraftFilters((current) => ({ ...current, statusFilter }))}
+                    options={[
+                        { value: "all", label: "Todas" },
+                        { value: "active", label: "Ativas" },
+                        { value: "inactive", label: "Inativas" },
+                    ]}
+                />
+                <FilterSegmentedControl
+                    label="Produtos"
+                    value={draftFilters.productPresenceFilter}
+                    onChange={(productPresenceFilter) => setDraftFilters((current) => ({ ...current, productPresenceFilter }))}
+                    options={[
+                        { value: "all", label: "Todas" },
+                        { value: "with", label: "Com produtos" },
+                        { value: "without", label: "Sem produtos" },
+                    ]}
+                />
+            </FilterPanel>
             {showForm && (
                 <CategoryForm
                     category={editingCategory}
@@ -480,16 +571,18 @@ export function CategoryList() {
                 <LoadingState />
             ) : filteredCategories.length === 0 ? (
                 <EmptyState
-                    message={search ? "Nenhuma categoria encontrada." : "Nenhuma categoria cadastrada."}
+                    message={hasActiveFilters ? "Nenhuma categoria encontrada com os filtros atuais." : "Nenhuma categoria cadastrada."}
                     description={
-                        search
+                        hasActiveFilters
                             ? "Ajuste a pesquisa ou os filtros para localizar uma categoria."
                             : 'Clique em "Nova Categoria" para comecar.'
                     }
-                    actionLabel={canEditCategory ? "Nova Categoria" : undefined}
-                    onAction={canEditCategory ? () => setShowForm(true) : undefined}
+                    actionLabel={hasActiveFilters ? "Limpar filtros" : canEditCategory ? "Nova Categoria" : undefined}
+                    onAction={hasActiveFilters ? resetFilters : canEditCategory ? () => setShowForm(true) : undefined}
                 />
             ) : (
+                <>
+                <FilterResultSummary total={filteredCategories.length} noun="categorias" hasActiveFilters={hasActiveFilters} />
                 <div className="table-wrap category-table-wrap">
                     <table className="data-table category-table">
                         <thead>
@@ -520,8 +613,7 @@ export function CategoryList() {
                     <div className="supplier-pagination category-pagination">
                         <span>Mostrando {pageStart}-{pageEnd} de {filteredCategories.length} categorias</span>
                         <label>
-                            Registros por pagina
-                            <select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
+                            <select aria-label="Registros por pagina" value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}>
                                 {[20, 50, 100].map((size) => (
                                     <option key={size} value={size}>{size}</option>
                                 ))}
@@ -547,6 +639,7 @@ export function CategoryList() {
                         </div>
                     </div>
                 </div>
+                </>
             )}
             <ConfirmDeleteModal
                 isOpen={categoryToDelete !== null}

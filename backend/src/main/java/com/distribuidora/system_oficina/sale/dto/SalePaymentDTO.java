@@ -6,6 +6,7 @@ import com.distribuidora.system_oficina.sale.entity.SalePayments;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,10 +19,12 @@ import lombok.NoArgsConstructor;
 public class SalePaymentDTO {
     
     @NotNull
+    @Positive
     @Schema(description = "metodo de payment", example = "1")
     private Integer paymentMethodId;
     
     @NotNull
+    @Positive
     @Schema(description = "valor pago com esse metodo", example = "19.90")
     private BigDecimal amount;
 

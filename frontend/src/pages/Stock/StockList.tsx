@@ -3,13 +3,11 @@ import { useNavigate } from "react-router-dom";
 import {
     AlertTriangle,
     BarChart3,
-    ChevronDown,
     ClipboardList,
     Coins,
     Download,
     Eye,
     History,
-    ListFilter,
     Package,
     Pencil,
     Plus,
@@ -20,8 +18,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import EmptyState from "../../components/common/EmptyState";
+import { ActiveFilterChips, FilterPanel, FilterResultSummary, FilterSegmentedControl, FilterSelect } from "../../components/common/FilterPanel";
 import PageHeader from "../../components/common/PageHeader";
-import SearchInput from "../../components/common/SearchInput";
 import StatusBadge from "../../components/common/StatusBadge";
 import { useAuth } from "../../context/auth.context";
 import { getApiErrorMessage } from "../../services/api";
@@ -38,6 +36,24 @@ import { normalizeSearch } from "../../utils/text";
 type StockStatusFilter = "all" | "normal" | "low" | "empty";
 type StockSortKey = "name" | "quantity" | "updatedAt" | "stockDesc" | "stockAsc";
 type AdjustmentMode = "create" | "edit" | "adjust";
+
+interface StockFilters {
+    search: string;
+    categoryFilter: string;
+    supplierFilter: string;
+    statusFilter: StockStatusFilter;
+    locationFilter: string;
+    sortKey: StockSortKey;
+}
+
+const defaultStockFilters: StockFilters = {
+    search: "",
+    categoryFilter: "all",
+    supplierFilter: "all",
+    statusFilter: "all",
+    locationFilter: "all",
+    sortKey: "name",
+};
 
 interface StockRow {
     stock: StockResponse;
@@ -234,13 +250,10 @@ export function StockList() {
     const { stocks, movements, loading, error, setError, loadStock, loadMovements, createStock, updateStock } = useStock();
     const [products, setProducts] = useState<ProductResponse[]>([]);
     const [sales, setSales] = useState<SaleResponse[]>([]);
-    const [search, setSearch] = useState("");
+    const [appliedFilters, setAppliedFilters] = useState<StockFilters>(defaultStockFilters);
+    const [draftFilters, setDraftFilters] = useState<StockFilters>(defaultStockFilters);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [categoryFilter, setCategoryFilter] = useState("all");
-    const [supplierFilter, setSupplierFilter] = useState("all");
-    const [statusFilter, setStatusFilter] = useState<StockStatusFilter>("all");
-    const [locationFilter, setLocationFilter] = useState("all");
-    const [sortKey, setSortKey] = useState<StockSortKey>("name");
+    const [isApplyingFilters, setIsApplyingFilters] = useState(false);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [selectedStockId, setSelectedStockId] = useState<number | null>(null);
@@ -322,7 +335,7 @@ export function StockList() {
     }, [products.length, stockRows]);
 
     const filteredRows = useMemo(() => {
-        const term = normalizeSearch(search);
+        const term = normalizeSearch(appliedFilters.search);
         return [...stockRows]
             .filter((row) => {
                 const product = row.product;
@@ -339,40 +352,40 @@ export function StockList() {
                 if (term && !searchable.some((value) => value.includes(term))) {
                     return false;
                 }
-                if (categoryFilter !== "all" && product?.categoryName !== categoryFilter) {
+                if (appliedFilters.categoryFilter !== "all" && product?.categoryName !== appliedFilters.categoryFilter) {
                     return false;
                 }
-                if (supplierFilter !== "all" && product?.supplierName !== supplierFilter) {
+                if (appliedFilters.supplierFilter !== "all" && product?.supplierName !== appliedFilters.supplierFilter) {
                     return false;
                 }
-                if (statusFilter !== "all" && row.status !== statusFilter) {
+                if (appliedFilters.statusFilter !== "all" && row.status !== appliedFilters.statusFilter) {
                     return false;
                 }
-                if (locationFilter !== "all" && row.stock.location !== locationFilter) {
+                if (appliedFilters.locationFilter !== "all" && row.stock.location !== appliedFilters.locationFilter) {
                     return false;
                 }
                 return true;
             })
             .sort((left, right) => {
-                if (sortKey === "quantity") {
+                if (appliedFilters.sortKey === "quantity") {
                     return left.stock.quantity - right.stock.quantity;
                 }
-                if (sortKey === "updatedAt") {
+                if (appliedFilters.sortKey === "updatedAt") {
                     return new Date(right.stock.updatedAt).getTime() - new Date(left.stock.updatedAt).getTime();
                 }
-                if (sortKey === "stockDesc") {
+                if (appliedFilters.sortKey === "stockDesc") {
                     return right.stock.quantity - left.stock.quantity;
                 }
-                if (sortKey === "stockAsc") {
+                if (appliedFilters.sortKey === "stockAsc") {
                     return left.stock.quantity - right.stock.quantity;
                 }
                 return (left.product?.name ?? "").localeCompare(right.product?.name ?? "", "pt-BR", { sensitivity: "base" });
             });
-    }, [categoryFilter, locationFilter, search, sortKey, statusFilter, stockRows, supplierFilter]);
+    }, [appliedFilters.categoryFilter, appliedFilters.locationFilter, appliedFilters.search, appliedFilters.sortKey, appliedFilters.statusFilter, appliedFilters.supplierFilter, stockRows]);
 
     useEffect(() => {
         setPage(1);
-    }, [categoryFilter, locationFilter, pageSize, search, sortKey, statusFilter, supplierFilter]);
+    }, [appliedFilters, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
     const currentPage = Math.min(page, totalPages);
@@ -411,13 +424,41 @@ export function StockList() {
     }, [adjustingRow?.stock.quantity, adjustmentForm.quantity, adjustmentForm.type, adjustmentMode]);
 
     function resetFilters() {
-        setSearch("");
-        setCategoryFilter("all");
-        setSupplierFilter("all");
-        setStatusFilter("all");
-        setLocationFilter("all");
-        setSortKey("name");
+        setDraftFilters(defaultStockFilters);
+        setAppliedFilters(defaultStockFilters);
+        setIsApplyingFilters(false);
     }
+
+    function applyFilters() {
+        setIsApplyingFilters(true);
+        setAppliedFilters(draftFilters);
+        setPage(1);
+        window.setTimeout(() => setIsApplyingFilters(false), 180);
+    }
+
+    const activeFilterCount = useMemo(() => {
+        return [
+            appliedFilters.search.trim() !== "",
+            appliedFilters.categoryFilter !== defaultStockFilters.categoryFilter,
+            appliedFilters.supplierFilter !== defaultStockFilters.supplierFilter,
+            appliedFilters.statusFilter !== defaultStockFilters.statusFilter,
+            appliedFilters.locationFilter !== defaultStockFilters.locationFilter,
+            appliedFilters.sortKey !== defaultStockFilters.sortKey,
+        ].filter(Boolean).length;
+    }, [appliedFilters]);
+
+    const draftActiveFilterCount = useMemo(() => {
+        return [
+            draftFilters.search.trim() !== "",
+            draftFilters.categoryFilter !== defaultStockFilters.categoryFilter,
+            draftFilters.supplierFilter !== defaultStockFilters.supplierFilter,
+            draftFilters.statusFilter !== defaultStockFilters.statusFilter,
+            draftFilters.locationFilter !== defaultStockFilters.locationFilter,
+            draftFilters.sortKey !== defaultStockFilters.sortKey,
+        ].filter(Boolean).length;
+    }, [draftFilters]);
+
+    const hasActiveFilters = activeFilterCount > 0;
 
     function openCreateModal() {
         setAdjustmentMode("create");
@@ -614,70 +655,57 @@ export function StockList() {
                 </div>
             </div>
 
-            <div className="supplier-filter-panel stock-filter-panel">
-                <div className="supplier-filter-panel__search stock-filter-panel__search">
-                    <SearchInput value={search} onChange={setSearch} placeholder="Pesquisar produto, codigo ou fabricante..." />
-                    <span>Exibindo {pageStart}-{pageEnd} de {filteredRows.length.toLocaleString("pt-BR")} registros</span>
-                </div>
-                <div className="supplier-filter-panel__actions">
-                    <button type="button" className="secondary-button" onClick={() => setFiltersOpen((current) => !current)} aria-expanded={filtersOpen}>
-                        <ListFilter size={18} aria-hidden="true" />
-                        Filtros
-                        <ChevronDown className={filtersOpen ? "is-open" : undefined} size={16} aria-hidden="true" />
-                    </button>
-                </div>
-            </div>
-
-            {filtersOpen && (
-                <div className="stock-filter-grid">
-                    <label className="employee-filter-field">
-                        Categoria
-                        <select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)}>
-                            <option value="all">Todas</option>
-                            {categories.map((category) => <option key={category} value={category}>{category}</option>)}
-                        </select>
-                    </label>
-                    <label className="employee-filter-field">
-                        Fornecedor
-                        <select value={supplierFilter} onChange={(event) => setSupplierFilter(event.target.value)}>
-                            <option value="all">Todos</option>
-                            {suppliers.map((supplier) => <option key={supplier} value={supplier}>{supplier}</option>)}
-                        </select>
-                    </label>
-                    <label className="employee-filter-field">
-                        Status
-                        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StockStatusFilter)}>
-                            <option value="all">Todos</option>
-                            <option value="normal">Normal</option>
-                            <option value="low">Baixo Estoque</option>
-                            <option value="empty">Sem Estoque</option>
-                        </select>
-                    </label>
-                    <label className="employee-filter-field">
-                        Localizacao
-                        <select value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}>
-                            <option value="all">Todos</option>
-                            <option value="Prateleira A">Prateleira A</option>
-                            <option value="Prateleira B">Prateleira B</option>
-                            <option value="Deposito">Deposito</option>
-                            {locations.filter((location) => !["Prateleira A", "Prateleira B", "Deposito"].includes(location)).map((location) => <option key={location} value={location}>{location}</option>)}
-                        </select>
-                    </label>
-                    <label className="employee-filter-field">
-                        Ordenacao
-                        <select value={sortKey} onChange={(event) => setSortKey(event.target.value as StockSortKey)}>
-                            <option value="name">Nome</option>
-                            <option value="quantity">Quantidade</option>
-                            <option value="updatedAt">Atualizacao</option>
-                            <option value="stockDesc">Maior estoque</option>
-                            <option value="stockAsc">Menor estoque</option>
-                        </select>
-                    </label>
+            <FilterPanel
+                search={draftFilters.search}
+                searchPlaceholder="Pesquisar por produto, codigo ou numero da peca..."
+                filtersOpen={filtersOpen}
+                activeFilterCount={activeFilterCount}
+                isApplying={isApplyingFilters}
+                hasActiveFilters={hasActiveFilters}
+                onSearchChange={(search) => setDraftFilters((current) => ({ ...current, search }))}
+                onSearchSubmit={applyFilters}
+                onToggleFilters={() => setFiltersOpen((current) => !current)}
+                onClearFilters={resetFilters}
+                onApplyFilters={applyFilters}
+                chips={draftActiveFilterCount > 0 && (
+                    <ActiveFilterChips>
+                        {draftFilters.statusFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, statusFilter: "all" }))}>Situacao <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.categoryFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, categoryFilter: "all" }))}>Categoria <X size={13} aria-hidden="true" /></button>}
+                        {draftFilters.supplierFilter !== "all" && <button type="button" onClick={() => setDraftFilters((current) => ({ ...current, supplierFilter: "all" }))}>Fornecedor <X size={13} aria-hidden="true" /></button>}
+                    </ActiveFilterChips>
+                )}
+            >
+                <FilterSelect label="Ordenacao" value={draftFilters.sortKey} onChange={(sortKey) => setDraftFilters((current) => ({ ...current, sortKey }))} options={[
+                    { value: "name", label: "Nome" },
+                    { value: "quantity", label: "Quantidade" },
+                    { value: "updatedAt", label: "Atualizacao" },
+                    { value: "stockDesc", label: "Maior estoque" },
+                    { value: "stockAsc", label: "Menor estoque" },
+                ]} />
+                <FilterSegmentedControl label="Situacao" value={draftFilters.statusFilter} onChange={(statusFilter) => setDraftFilters((current) => ({ ...current, statusFilter }))} options={[
+                    { value: "all", label: "Todos" },
+                    { value: "normal", label: "Normal" },
+                    { value: "low", label: "Baixo" },
+                    { value: "empty", label: "Zerado" },
+                ]} />
+                <FilterSelect label="Categoria" value={draftFilters.categoryFilter} onChange={(categoryFilter) => setDraftFilters((current) => ({ ...current, categoryFilter }))} options={[
+                    { value: "all", label: "Todas" },
+                    ...categories.map((category) => ({ value: category, label: category })),
+                ]} />
+                <FilterSelect label="Fornecedor" value={draftFilters.supplierFilter} onChange={(supplierFilter) => setDraftFilters((current) => ({ ...current, supplierFilter }))} options={[
+                    { value: "all", label: "Todos" },
+                    ...suppliers.map((supplier) => ({ value: supplier, label: supplier })),
+                ]} />
+                <FilterSelect label="Localizacao" value={draftFilters.locationFilter} onChange={(locationFilter) => setDraftFilters((current) => ({ ...current, locationFilter }))} options={[
+                    { value: "all", label: "Todos" },
+                    { value: "Prateleira A", label: "Prateleira A" },
+                    { value: "Prateleira B", label: "Prateleira B" },
+                    { value: "Deposito", label: "Deposito" },
+                    ...locations.filter((location) => !["Prateleira A", "Prateleira B", "Deposito"].includes(location)).map((location) => ({ value: location, label: location })),
+                ]} />
+                <section className="client-filter-group garage-filter-field">
+                    <h3>Acoes</h3>
                     <div className="stock-filter-actions">
-                        <button type="button" className="secondary-button" onClick={resetFilters}>
-                            <ListFilter size={18} aria-hidden="true" />
-                            Limpar filtros
-                        </button>
                         <button type="button" className="secondary-button" onClick={exportPdf}>
                             <Download size={18} aria-hidden="true" />
                             PDF
@@ -687,8 +715,8 @@ export function StockList() {
                             Atualizar
                         </button>
                     </div>
-                </div>
-            )}
+                </section>
+            </FilterPanel>
 
             {error && (
                 <div className="form-error stock-error">
@@ -701,13 +729,14 @@ export function StockList() {
                 <StockSkeleton />
             ) : filteredRows.length === 0 ? (
                 <EmptyState
-                    message="Nenhum produto encontrado."
-                    description="Ajuste a pesquisa ou os filtros para localizar um item de estoque."
-                    actionLabel={canEditStock ? "Novo Estoque" : undefined}
-                    onAction={canEditStock ? openCreateModal : undefined}
+                    message={hasActiveFilters ? "Nenhum item em estoque encontrado com os filtros atuais." : "Nenhum produto encontrado."}
+                    description={hasActiveFilters ? "Ajuste os campos ou limpe os filtros para ampliar a busca." : "Ajuste a pesquisa ou cadastre um item de estoque."}
+                    actionLabel={hasActiveFilters ? "Limpar filtros" : canEditStock ? "Novo Estoque" : undefined}
+                    onAction={hasActiveFilters ? resetFilters : canEditStock ? openCreateModal : undefined}
                 />
             ) : (
                 <>
+                    <FilterResultSummary total={filteredRows.length} noun="itens em estoque" hasActiveFilters={hasActiveFilters} />
                     <div className="table-wrap stock-table-wrap">
                         <table className="data-table stock-table">
                             <thead>
